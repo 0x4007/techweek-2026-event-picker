@@ -193,6 +193,13 @@ Google Calendar status:
 - See `GOOGLE_CALENDAR_SYNC.md` for the current import path and retry options.
 - The safe Google import file for the actual schedule is `techweek_signed_up_operational_with_travel.ics`.
 
+Approval email monitoring:
+- Check for Tech Week / Partiful approval emails periodically after `2026-05-09 18:00:00 America/New_York`.
+- Use `python3 check_techweek_acceptance_emails.py` from the repo root.
+- The helper searches locally synced Apple Mail for Partiful / Tech Week status terms after that timestamp.
+- As of the first run at about 2026-05-09 19:24 ET, it found no local matching emails and no recently modified local Mail `.emlx` files, so Gmail may not have synced those messages to Apple Mail yet.
+- If local mail sync remains stale, use Gmail directly from the phone/web and search: `after:2026/5/9 (partiful OR "Tech Week" OR NYTechWeek) (approved OR accepted OR confirmed OR "you're in" OR waitlist)`.
+
 Transit assumptions:
 - Home anchor is FiDi / Wall St station.
 - Exact venue addresses are preferred from RSVP status or cached Partiful event pages.

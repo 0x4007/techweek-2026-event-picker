@@ -42,6 +42,7 @@ Partiful browser session:
 
 - Do not shotgun additional events unless the user explicitly asks.
 - Do not submit paid checkout without user direction.
+- Periodically check for Tech Week / Partiful approval emails after `2026-05-09 18:00:00 America/New_York`. Use `python3 check_techweek_acceptance_emails.py` from the repo root. First local Apple Mail scan found no matches and no recently synced `.emlx` files.
 - The only paid item currently identified is the secondary Luma ticket for `Software for Hardware`, priced at `$20`. Partiful registration is complete. The user explicitly said not to complete the Luma checkout; keep it unpaid/skipped.
 - `Camp AI: Agents at Work` was submitted after the user confirmed age 21+. It is pending host approval.
 - `Steal These AI Workflows` has both Partiful application and secondary Google Form build submission completed.
