@@ -196,9 +196,9 @@ Google Calendar status:
 Approval email monitoring:
 - Check for Tech Week / Partiful approval emails periodically after `2026-05-09 18:00:00 America/New_York`.
 - Use `python3 check_techweek_acceptance_emails.py` from the repo root.
-- The helper searches locally synced Apple Mail for Partiful / Tech Week status terms after that timestamp.
-- As of the first run at about 2026-05-09 19:24 ET, it found no local matching emails and no recently modified local Mail `.emlx` files, so Gmail may not have synced those messages to Apple Mail yet.
-- If local mail sync remains stale, use Gmail directly from the phone/web and search: `after:2026/5/9 (partiful OR "Tech Week" OR NYTechWeek) (approved OR accepted OR confirmed OR "you're in" OR waitlist)`.
+- The helper searches locally synced Apple Mail for Partiful / Tech Week status terms after that timestamp and defaults to the RSVP alias `techweek2026@pavlovcik.com`.
+- As of the alias-filtered run at about 2026-05-09 19:31 ET, local Apple Mail had zero Envelope Index recipient rows for `techweek2026@pavlovcik.com`, zero raw `.emlx` hits for that address, and no matching approval/status emails after 18:00 ET. This suggests the alias mailbox/messages are not synced into local Apple Mail.
+- If local mail sync remains stale, use Gmail directly from the phone/web and search: `to:techweek2026@pavlovcik.com after:2026/5/9 (partiful OR "Tech Week" OR NYTechWeek) (approved OR accepted OR confirmed OR "you're in" OR waitlist)`.
 
 Transit assumptions:
 - Home anchor is FiDi / Wall St station.
