@@ -30,8 +30,15 @@ Last updated: 2026-05-09.
 
 4. macOS Calendar.app AppleScript targeting Google-backed `Personal`
    - Calendar.app shows a writable `Personal` calendar with description `pavlovcik@gmail.com`.
-   - AppleScript writes to that calendar were too slow and hit AppleEvent timeouts.
-   - That route is not reliable enough for unattended bulk sync.
+   - One bulk write/read pass was too slow and hit AppleEvent timeouts.
+   - Day-by-day small batch writes completed successfully on 2026-05-09:
+     - June 1: 7 blocks.
+     - June 2: 6 blocks.
+     - June 3: 9 blocks.
+     - June 4: 5 blocks.
+     - June 5: 3 blocks.
+   - A later count/read verification against `Personal` still timed out, so cloud-side sync should be visually checked in Google Calendar.
+   - The day-by-day helper is `sync_google_personal_day_batches.py`.
 
 5. Swift / EventKit
    - `sync_techweek_google_eventkit.swift` was added as a direct EventKit sync attempt.
@@ -39,6 +46,10 @@ Last updated: 2026-05-09.
    - Leave this script available for a manual retry after granting Calendar permission if desired.
 
 ## Recommended Google Import Path
+
+The operational route was also written into the Google-backed macOS `Personal` calendar in small day batches. If Google Calendar sync is enabled for that calendar, those events should appear in Google Calendar after macOS sync catches up.
+
+Because the write path does not delete first, do not rerun it blindly unless duplicate `TW-` events are acceptable.
 
 Open Google Calendar in a browser where you are logged in:
 

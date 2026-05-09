@@ -181,11 +181,14 @@ Duplicate-rendering fix:
 - There should be no overlap between `techweek_id` values in schedule event rows and reference rows.
 
 Google Calendar status:
-- Direct Google Calendar sync is not complete in this environment.
+- The operational route was written to the Google-backed macOS Calendar.app `Personal` calendar on 2026-05-09 using small day-by-day AppleScript batches.
+- Completed write batches: June 1 = 7 blocks, June 2 = 6 blocks, June 3 = 9 blocks, June 4 = 5 blocks, June 5 = 3 blocks.
+- A post-write count/read verification against `Personal` timed out, so visually verify in Google Calendar before assuming cloud sync is complete.
+- The helper for this route is `sync_google_personal_day_batches.py`; it does not delete existing `TW-` events before writing.
 - The DevTools browser is not logged into Google Calendar.
 - No Google Calendar MCP/tool resources are exposed.
 - `gcalcli` is installable via `pipx`, but requires a user-provided OAuth `client_id` and `client_secret`.
-- Calendar.app shows a Google-backed `Personal` calendar (`pavlovcik@gmail.com`), but AppleScript writes to it timed out.
+- Calendar.app shows a Google-backed `Personal` calendar (`pavlovcik@gmail.com`), but bulk AppleScript writes/reads to it timed out.
 - `sync_techweek_google_eventkit.swift` exists as an EventKit attempt, but Swift/compiled binary Calendar access was denied from this noninteractive session.
 - See `GOOGLE_CALENDAR_SYNC.md` for the current import path and retry options.
 - The safe Google import file for the actual schedule is `techweek_signed_up_operational_with_travel.ics`.
