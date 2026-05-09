@@ -3,7 +3,7 @@
 
 Outputs:
 - an operational route calendar with event and travel blocks
-- an all-RSVP reference calendar with every submitted non-test event
+- an RSVP reference calendar with submitted non-test events that are not already scheduled
 - CSV/Markdown files for quick review
 - an AppleScript sync file for local Calendar.app
 """
@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
+import json
 import math
 import re
 import zipfile
@@ -48,9 +49,12 @@ OUTPUT_XLSX = Path("techweek_signed_up_transport_schedule.xlsx")
 SCHEDULE_ICS = Path("techweek_signed_up_operational_with_travel.ics")
 ALL_RSVP_ICS = Path("techweek_signed_up_all_rsvps_reference.ics")
 APPLE_SCRIPT = Path("sync_techweek_to_apple_calendar.applescript")
+GOOGLE_VIA_APPLE_SCRIPT = Path("sync_techweek_to_google_calendar_via_apple.applescript")
+GOOGLE_EVENTKIT_JSON = Path("techweek_google_schedule_eventkit.json")
 
 SCHEDULE_CALENDAR = "NY Tech Week 2026 - Schedule"
 REFERENCE_CALENDAR = "NY Tech Week 2026 - All RSVPs"
+GOOGLE_VIA_APPLE_TARGET_CALENDAR = "Personal"
 
 # This is the practical attendance route from the rerank, adjusted to include
 # the now-registered Thursday "Stop Making AI Guess" event.
@@ -459,32 +463,34 @@ def md_day_sections(rows: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def write_markdown(schedule_rows: list[dict], reference_rows: list[dict]) -> None:
+def write_markdown(schedule_rows: list[dict], reference_rows: list[dict], all_reference_rows: list[dict]) -> None:
     status_counts: dict[str, int] = {}
-    for row in reference_rows:
+    for row in all_reference_rows:
         status_counts[row["status"]] = status_counts.get(row["status"], 0) + 1
     contents = [
         "# Signed-Up NYC Tech Week Schedule",
         "",
         "Home anchor: FiDi / Wall St station. Travel blocks use OSM/Nominatim geocoding plus SubwayInfo.nyc station-trip estimates where subway beats walking. Hidden venues use neighborhood centroids until hosts reveal exact addresses.",
         "",
-        "The operational calendar is the route to actually keep open. The all-RSVP calendar is a reference layer for approvals, waitlist movement, and backups.",
+        "The operational calendar is the route to actually keep open. The all-RSVP calendar excludes scheduled route events, so enabling both calendars does not render duplicate event blocks.",
         "",
         f"RSVP status snapshot: {status_counts.get('registered', 0)} registered, {status_counts.get('applied', 0)} applied, {status_counts.get('waitlisted', 0)} waitlisted.",
+        f"All-RSVP calendar rows after scheduled-event dedupe: {len(reference_rows)}.",
         "",
         "## Operational Route With Transit",
         "",
         md_day_sections(schedule_rows),
         "",
-        "## All RSVP Reference",
+        "## All RSVP Reference, Scheduled Events Removed",
         "",
-        "Use this only as a toggleable reference calendar; many entries conflict by design.",
+        "Use this as a toggleable reference calendar for alternatives, backups, and pending approvals not already on the operational route. Many entries conflict by design.",
         "",
         md_day_sections(reference_rows),
         "",
         "## Files",
         "",
         f"- Apple Calendar sync script: `{APPLE_SCRIPT}`",
+        f"- Google-backed Calendar.app sync script: `{GOOGLE_VIA_APPLE_SCRIPT}`",
         f"- Operational import: `{SCHEDULE_ICS}`",
         f"- All-RSVP reference import: `{ALL_RSVP_ICS}`",
         f"- Spreadsheet: `{OUTPUT_XLSX}`",
@@ -741,6 +747,7 @@ def write_applescript(schedule_rows: list[dict], reference_rows: list[dict]) -> 
         "\treturn d",
         "end makeDate",
         "",
+        "with timeout of 900 seconds",
         "tell application \"Calendar\"",
         "\tset scheduleName to " + applescript_string(SCHEDULE_CALENDAR),
         "\tset referenceName to " + applescript_string(REFERENCE_CALENDAR),
@@ -758,30 +765,96 @@ def write_applescript(schedule_rows: list[dict], reference_rows: list[dict]) -> 
     for row in sorted(schedule_rows, key=lambda item: item["start_dt"]):
         lines.append("\t" + applescript_event(row, "scheduleCal"))
     lines.append("")
-    lines.append("\t-- Reference layer for every submitted RSVP. Toggle this calendar off when it gets noisy.")
+    lines.append("\t-- Reference layer excludes events already present on the operational route to avoid duplicate rendering.")
     for row in sorted(reference_rows, key=lambda item: (item["start_dt"], item["title"])):
         lines.append("\t" + applescript_event(row, "referenceCal"))
     lines.extend(
         [
             "end tell",
+            "end timeout",
             "",
         ]
     )
     APPLE_SCRIPT.write_text("\n".join(lines), encoding="utf-8")
 
 
+def write_google_via_apple_applescript(schedule_rows: list[dict]) -> None:
+    lines = [
+        "on makeDate(dayValue, hourValue, minuteValue)",
+        "\tset d to current date",
+        "\tset year of d to 2026",
+        "\tset month of d to June",
+        "\tset day of d to dayValue",
+        "\tset time of d to (hourValue * hours + minuteValue * minutes)",
+        "\treturn d",
+        "end makeDate",
+        "",
+        "with timeout of 900 seconds",
+        "tell application \"Calendar\"",
+        "\tset targetName to " + applescript_string(GOOGLE_VIA_APPLE_TARGET_CALENDAR),
+        "\tif not (exists calendar targetName) then error \"Google-backed target calendar not found: \" & targetName",
+        "\tset targetCal to calendar targetName",
+        "\tset windowStart to my makeDate(1, 0, 0)",
+        "\tset windowEnd to my makeDate(8, 0, 0)",
+        "\tset existingEvents to every event of targetCal whose start date is greater than or equal to windowStart and start date is less than windowEnd",
+        "\trepeat with existingEvent in existingEvents",
+        "\t\tset eventSummary to summary of existingEvent",
+        "\t\tif eventSummary starts with \"[TW-\" then delete existingEvent",
+        "\tend repeat",
+        "",
+        "\t-- Operational route only. Alternatives/backups stay out of the Google-backed busy calendar.",
+    ]
+    for row in sorted(schedule_rows, key=lambda item: item["start_dt"]):
+        lines.append("\t" + applescript_event(row, "targetCal"))
+    lines.extend(
+        [
+            "end tell",
+            "end timeout",
+            "",
+        ]
+    )
+    GOOGLE_VIA_APPLE_SCRIPT.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_google_eventkit_json(schedule_rows: list[dict]) -> None:
+    rows = []
+    for row in sorted(schedule_rows, key=lambda item: item["start_dt"]):
+        rows.append(
+            {
+                "calendar_block_id": row.get("calendar_block_id", ""),
+                "techweek_id": row.get("techweek_id", ""),
+                "partiful_id": row.get("partiful_id", ""),
+                "rerank_id": row.get("id", ""),
+                "entry_type": row.get("entry_type", ""),
+                "status": row.get("status", ""),
+                "category": row.get("category", ""),
+                "title": row.get("title", ""),
+                "location": row.get("location") or row.get("venue_query", ""),
+                "start": fmt_dt(row["start_dt"]),
+                "end": fmt_dt(row["end_dt"]),
+                "notes": applescript_description(row),
+                "url": row.get("event_url", ""),
+            }
+        )
+    GOOGLE_EVENTKIT_JSON.write_text(json.dumps(rows, indent=2), encoding="utf-8")
+
+
 def main() -> None:
     events = load_signed_events()
     schedule_rows = build_operational_route(events)
-    reference_rows = [reference_event_row(event) for event in events]
+    all_reference_rows = [reference_event_row(event) for event in events]
+    scheduled_event_ids = {row["id"] for row in schedule_rows if row.get("entry_type") == "event"}
+    reference_rows = [row for row in all_reference_rows if row.get("id") not in scheduled_event_ids]
     combined_rows = sorted(schedule_rows + reference_rows, key=lambda row: (row["start_dt"], row["calendar"], row["title"]))
 
-    write_markdown(schedule_rows, reference_rows)
+    write_markdown(schedule_rows, reference_rows, all_reference_rows)
     write_csv_output(combined_rows)
     write_xlsx(combined_rows)
     write_ics(SCHEDULE_ICS, schedule_rows, SCHEDULE_CALENDAR, transparent=False)
     write_ics(ALL_RSVP_ICS, reference_rows, REFERENCE_CALENDAR, transparent=True)
     write_applescript(schedule_rows, reference_rows)
+    write_google_via_apple_applescript(schedule_rows)
+    write_google_eventkit_json(schedule_rows)
 
     print(f"wrote {OUTPUT_MD}")
     print(f"wrote {OUTPUT_CSV}")
@@ -789,6 +862,8 @@ def main() -> None:
     print(f"wrote {SCHEDULE_ICS}")
     print(f"wrote {ALL_RSVP_ICS}")
     print(f"wrote {APPLE_SCRIPT}")
+    print(f"wrote {GOOGLE_VIA_APPLE_SCRIPT}")
+    print(f"wrote {GOOGLE_EVENTKIT_JSON}")
 
 
 if __name__ == "__main__":

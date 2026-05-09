@@ -1,6 +1,7 @@
 .DS_Store
 __pycache__/
 *.py[cod]
+sync_techweek_google_eventkit
 
 # Local RSVP profile includes personal contact details. Keep status CSV trackable.
 .codex/techweek-rsvp-profile.json

@@ -174,6 +174,22 @@ All-RSVP reference calendar excludes the earlier `4am IRR` test submission. Its 
 - 28 applied / pending approval.
 - 1 waitlisted.
 
+Duplicate-rendering fix:
+- `NY Tech Week 2026 - Schedule` contains the operational route: 13 event blocks plus 17 transit/walk blocks.
+- `NY Tech Week 2026 - All RSVPs` now excludes the 13 scheduled route events and contains only 20 alternatives/backups.
+- The generated CSV has 50 rows total: 30 `schedule` rows and 20 `reference` rows.
+- There should be no overlap between `techweek_id` values in schedule event rows and reference rows.
+
+Google Calendar status:
+- Direct Google Calendar sync is not complete in this environment.
+- The DevTools browser is not logged into Google Calendar.
+- No Google Calendar MCP/tool resources are exposed.
+- `gcalcli` is installable via `pipx`, but requires a user-provided OAuth `client_id` and `client_secret`.
+- Calendar.app shows a Google-backed `Personal` calendar (`pavlovcik@gmail.com`), but AppleScript writes to it timed out.
+- `sync_techweek_google_eventkit.swift` exists as an EventKit attempt, but Swift/compiled binary Calendar access was denied from this noninteractive session.
+- See `GOOGLE_CALENDAR_SYNC.md` for the current import path and retry options.
+- The safe Google import file for the actual schedule is `techweek_signed_up_operational_with_travel.ics`.
+
 Transit assumptions:
 - Home anchor is FiDi / Wall St station.
 - Exact venue addresses are preferred from RSVP status or cached Partiful event pages.
