@@ -1,0 +1,570 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//UbiquityOS//Tech Week Signed-Up Calendar//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:NY Tech Week 2026 - Schedule
+X-WR-TIMEZONE:America/New_York
+BEGIN:VTIMEZONE
+TZID:America/New_York
+BEGIN:DAYLIGHT
+TZOFFSETFROM:-0500
+TZOFFSETTO:-0400
+TZNAME:EDT
+DTSTART:19700308T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:-0400
+TZOFFSETTO:-0500
+TZNAME:EST
+DTSTART:19701101T020000
+RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:846d43aa-615d-5ef0-82fc-37e60609c85c@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260601T132200
+DTEND;TZID=America/New_York:20260601T140000
+SUMMARY:[TW-6408-TRAVEL-IN] FiDi home base -> Beyond the Spec Masterclass: 
+ Engineering in the Age of Agents
+LOCATION:FiDi home base -> Flatiron
+DESCRIPTION:TechWeekID: TW-6408\nCalendarBlockID: TW-6408-TRAVEL-IN\nRerank
+ ID: \nPartifulID: FHiuNwzr13e3YBI4ssUX\nWalk 0 min to Wall St (2/3)\; subw
+ ay 31 min\; walk 2 min from 23 St-Baruch College (4/6)\; includes 5 min bu
+ ffer.\nRSVP status: registered\nCategory: travel\nVenue basis: FiDi home b
+ ase -> Flatiron ()\nRank/tier/score:  /  / \nURL: https://partiful.com/e/F
+ HiuNwzr13e3YBI4ssUX
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/FHiuNwzr13e3YBI4ssUX
+END:VEVENT
+BEGIN:VEVENT
+UID:fa32bd10-a69d-5513-93fa-96903b4c039d@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260601T140000
+DTEND;TZID=America/New_York:20260601T150000
+SUMMARY:[TW-6408] [PENDING] Beyond the Spec Masterclass: Engineering in the
+  Age of Agents
+LOCATION:Flatiron
+DESCRIPTION:TechWeekID: TW-6408\nCalendarBlockID: TW-6408-SCHEDULE\nRerankI
+ D: 6408\nPartifulID: FHiuNwzr13e3YBI4ssUX\nWait for host approval Submitte
+ d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
+ \nRSVP status: applied\nCategory: primary\nVenue basis: IBM One Madison Av
+ enue\, 1 Madison Ave\,\, New York\, NY 10010 (exact_from_partiful_maps)\nR
+ ank/tier/score: 24 / S / 74\nURL: https://partiful.com/e/FHiuNwzr13e3YBI4s
+ sUX
+STATUS:TENTATIVE
+TRANSP:OPAQUE
+URL:https://partiful.com/e/FHiuNwzr13e3YBI4ssUX
+END:VEVENT
+BEGIN:VEVENT
+UID:1403a52e-3927-5832-b03c-7e2b6397cbe4@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260601T155000
+DTEND;TZID=America/New_York:20260601T160000
+SUMMARY:[TW-44-TRAVEL-IN] Beyond the Spec Masterclass: Engineering in the A
+ ge of Agents -> From Vibe Coding to AI-Driven Development
+LOCATION:Beyond the Spec Masterclass: Engineering in the Age of Agents -> W
+ eWork\, 135 Madison Ave\, New York\, NY
+DESCRIPTION:TechWeekID: TW-44\nCalendarBlockID: TW-44-TRAVEL-IN\nRerankID: 
+ \nPartifulID: xowd9F3kB7mPFN1luUwY\nWalk approx 10 min / 767 m using OSM-g
+ eocoded points.\nRSVP status: registered\nCategory: travel\nVenue basis: B
+ eyond the Spec Masterclass: Engineering in the Age of Agents -> WeWork\, 1
+ 35 Madison Ave\, New York\, NY ()\nRank/tier/score:  /  / \nURL: https://p
+ artiful.com/e/xowd9F3kB7mPFN1luUwY
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/xowd9F3kB7mPFN1luUwY
+END:VEVENT
+BEGIN:VEVENT
+UID:d895f8c5-ecb2-5b38-aee0-7407a84bafa0@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260601T160000
+DTEND;TZID=America/New_York:20260601T170000
+SUMMARY:[TW-44] [PENDING] From Vibe Coding to AI-Driven Development
+LOCATION:WeWork\, 135 Madison Ave\, New York\, NY
+DESCRIPTION:TechWeekID: TW-44\nCalendarBlockID: TW-44-SCHEDULE\nRerankID: 4
+ 4\nPartifulID: xowd9F3kB7mPFN1luUwY\nWait for host approval Submitted via 
+ Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=2\; plusOne=TBD.\nRSVP 
+ status: applied\nCategory: primary\nVenue basis: WeWork\, 135 Madison Ave\
+ , New York\, NY (exact_from_signup_status)\nRank/tier/score: 29 / A / 71\n
+ URL: https://partiful.com/e/xowd9F3kB7mPFN1luUwY
+STATUS:TENTATIVE
+TRANSP:OPAQUE
+URL:https://partiful.com/e/xowd9F3kB7mPFN1luUwY
+END:VEVENT
+BEGIN:VEVENT
+UID:0d1b348b-6e7d-5e63-b2a2-d804be433902@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260601T172800
+DTEND;TZID=America/New_York:20260601T180000
+SUMMARY:[TW-5978-TRAVEL-IN] From Vibe Coding to AI-Driven Development -> Op
+ en Source Must Win
+LOCATION:From Vibe Coding to AI-Driven Development -> Lower East Side
+DESCRIPTION:TechWeekID: TW-5978\nCalendarBlockID: TW-5978-TRAVEL-IN\nRerank
+ ID: \nPartifulID: OF1vP5L8dtXKRtInyWKs\nWalk 3 min to 33 St (4/6)\; subway
+  23 min\; walk 1 min from Delancey St-Essex St (F)\; includes 5 min buffer
+ .\nRSVP status: registered\nCategory: travel\nVenue basis: From Vibe Codin
+ g to AI-Driven Development -> Lower East Side ()\nRank/tier/score:  /  / \
+ nURL: https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
+END:VEVENT
+BEGIN:VEVENT
+UID:eff88aaf-9ccf-5735-8f9b-77ec6b957c16@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260601T180000
+DTEND;TZID=America/New_York:20260601T210000
+SUMMARY:[TW-5978] [PENDING] Open Source Must Win
+LOCATION:Lower East Side
+DESCRIPTION:TechWeekID: TW-5978\nCalendarBlockID: TW-5978-SCHEDULE\nRerankI
+ D: 5978\nPartifulID: OF1vP5L8dtXKRtInyWKs\nIf this is not approved\, use r
+ egistered backup NYC B2B at Skinos instead. Wait for host approval Submitt
+ ed via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=2\; plusOne=TBD.
+ \nRSVP status: applied\nCategory: primary\nVenue basis: Delancey St Essex 
+ St\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 37 / A /
+  64\nURL: https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
+STATUS:TENTATIVE
+TRANSP:OPAQUE
+URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
+END:VEVENT
+BEGIN:VEVENT
+UID:d34b410f-2059-59b7-8d8d-74a71ae6dfee@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260601T210000
+DTEND;TZID=America/New_York:20260601T213500
+SUMMARY:[TW-20260601-TRAVEL-HOME] Open Source Must Win -> FiDi home base
+LOCATION:Open Source Must Win -> FiDi home base
+DESCRIPTION:TechWeekID: TW-5978\nCalendarBlockID: TW-20260601-TRAVEL-HOME\n
+ RerankID: \nPartifulID: OF1vP5L8dtXKRtInyWKs\nWalk approx 35 min / 2751 m 
+ using OSM-geocoded points.\nRSVP status: registered\nCategory: travel\nVen
+ ue basis: Open Source Must Win -> FiDi home base ()\nRank/tier/score:  /  
+ / \nURL: https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
+END:VEVENT
+BEGIN:VEVENT
+UID:a49ef921-7fba-5110-a649-b888f10f9abc@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260602T111300
+DTEND;TZID=America/New_York:20260602T120000
+SUMMARY:[TW-4551-TRAVEL-IN] FiDi home base -> How to Write a Book on AI in 
+ Enterprise SDLC While Patterns Keep Changing
+LOCATION:FiDi home base -> Midtown
+DESCRIPTION:TechWeekID: TW-4551\nCalendarBlockID: TW-4551-TRAVEL-IN\nRerank
+ ID: \nPartifulID: M7pXmV8sOXT11yHb9pKw\nWalk 0 min to Wall St (2/3)\; subw
+ ay 40 min\; walk 2 min from 42 St-Bryant Pk (B/D/F/M)\; includes 5 min buf
+ fer.\nRSVP status: registered\nCategory: travel\nVenue basis: FiDi home ba
+ se -> Midtown ()\nRank/tier/score:  /  / \nURL: https://partiful.com/e/M7p
+ XmV8sOXT11yHb9pKw
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
+END:VEVENT
+BEGIN:VEVENT
+UID:03b6979e-69e1-581c-9666-f024735c3118@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260602T120000
+DTEND;TZID=America/New_York:20260602T134500
+SUMMARY:[TW-4551] [PENDING] How to Write a Book on AI in Enterprise SDLC Wh
+ ile Patterns Keep Changing
+LOCATION:Midtown
+DESCRIPTION:TechWeekID: TW-4551\nCalendarBlockID: TW-4551-SCHEDULE\nRerankI
+ D: 4551\nPartifulID: M7pXmV8sOXT11yHb9pKw\nWait for host approval Submitte
+ d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
+ \nRSVP status: applied\nCategory: primary\nVenue basis: Bryant Park\, New 
+ York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 33 / A / 68\nURL:
+  https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
+STATUS:TENTATIVE
+TRANSP:OPAQUE
+URL:https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
+END:VEVENT
+BEGIN:VEVENT
+UID:12db12ba-c3ab-5ffd-8d03-c308733cced9@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260602T160000
+DTEND;TZID=America/New_York:20260602T173000
+SUMMARY:[TW-4341] [PENDING] From Copilot to Control Plane - Visdom
+LOCATION:Midtown
+DESCRIPTION:TechWeekID: TW-4341\nCalendarBlockID: TW-4341-SCHEDULE\nRerankI
+ D: 4341\nPartifulID: bn5h1g13xzOV6R5XkLaE\nWait for host approval Submitte
+ d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
+ \nRSVP status: applied\nCategory: primary\nVenue basis: Bryant Park\, New 
+ York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 1 / S / 100\nURL:
+  https://partiful.com/e/bn5h1g13xzOV6R5XkLaE
+STATUS:TENTATIVE
+TRANSP:OPAQUE
+URL:https://partiful.com/e/bn5h1g13xzOV6R5XkLaE
+END:VEVENT
+BEGIN:VEVENT
+UID:37d2cef5-64f8-5471-a7f4-7b9a8b26cc43@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260602T173600
+DTEND;TZID=America/New_York:20260602T180000
+SUMMARY:[TW-4161-TRAVEL-IN] From Copilot to Control Plane - Visdom -> Futur
+ e of DevEx
+LOCATION:From Copilot to Control Plane - Visdom -> SoHo
+DESCRIPTION:TechWeekID: TW-4161\nCalendarBlockID: TW-4161-TRAVEL-IN\nRerank
+ ID: \nPartifulID: 7DYGSiY1WUuRSvEnD5gp\nWalk 2 min to 42 St-Bryant Pk (B/D
+ /F/M)\; subway 17 min\; walk 0 min from Prince St (N/Q/R/W)\; includes 5 m
+ in buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: From C
+ opilot to Control Plane - Visdom -> SoHo ()\nRank/tier/score:  /  / \nURL:
+  https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
+END:VEVENT
+BEGIN:VEVENT
+UID:ddb32591-8b87-5e6f-b247-4c9057734bd1@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260602T180000
+DTEND;TZID=America/New_York:20260602T210000
+SUMMARY:[TW-4161] [PENDING] Future of DevEx
+LOCATION:SoHo
+DESCRIPTION:TechWeekID: TW-4161\nCalendarBlockID: TW-4161-SCHEDULE\nRerankI
+ D: 4161\nPartifulID: 7DYGSiY1WUuRSvEnD5gp\nWait for host approval Submitte
+ d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
+ \nRSVP status: applied\nCategory: primary\nVenue basis: Spring St and Broa
+ dway\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 3 / S 
+ / 100\nURL: https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
+STATUS:TENTATIVE
+TRANSP:OPAQUE
+URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
+END:VEVENT
+BEGIN:VEVENT
+UID:046c3636-03d2-5f11-af07-25b1c46bcf06@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260602T210000
+DTEND;TZID=America/New_York:20260602T212000
+SUMMARY:[TW-20260602-TRAVEL-HOME] Future of DevEx -> FiDi home base
+LOCATION:Future of DevEx -> FiDi home base
+DESCRIPTION:TechWeekID: TW-4161\nCalendarBlockID: TW-20260602-TRAVEL-HOME\n
+ RerankID: \nPartifulID: 7DYGSiY1WUuRSvEnD5gp\nWalk 0 min to Prince St (N/Q
+ /R/W)\; subway 15 min\; walk 0 min from Wall St (2/3)\; includes 5 min buf
+ fer.\nRSVP status: registered\nCategory: travel\nVenue basis: Future of De
+ vEx -> FiDi home base ()\nRank/tier/score:  /  / \nURL: https://partiful.c
+ om/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
+END:VEVENT
+BEGIN:VEVENT
+UID:752da39d-d6a0-5315-8e41-4268a9fc2d9f@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260603T112900
+DTEND;TZID=America/New_York:20260603T120000
+SUMMARY:[TW-5889-TRAVEL-IN] FiDi home base -> Building secure AI for your d
+ ata: DeepFellow Demo + Q&A
+LOCATION:FiDi home base -> Chelsea
+DESCRIPTION:TechWeekID: TW-5889\nCalendarBlockID: TW-5889-TRAVEL-IN\nRerank
+ ID: \nPartifulID: 4HvzWY1VZlHgK21fMBUz\nWalk 0 min to Wall St (2/3)\; subw
+ ay 22 min\; walk 4 min from 23 St (A/C/E)\; includes 5 min buffer.\nRSVP s
+ tatus: registered\nCategory: travel\nVenue basis: FiDi home base -> Chelse
+ a ()\nRank/tier/score:  /  / \nURL: https://partiful.com/e/4HvzWY1VZlHgK21
+ fMBUz?c=g5NbnbjN
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
+END:VEVENT
+BEGIN:VEVENT
+UID:fa9922e0-1d50-5ba1-954b-455b076f0139@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260603T120000
+DTEND;TZID=America/New_York:20260603T131500
+SUMMARY:[TW-5889] [PENDING] Building secure AI for your data: DeepFellow De
+ mo + Q&A
+LOCATION:Chelsea
+DESCRIPTION:TechWeekID: TW-5889\nCalendarBlockID: TW-5889-SCHEDULE\nRerankI
+ D: 5889\nPartifulID: 4HvzWY1VZlHgK21fMBUz\nWait for host approval Submitte
+ d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
+ \nRSVP status: applied\nCategory: primary\nVenue basis: 23rd Street and 8t
+ h Avenue\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 16
+  / S / 80\nURL: https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
+STATUS:TENTATIVE
+TRANSP:OPAQUE
+URL:https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
+END:VEVENT
+BEGIN:VEVENT
+UID:966d56cd-917c-5a3c-845d-a1c80095733e@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260603T133500
+DTEND;TZID=America/New_York:20260603T140000
+SUMMARY:[TW-4444-TRAVEL-IN] Building secure AI for your data: DeepFellow De
+ mo + Q&A -> The Future of Coding Agents and IDE
+LOCATION:Building secure AI for your data: DeepFellow Demo + Q&A -> 1155 6t
+ h Ave\, New York\, NY 10036
+DESCRIPTION:TechWeekID: TW-4444\nCalendarBlockID: TW-4444-TRAVEL-IN\nRerank
+ ID: \nPartifulID: 1N6CtiCpYquktoTh5NUm\nWalk 4 min to 23 St (A/C/E)\; subw
+ ay 11 min\; walk 5 min from Times Sq-42 St (GS)\; includes 5 min buffer.\n
+ RSVP status: registered\nCategory: travel\nVenue basis: Building secure AI
+  for your data: DeepFellow Demo + Q&A -> 1155 6th Ave\, New York\, NY 1003
+ 6 ()\nRank/tier/score:  /  / \nURL: https://partiful.com/e/1N6CtiCpYquktoT
+ h5NUm
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/1N6CtiCpYquktoTh5NUm
+END:VEVENT
+BEGIN:VEVENT
+UID:9b72522c-81e3-5ff6-b942-903f38cc44de@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260603T140000
+DTEND;TZID=America/New_York:20260603T150000
+SUMMARY:[TW-4444] [PENDING] The Future of Coding Agents and IDE
+LOCATION:1155 6th Ave\, New York\, NY 10036
+DESCRIPTION:TechWeekID: TW-4444\nCalendarBlockID: TW-4444-SCHEDULE\nRerankI
+ D: 4444\nPartifulID: 1N6CtiCpYquktoTh5NUm\nWait for host approval Submitte
+ d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=2\; plusOne=TBD.\
+ nRSVP status: applied\nCategory: primary\nVenue basis: 1155 6th Ave\, New 
+ York\, NY 10036 (manual_exact_manhattan)\nRank/tier/score: 27 / A / 72\nUR
+ L: https://partiful.com/e/1N6CtiCpYquktoTh5NUm
+STATUS:TENTATIVE
+TRANSP:OPAQUE
+URL:https://partiful.com/e/1N6CtiCpYquktoTh5NUm
+END:VEVENT
+BEGIN:VEVENT
+UID:3b504dc4-eb63-52c9-9648-a065a1ffce92@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260603T154000
+DTEND;TZID=America/New_York:20260603T160000
+SUMMARY:[TW-5529-TRAVEL-IN] The Future of Coding Agents and IDE -> Fireside
+  chat - When coding agents are the user?
+LOCATION:The Future of Coding Agents and IDE -> New York\, NY
+DESCRIPTION:TechWeekID: TW-5529\nCalendarBlockID: TW-5529-TRAVEL-IN\nRerank
+ ID: \nPartifulID: E8NhJNHWGhMetLlrFvQ7\nWalk approx 20 min / 1595 m using 
+ OSM-geocoded points.\nRSVP status: registered\nCategory: travel\nVenue bas
+ is: The Future of Coding Agents and IDE -> New York\, NY ()\nRank/tier/sco
+ re:  /  / \nURL: https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
+END:VEVENT
+BEGIN:VEVENT
+UID:ddc0c184-15cb-51af-8391-566a44d99597@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260603T160000
+DTEND;TZID=America/New_York:20260603T171500
+SUMMARY:[TW-5529] [REG] Fireside chat - When coding agents are the user?
+LOCATION:New York\, NY
+DESCRIPTION:TechWeekID: TW-5529\nCalendarBlockID: TW-5529-SCHEDULE\nRerankI
+ D: 5529\nPartifulID: E8NhJNHWGhMetLlrFvQ7\nRegistered\; monitor for update
+ s Submitted via Partiful API\; rsvpStatus=GOING\; count=2\; plusOne=TBD.\n
+ RSVP status: registered\nCategory: primary\nVenue basis: 28th Street and B
+ roadway\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 15 
+ / S / 81\nURL: https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
+END:VEVENT
+BEGIN:VEVENT
+UID:5a93a757-7a3a-551a-a210-cadd6be7f6a0@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260603T174000
+DTEND;TZID=America/New_York:20260603T180000
+SUMMARY:[TW-4664-TRAVEL-IN] Fireside chat - When coding agents are the user
+ ? -> MCP in the Wild: Panel & Night of Networking
+LOCATION:Fireside chat - When coding agents are the user? -> East Village
+DESCRIPTION:TechWeekID: TW-4664\nCalendarBlockID: TW-4664-TRAVEL-IN\nRerank
+ ID: \nPartifulID: 6ZuudQBBZXcMNjdMynJ2\nWalk 1 min to 28 St (N/Q/R/W)\; su
+ bway 13 min\; walk 1 min from Astor Pl (4/6)\; includes 5 min buffer.\nRSV
+ P status: registered\nCategory: travel\nVenue basis: Fireside chat - When 
+ coding agents are the user? -> East Village ()\nRank/tier/score:  /  / \nU
+ RL: https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
+END:VEVENT
+BEGIN:VEVENT
+UID:675881a5-a86b-58af-9f4a-7422e1cc4277@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260603T180000
+DTEND;TZID=America/New_York:20260603T203000
+SUMMARY:[TW-4664] [PENDING] MCP in the Wild: Panel & Night of Networking
+LOCATION:East Village
+DESCRIPTION:TechWeekID: TW-4664\nCalendarBlockID: TW-4664-SCHEDULE\nRerankI
+ D: 4664\nPartifulID: 6ZuudQBBZXcMNjdMynJ2\nWait for host approval Submitte
+ d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
+ \nRSVP status: applied\nCategory: primary\nVenue basis: Astor Place\, New 
+ York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 58 / A / 63\nURL:
+  https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
+STATUS:TENTATIVE
+TRANSP:OPAQUE
+URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
+END:VEVENT
+BEGIN:VEVENT
+UID:bfe26f7f-6307-51ce-b1b2-1c78dcce93c9@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260603T203000
+DTEND;TZID=America/New_York:20260603T205000
+SUMMARY:[TW-20260603-TRAVEL-HOME] MCP in the Wild: Panel & Night of Network
+ ing -> FiDi home base
+LOCATION:MCP in the Wild: Panel & Night of Networking -> FiDi home base
+DESCRIPTION:TechWeekID: TW-4664\nCalendarBlockID: TW-20260603-TRAVEL-HOME\n
+ RerankID: \nPartifulID: 6ZuudQBBZXcMNjdMynJ2\nWalk 1 min to Astor Pl (4/6)
+ \; subway 14 min\; walk 0 min from Wall St (2/3)\; includes 5 min buffer.\
+ nRSVP status: registered\nCategory: travel\nVenue basis: MCP in the Wild: 
+ Panel & Night of Networking -> FiDi home base ()\nRank/tier/score:  /  / \
+ nURL: https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
+END:VEVENT
+BEGIN:VEVENT
+UID:46388065-4db5-5dc7-a344-5ed26454666a@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260604T153600
+DTEND;TZID=America/New_York:20260604T160000
+SUMMARY:[TW-5372-TRAVEL-IN] FiDi home base -> Shipping Faster with AI Codin
+ g Agents: What's Working and What's Not
+LOCATION:FiDi home base -> New York\, NY
+DESCRIPTION:TechWeekID: TW-5372\nCalendarBlockID: TW-5372-TRAVEL-IN\nRerank
+ ID: \nPartifulID: 5K5c4eODrGPKME7or20H\nWalk 0 min to Wall St (2/3)\; subw
+ ay 19 min\; walk 0 min from Prince St (N/Q/R/W)\; includes 5 min buffer.\n
+ RSVP status: registered\nCategory: travel\nVenue basis: FiDi home base -> 
+ New York\, NY ()\nRank/tier/score:  /  / \nURL: https://partiful.com/e/5K5
+ c4eODrGPKME7or20H
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/5K5c4eODrGPKME7or20H
+END:VEVENT
+BEGIN:VEVENT
+UID:15f56d44-ee0e-5d50-97c9-c8adff07b4e3@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260604T160000
+DTEND;TZID=America/New_York:20260604T185100
+SUMMARY:[TW-5372] [PENDING] Shipping Faster with AI Coding Agents: What's W
+ orking and What's Not
+LOCATION:New York\, NY
+DESCRIPTION:TechWeekID: TW-5372\nCalendarBlockID: TW-5372-SCHEDULE\nRerankI
+ D: 5372\nPartifulID: 5K5c4eODrGPKME7or20H\nLeave early if needed so you ca
+ n make the registered 19:00 Stop Making AI Guess event. Wait for host appr
+ oval Submitted via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; 
+ plusOne=none. Route calendar shortens this from the event's scheduled 19:0
+ 0 end\; leave 9 min early for transit.\nRSVP status: applied\nCategory: pr
+ imary\nVenue basis: Spring St and Broadway\, New York\, NY (approx_neighbo
+ rhood_hidden)\nRank/tier/score: 4 / S / 100\nURL: https://partiful.com/e/5
+ K5c4eODrGPKME7or20H
+STATUS:TENTATIVE
+TRANSP:OPAQUE
+URL:https://partiful.com/e/5K5c4eODrGPKME7or20H
+END:VEVENT
+BEGIN:VEVENT
+UID:9e3c9ffb-534f-53ff-a05a-f9be8f6da7cd@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260604T185100
+DTEND;TZID=America/New_York:20260604T190000
+SUMMARY:[TW-5114-TRAVEL-IN] Shipping Faster with AI Coding Agents: What's W
+ orking and What's Not -> Stop Making AI Guess: When Your Codebase Becomes 
+ the Spec
+LOCATION:Shipping Faster with AI Coding Agents: What's Working and What's N
+ ot -> Union Square
+DESCRIPTION:TechWeekID: TW-5114\nCalendarBlockID: TW-5114-TRAVEL-IN\nRerank
+ ID: \nPartifulID: X0u5GrmzvIUTrjoAOgVm\nLeave previous event 9 min before 
+ its scheduled end.\nWalk 0 min to Prince St (N/Q/R/W)\; subway 4 min\; wal
+ k 0 min from 14 St-Union Sq (N/Q/R/W)\; includes 5 min buffer.\nRSVP statu
+ s: registered\nCategory: travel\nVenue basis: Shipping Faster with AI Codi
+ ng Agents: What's Working and What's Not -> Union Square ()\nRank/tier/sco
+ re:  /  / \nURL: https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
+END:VEVENT
+BEGIN:VEVENT
+UID:b2d7f748-f6f3-52b6-9c90-295fa1c9d774@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260604T190000
+DTEND;TZID=America/New_York:20260604T204500
+SUMMARY:[TW-5114] [REG] Stop Making AI Guess: When Your Codebase Becomes th
+ e Spec
+LOCATION:Union Square
+DESCRIPTION:TechWeekID: TW-5114\nCalendarBlockID: TW-5114-SCHEDULE\nRerankI
+ D: 5114\nPartifulID: X0u5GrmzvIUTrjoAOgVm\nRegistered direct. This is the 
+ Thursday anchor unless a substantially better curated dinner approves. Reg
+ istered\; monitor for updates Submitted via Partiful API\; rsvpStatus=GOIN
+ G\; count=2\; plusOne=TBD.\nRSVP status: registered\nCategory: apply\nVenu
+ e basis: Union Square\, Manhattan\, New York\, NY (approx_neighborhood_hid
+ den)\nRank/tier/score: 21 / S / 76\nURL: https://partiful.com/e/X0u5GrmzvI
+ UTrjoAOgVm
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
+END:VEVENT
+BEGIN:VEVENT
+UID:13da028c-c76e-5ef0-ad10-58fa20cd2852@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260604T204500
+DTEND;TZID=America/New_York:20260604T210300
+SUMMARY:[TW-20260604-TRAVEL-HOME] Stop Making AI Guess: When Your Codebase 
+ Becomes the Spec -> FiDi home base
+LOCATION:Stop Making AI Guess: When Your Codebase Becomes the Spec -> FiDi 
+ home base
+DESCRIPTION:TechWeekID: TW-5114\nCalendarBlockID: TW-20260604-TRAVEL-HOME\n
+ RerankID: \nPartifulID: X0u5GrmzvIUTrjoAOgVm\nWalk 0 min to 14 St-Union Sq
+  (N/Q/R/W)\; subway 13 min\; walk 0 min from Wall St (2/3)\; includes 5 mi
+ n buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Stop Ma
+ king AI Guess: When Your Codebase Becomes the Spec -> FiDi home base ()\nR
+ ank/tier/score:  /  / \nURL: https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
+END:VEVENT
+BEGIN:VEVENT
+UID:e0e99f41-a181-517b-be10-3c63a0f3eb64@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260605T162200
+DTEND;TZID=America/New_York:20260605T170000
+SUMMARY:[TW-5722-TRAVEL-IN] FiDi home base -> Bare Metal Happy Hour: Autono
+ mous Systems & Agent Fleet Orchestration
+LOCATION:FiDi home base -> Union Square
+DESCRIPTION:TechWeekID: TW-5722\nCalendarBlockID: TW-5722-TRAVEL-IN\nRerank
+ ID: \nPartifulID: jkjGahQgmH9PLIxjfTFt\nWalk 0 min to Wall St (2/3)\; subw
+ ay 29 min\; walk 4 min from 14 St-Union Sq (N/Q/R/W)\; includes 5 min buff
+ er.\nRSVP status: registered\nCategory: travel\nVenue basis: FiDi home bas
+ e -> Union Square ()\nRank/tier/score:  /  / \nURL: https://partiful.com/e
+ /jkjGahQgmH9PLIxjfTFt
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
+END:VEVENT
+BEGIN:VEVENT
+UID:b041ab5e-83d6-5a47-b34d-7a4f724462b7@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260605T170000
+DTEND;TZID=America/New_York:20260605T200000
+SUMMARY:[TW-5722] [PENDING] Bare Metal Happy Hour: Autonomous Systems & Age
+ nt Fleet Orchestration
+LOCATION:Union Square
+DESCRIPTION:TechWeekID: TW-5722\nCalendarBlockID: TW-5722-SCHEDULE\nRerankI
+ D: 5722\nPartifulID: jkjGahQgmH9PLIxjfTFt\nWait for host approval Submitte
+ d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
+ \nRSVP status: applied\nCategory: primary\nVenue basis: Union Square Park\
+ , 201 Park Ave S\, New York\, NY 10003 (exact_from_partiful_maps)\nRank/ti
+ er/score: 45 / A / 64\nURL: https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
+STATUS:TENTATIVE
+TRANSP:OPAQUE
+URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
+END:VEVENT
+BEGIN:VEVENT
+UID:529f0c1b-c1d5-59df-9f68-7a46f9f3f6a6@techweek-2026-event-picker
+DTSTAMP:20260509T221011Z
+DTSTART;TZID=America/New_York:20260605T200000
+DTEND;TZID=America/New_York:20260605T202200
+SUMMARY:[TW-20260605-TRAVEL-HOME] Bare Metal Happy Hour: Autonomous Systems
+  & Agent Fleet Orchestration -> FiDi home base
+LOCATION:Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestrat
+ ion -> FiDi home base
+DESCRIPTION:TechWeekID: TW-5722\nCalendarBlockID: TW-20260605-TRAVEL-HOME\n
+ RerankID: \nPartifulID: jkjGahQgmH9PLIxjfTFt\nWalk 4 min to 14 St-Union Sq
+  (N/Q/R/W)\; subway 13 min\; walk 0 min from Wall St (2/3)\; includes 5 mi
+ n buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Bare Me
+ tal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> FiDi hom
+ e base ()\nRank/tier/score:  /  / \nURL: https://partiful.com/e/jkjGahQgmH
+ 9PLIxjfTFt
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
+END:VEVENT
+END:VCALENDAR

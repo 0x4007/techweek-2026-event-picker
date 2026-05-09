@@ -1,0 +1,124 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//UbiquityOS//Tech Week Transit Calendar//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:NY Tech Week Accolades - Apply Tentative
+X-WR-TIMEZONE:America/New_York
+BEGIN:VTIMEZONE
+TZID:America/New_York
+BEGIN:DAYLIGHT
+TZOFFSETFROM:-0500
+TZOFFSETTO:-0400
+TZNAME:EDT
+DTSTART:19700308T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:-0400
+TZOFFSETTO:-0500
+TZNAME:EST
+DTSTART:19701101T020000
+RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:08aa3fc7-3dde-595a-bbd7-84abc53cc323@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260602T180000
+DTEND;TZID=America/New_York:20260602T193000
+SUMMARY:Apply: Enterprise AI Happy Hour
+LOCATION:Spring St and Broadway\, New York\, NY
+DESCRIPTION:High buyer fit around enterprise AI governance\, internal platforms\, and production agents\; conflicts with Future of DevEx.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Spring St and Broadway\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 2 / S / 100\nURL: https://partiful.com/e/FSzOO6xPn11iqxVdtQ9j?
+URL:https://partiful.com/e/FSzOO6xPn11iqxVdtQ9j?
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:94fc6cdb-3936-52a2-8f29-95d3efbcab39@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260603T133000
+DTEND;TZID=America/New_York:20260603T170000
+SUMMARY:Apply: Anthropic Founder Salon: Inside the AI-Native Era
+LOCATION:23rd Street and 8th Avenue\, New York\, NY
+DESCRIPTION:Curated AI founder and leader room\; if accepted\, it replaces most Wednesday daytime open events.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: 23rd Street and 8th Avenue\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 9 / S / 94\nURL: https://partiful.com/e/titPml1Nw0DKwGl9B6CF
+URL:https://partiful.com/e/titPml1Nw0DKwGl9B6CF
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:1ded889d-d094-54ac-8ae3-0a7b27afe9f1@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260603T160000
+DTEND;TZID=America/New_York:20260603T210000
+SUMMARY:Apply: Agent Harnesses: What It Takes to Make AI Agents Work in the Enterprise
+LOCATION:Union Square W\, New York\, NY 10003
+DESCRIPTION:Excellent enterprise-agent reliability/control event in Union Square.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Union Square W\, New York\, NY 10003 (exact_from_partiful_maps)\nRank/tier/score: 8 / S / 97\nURL: https://partiful.com/e/2NP0rZW8BmdGAGUOEhGP?f=1
+URL:https://partiful.com/e/2NP0rZW8BmdGAGUOEhGP?f=1
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:e59314c4-033d-5536-b5c2-c1194a4306a2@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260603T173000
+DTEND;TZID=America/New_York:20260603T193000
+SUMMARY:Apply: The CTO Mixer: Humanizing Tech | Happy Hour
+LOCATION:Astor Place\, New York\, NY
+DESCRIPTION:Best explicit CTO / VP Engineering room\; prioritize over most Wednesday evening open events if accepted.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Astor Place\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 6 / S / 100\nURL: https://partiful.com/e/h1hGv0PkskcagJOv5M9K
+URL:https://partiful.com/e/h1hGv0PkskcagJOv5M9K
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:d5e54a14-50ba-5831-8b1b-df324833ca38@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260603T190000
+DTEND;TZID=America/New_York:20260603T210000
+SUMMARY:Apply: The Tech Leaders Suite
+LOCATION:Barclays Center\, Brooklyn\, NY
+DESCRIPTION:High executive tech density\, but Brooklyn adds friction after a crowded Wednesday.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Barclays Center\, Brooklyn\, NY (approx_neighborhood_hidden)\nRank/tier/score: 5 / S / 100\nURL: https://partiful.com/e/UhyErPPxuo2vELIutdGj?
+URL:https://partiful.com/e/UhyErPPxuo2vELIutdGj?
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:2c1ec984-4508-544f-9ece-472f2cb53c76@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260604T183000
+DTEND;TZID=America/New_York:20260604T213000
+SUMMARY:Apply: Engineering Leaders After Hours: A Build and Ship Cocktail Competition
+LOCATION:Bar Chef\, 21 W 35th St\,\, New York\, NY 10001
+DESCRIPTION:Private engineering/platform/security leader room\; excellent direct-buyer fit.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Bar Chef\, 21 W 35th St\,\, New York\, NY 10001 (exact_from_partiful_maps)\nRank/tier/score: 20 / S / 78\nURL: https://partiful.com/e/bETmU06uq4TtORng6I1l
+URL:https://partiful.com/e/bETmU06uq4TtORng6I1l
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:adf80ec3-7b06-51cd-8ff8-9b894652f488@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260604T190000
+DTEND;TZID=America/New_York:20260604T204500
+SUMMARY:Apply: Stop Making AI Guess: When Your Codebase Becomes the Spec
+LOCATION:Union Square\, Manhattan\, New York\, NY
+DESCRIPTION:Codebase-as-spec topic is highly aligned\; conflicts with Thursday dinner paths.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Union Square\, Manhattan\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 21 / S / 76\nURL: https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
+URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:801ce40f-a78b-53a4-8ab0-509575cdd711@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260604T190000
+DTEND;TZID=America/New_York:20260604T210000
+SUMMARY:Apply: AI BUILDERS DINNER
+LOCATION:23rd Street and Broadway\, New York\, NY
+DESCRIPTION:Small off-record dinner with engineering/product leaders\, operators\, and AI infrastructure founders.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: 23rd Street and Broadway\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 11 / S / 90\nURL: https://partiful.com/e/idltitmjA4ZzL9IuK0Y6
+URL:https://partiful.com/e/idltitmjA4ZzL9IuK0Y6
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:9c0835b8-bf58-5b4e-885a-f394e3d08140@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260605T180000
+DTEND;TZID=America/New_York:20260605T210000
+SUMMARY:Apply: YouCode AI Salon
+LOCATION:Barclays Center\, Brooklyn\, NY
+DESCRIPTION:Good technical AI salon\, but Friday Brooklyn is a stretch after the main week.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Barclays Center\, Brooklyn\, NY (approx_neighborhood_hidden)\nRank/tier/score: 26 / A / 73\nURL: https://partiful.com/e/kvGpuFMeACW7ZWPYtxTP
+URL:https://partiful.com/e/kvGpuFMeACW7ZWPYtxTP
+STATUS:TENTATIVE
+END:VEVENT
+END:VCALENDAR

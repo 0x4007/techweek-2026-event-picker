@@ -1,0 +1,176 @@
+{
+  "1155 6th Ave 22nd Floor, New York, NY": {
+    "display_name": "New York, United States",
+    "lat": 40.7127281,
+    "lon": -74.0060152,
+    "used_query": "New York, NY"
+  },
+  "1155 6th Ave, New York, NY 10036": {
+    "display_name": "1155, 6th Avenue, Midtown, Manhattan Community Board 5, Manhattan, New York County, New York, 10036, United States",
+    "lat": 40.7564611,
+    "lon": -73.9831996,
+    "used_query": "1155 6th Ave, New York, NY 10036"
+  },
+  "23rd Street and 8th Avenue, New York, NY": {
+    "display_name": "New York, United States",
+    "lat": 40.7127281,
+    "lon": -74.0060152,
+    "used_query": "New York, NY"
+  },
+  "23rd Street and Broadway, New York, NY": {
+    "display_name": "New York, United States",
+    "lat": 40.7127281,
+    "lon": -74.0060152,
+    "used_query": "New York, NY"
+  },
+  "28th Street and Broadway, New York, NY": {
+    "display_name": "New York, United States",
+    "lat": 40.7127281,
+    "lon": -74.0060152,
+    "used_query": "New York, NY"
+  },
+  "56 Greene Street, 4th Floor New York, NY 10012": {
+    "display_name": "New York, United States",
+    "lat": 40.7127281,
+    "lon": -74.0060152,
+    "used_query": "4th Floor New York, NY 10012"
+  },
+  "Astor Place, New York, NY": {
+    "display_name": "Astor Place, Lafayette Street, East Village, Manhattan, New York County, New York, 10003, United States",
+    "lat": 40.7298497,
+    "lon": -73.9913897,
+    "used_query": "Astor Place, New York, NY"
+  },
+  "Bar Chef, 21 W 35th St,, New York, NY 10001": {
+    "display_name": "21, West 35th Street, Midtown South, Manhattan Community Board 5, Manhattan, New York County, New York, 10018, United States",
+    "lat": 40.7498053,
+    "lon": -73.9851316,
+    "used_query": "21 W 35th St,, New York, NY 10001"
+  },
+  "BarChef NYC, 21 W 35th St,, New York, NY": {
+    "display_name": "21, West 35th Street, Midtown South, Manhattan Community Board 5, Manhattan, New York County, New York, 10018, United States",
+    "lat": 40.7498053,
+    "lon": -73.9851316,
+    "used_query": "21 W 35th St,, New York, NY"
+  },
+  "Barclays Center, Brooklyn, NY": {
+    "display_name": "Barclays Center, 620, Atlantic Avenue, Brooklyn, Kings County, New York, 11217, United States",
+    "lat": 40.6825106,
+    "lon": -73.9752519,
+    "used_query": "Barclays Center, Brooklyn, NY"
+  },
+  "Bryant Park, New York, NY": {
+    "display_name": "Bryant Park, Manhattan Community Board 5, Manhattan, New York County, New York, 10018, United States",
+    "lat": 40.7537509,
+    "lon": -73.9835428,
+    "used_query": "Bryant Park, New York, NY"
+  },
+  "Civic Hall, 124 E 14th St, New York, NY 10003": {
+    "display_name": "Civic Hall, 124, East 14th Street, East Village, Manhattan Community Board 3, Manhattan, New York County, New York, 10003, United States",
+    "lat": 40.7336511,
+    "lon": -73.9887397,
+    "used_query": "Civic Hall, 124 E 14th St, New York, NY 10003"
+  },
+  "Datadog - Headquarters, 620 Eighth Ave,, New York, NY": {
+    "display_name": "620, 8th Avenue, City of Watervliet, Albany County, New York, 12189, United States",
+    "lat": 42.7142555,
+    "lon": -73.7115042,
+    "used_query": "620 Eighth Ave,, New York, NY"
+  },
+  "Datadog - Headquarters, 620 Eighth Ave,, New York, NY 10018": {
+    "display_name": "8th Avenue, North Pelham, Village of Pelham, Town of Pelham, Westchester County, New York, 10803, United States",
+    "lat": 40.9160751,
+    "lon": -73.8043958,
+    "used_query": "620 Eighth Ave,, New York, NY 10018"
+  },
+  "Delancey St Essex St, New York, NY": {
+    "display_name": "Delancey Street\u2013Essex Street, Delancey Street, Lower East Side, Manhattan Community Board 3, Manhattan, New York County, New York, 10002, United States",
+    "lat": 40.7186182,
+    "lon": -73.9881357,
+    "used_query": "Delancey St Essex St, New York, NY"
+  },
+  "Fabrik, 16 Vestry St, New York, NY 10013": {
+    "display_name": "16, Vestry Street, Hudson Square, Lower Manhattan, Manhattan, New York County, New York, 10013, United States",
+    "lat": 40.7226587,
+    "lon": -74.0075659,
+    "used_query": "16 Vestry St, New York, NY 10013"
+  },
+  "IBM One Madison Avenue, 1 Madison Ave,, New York, NY 10010": {
+    "display_name": "Metropolitan Life Insurance Company Tower, 1, Madison Avenue, Flatiron District, Manhattan Community Board 5, Manhattan, New York County, New York, 10010, United States",
+    "lat": 40.7408301,
+    "lon": -73.9868072,
+    "used_query": "1 Madison Ave,, New York, NY 10010"
+  },
+  "One Battery Park Plaza, 7th Floor New York, NY 10004": {
+    "display_name": "New York, United States",
+    "lat": 40.7127281,
+    "lon": -74.0060152,
+    "used_query": "7th Floor New York, NY 10004"
+  },
+  "Pho Dragon Restaurant, 47 W 14th St, New York, NY 10011": {
+    "display_name": "Teazzi Tea Shop, 47, West 14th Street, Union Square, Manhattan Community Board 5, Manhattan, New York County, New York, 10011, United States",
+    "lat": 40.737108,
+    "lon": -73.9958546,
+    "used_query": "47 W 14th St, New York, NY 10011"
+  },
+  "Shopify New York, 131 Greene St, New York, NY 10012": {
+    "display_name": "Panther Coffee, 131, Greene Street, University Village, Manhattan, New York County, New York, 10012, United States",
+    "lat": 40.7256642,
+    "lon": -73.9989626,
+    "used_query": "131 Greene St, New York, NY 10012"
+  },
+  "Skinos, 123 Washington St, New York, NY": {
+    "display_name": "Skinos, 123, Washington Street, Battery Park City, Lower Manhattan, Manhattan, New York County, New York, 10006, United States",
+    "lat": 40.709192,
+    "lon": -74.0138424,
+    "used_query": "Skinos, 123 Washington St, New York, NY"
+  },
+  "Skinos, 123 Washington St, New York, NY 10006": {
+    "display_name": "Skinos, 123, Washington Street, Battery Park City, Lower Manhattan, Manhattan, New York County, New York, 10006, United States",
+    "lat": 40.709192,
+    "lon": -74.0138424,
+    "used_query": "Skinos, 123 Washington St, New York, NY 10006"
+  },
+  "Spring St and Broadway, New York, NY": {
+    "display_name": "New York, United States",
+    "lat": 40.7127281,
+    "lon": -74.0060152,
+    "used_query": "New York, NY"
+  },
+  "Union Square E, New York, NY 10003": {
+    "display_name": "Union Square East, Union Square, Manhattan Community Board 5, Manhattan, New York County, New York, 10003, United States",
+    "lat": 40.7358782,
+    "lon": -73.9895885,
+    "used_query": "Union Square E, New York, NY 10003"
+  },
+  "Union Square Park, 201 Park Ave S, New York, NY 10003": {
+    "display_name": "W Hotels, 201, Park Avenue South, Union Square, Manhattan Community Board 5, Manhattan, New York County, New York, 10003, United States",
+    "lat": 40.7365763,
+    "lon": -73.9885429,
+    "used_query": "201 Park Ave S, New York, NY 10003"
+  },
+  "Union Square W, New York, NY 10003": {
+    "display_name": "Union Square West, Union Square, Manhattan Community Board 5, Manhattan, New York County, New York, 10003, United States",
+    "lat": 40.7355618,
+    "lon": -73.9914719,
+    "used_query": "Union Square W, New York, NY 10003"
+  },
+  "Union Square, Manhattan, New York, NY": {
+    "display_name": "Union Square, Manhattan Community Board 5, Manhattan, New York County, New York, 10003, United States",
+    "lat": 40.7360717,
+    "lon": -73.9901888,
+    "used_query": "Union Square, Manhattan, New York, NY"
+  },
+  "WeWork, 135 Madison Ave, New York, NY": {
+    "display_name": "B&B Italia, 135, Madison Avenue, Rose Hill, Manhattan Community Board 5, Manhattan, New York County, New York, 10016, United States",
+    "lat": 40.7459513,
+    "lon": -73.984086,
+    "used_query": "135 Madison Ave, New York, NY"
+  },
+  "WeWork, 135 Madison Ave, New York, NY 10016": {
+    "display_name": "B&B Italia, 135, Madison Avenue, Rose Hill, Manhattan Community Board 5, Manhattan, New York County, New York, 10016, United States",
+    "lat": 40.7459513,
+    "lon": -73.984086,
+    "used_query": "135 Madison Ave, New York, NY 10016"
+  }
+}

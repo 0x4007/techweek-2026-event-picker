@@ -1,0 +1,240 @@
+{
+  "230->634": {
+    "estimatedMinutes": 31,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Wall St to 28 St",
+      "4 28 St to 23 St-Baruch College"
+    ],
+    "totalStops": 13
+  },
+  "230->A30": {
+    "estimatedMinutes": 22,
+    "numTransfers": 0,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Wall St to 23 St"
+    ],
+    "totalStops": 11
+  },
+  "230->D16": {
+    "estimatedMinutes": 40,
+    "numTransfers": 2,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Wall St to Times Sq-42 St",
+      "R Times Sq-42 St to 46 St",
+      "F 46 St to 42 St-Bryant Pk"
+    ],
+    "totalStops": 15
+  },
+  "230->R20": {
+    "estimatedMinutes": 29,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Wall St to 23 St",
+      "N 23 St to 14 St-Union Sq"
+    ],
+    "totalStops": 12
+  },
+  "230->R22": {
+    "estimatedMinutes": 19,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Wall St to Canal St",
+      "Q Canal St to Prince St"
+    ],
+    "totalStops": 7
+  },
+  "230->R24": {
+    "estimatedMinutes": 19,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Wall St to Canal St",
+      "N Canal St to City Hall"
+    ],
+    "totalStops": 7
+  },
+  "632->F15": {
+    "estimatedMinutes": 23,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "4 33 St to Canal St",
+      "J Canal St to Delancey St-Essex St"
+    ],
+    "totalStops": 9
+  },
+  "634->632": {
+    "estimatedMinutes": 4,
+    "numTransfers": 0,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "4 23 St-Baruch College to 33 St"
+    ],
+    "totalStops": 2
+  },
+  "636->230": {
+    "estimatedMinutes": 14,
+    "numTransfers": 0,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "4 Astor Pl to Wall St"
+    ],
+    "totalStops": 7
+  },
+  "902->R18": {
+    "estimatedMinutes": 9,
+    "numTransfers": 1,
+    "riskLabel": "Normal service",
+    "segments": [
+      "GS Times Sq-42 St to Times Sq-42 St",
+      "Q Times Sq-42 St to 28 St"
+    ],
+    "totalStops": 2
+  },
+  "902->R24": {
+    "estimatedMinutes": 30,
+    "numTransfers": 2,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "GS Times Sq-42 St to Times Sq-42 St",
+      "1 Times Sq-42 St to Canal St",
+      "N Canal St to City Hall"
+    ],
+    "totalStops": 10
+  },
+  "A30->902": {
+    "estimatedMinutes": 11,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "A 23 St to 34 St-Penn Station",
+      "1 34 St-Penn Station to Times Sq-42 St"
+    ],
+    "totalStops": 3
+  },
+  "A30->R24": {
+    "estimatedMinutes": 17,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "A 23 St to Canal St",
+      "N Canal St to City Hall"
+    ],
+    "totalStops": 6
+  },
+  "D16->R22": {
+    "estimatedMinutes": 17,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "B 42 St-Bryant Pk to DeKalb Av",
+      "Q DeKalb Av to Prince St"
+    ],
+    "totalStops": 6
+  },
+  "D16->R24": {
+    "estimatedMinutes": 22,
+    "numTransfers": 2,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "B 42 St-Bryant Pk to DeKalb Av",
+      "Q DeKalb Av to Canal St",
+      "N Canal St to City Hall"
+    ],
+    "totalStops": 6
+  },
+  "F15->230": {
+    "estimatedMinutes": 36,
+    "numTransfers": 2,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "F Delancey St-Essex St to Bergen St",
+      "G Bergen St to Fulton St",
+      "2 Fulton St to Wall St"
+    ],
+    "totalStops": 13
+  },
+  "R18->636": {
+    "estimatedMinutes": 13,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "N 28 St to 14 St-Union Sq",
+      "4 14 St-Union Sq to Astor Pl"
+    ],
+    "totalStops": 4
+  },
+  "R20->230": {
+    "estimatedMinutes": 13,
+    "numTransfers": 1,
+    "riskLabel": "Normal service",
+    "segments": [
+      "N 14 St-Union Sq to 14 St-Union Sq",
+      "5 14 St-Union Sq to Wall St"
+    ],
+    "totalStops": 4
+  },
+  "R22->230": {
+    "estimatedMinutes": 15,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "N Prince St to Canal St",
+      "4 Canal St to Wall St"
+    ],
+    "totalStops": 5
+  },
+  "R22->R20": {
+    "estimatedMinutes": 4,
+    "numTransfers": 0,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "N Prince St to 14 St-Union Sq"
+    ],
+    "totalStops": 2
+  },
+  "R24->230": {
+    "estimatedMinutes": 15,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "N City Hall to Canal St",
+      "4 Canal St to Wall St"
+    ],
+    "totalStops": 5
+  },
+  "R24->636": {
+    "estimatedMinutes": 19,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "N City Hall to 14 St-Union Sq",
+      "4 14 St-Union Sq to Astor Pl"
+    ],
+    "totalStops": 7
+  },
+  "R24->902": {
+    "estimatedMinutes": 24,
+    "numTransfers": 0,
+    "riskLabel": "Normal service",
+    "segments": [
+      "N City Hall to Times Sq-42 St"
+    ],
+    "totalStops": 12
+  },
+  "R24->R18": {
+    "estimatedMinutes": 14,
+    "numTransfers": 0,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "N City Hall to 28 St"
+    ],
+    "totalStops": 7
+  }
+}

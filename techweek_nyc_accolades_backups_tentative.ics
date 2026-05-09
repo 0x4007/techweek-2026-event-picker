@@ -1,0 +1,91 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//UbiquityOS//Tech Week Transit Calendar//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:NY Tech Week Accolades - Backups
+X-WR-TIMEZONE:America/New_York
+BEGIN:VTIMEZONE
+TZID:America/New_York
+BEGIN:DAYLIGHT
+TZOFFSETFROM:-0500
+TZOFFSETTO:-0400
+TZNAME:EDT
+DTSTART:19700308T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:-0400
+TZOFFSETTO:-0500
+TZNAME:EST
+DTSTART:19701101T020000
+RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:877dfd60-523e-5f72-86be-288163b62b13@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260601T180000
+DTEND;TZID=America/New_York:20260601T210000
+SUMMARY:Backup: Software for Hardware: The Tools Powering Robotics & Embodied AI
+LOCATION:Civic Hall\, 124 E 14th St\, New York\, NY 10003
+DESCRIPTION:Strong technical founder room\, but less directly Accolades-shaped than Open Source Must Win.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Civic Hall\, 124 E 14th St\, New York\, NY 10003 (exact_from_partiful_maps)\nRank/tier/score: 13 / S / 86\nURL: https://partiful.com/e/09a0qPKv0cSOIOSGxjTQ
+URL:https://partiful.com/e/09a0qPKv0cSOIOSGxjTQ
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:307c78c1-d773-53f1-89f2-493fa43fbfb2@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260602T160000
+DTEND;TZID=America/New_York:20260602T190000
+SUMMARY:Backup: Operating MCP
+LOCATION:Bryant Park\, New York\, NY
+DESCRIPTION:Excellent enterprise AI control-plane audience\, but conflicts with Visdom.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Bryant Park\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 7 / S / 98\nURL: https://partiful.com/e/5vHvRPI0VlMQwOmQadCN
+URL:https://partiful.com/e/5vHvRPI0VlMQwOmQadCN
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:6cbc0504-8fc8-50a6-a2a6-958906526e4f@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260602T180000
+DTEND;TZID=America/New_York:20260602T200000
+SUMMARY:Backup: Cloudflare + Shopify: Build for the Agent Era
+LOCATION:Shopify New York\, 131 Greene St\, New York\, NY 10012
+DESCRIPTION:Good infra-brand density\, but Future of DevEx is more directly aligned.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Shopify New York\, 131 Greene St\, New York\, NY 10012 (exact_from_partiful_maps)\nRank/tier/score: 23 / S / 75\nURL: https://partiful.com/e/jytNb4IdG0HxwJnqDSgf
+URL:https://partiful.com/e/jytNb4IdG0HxwJnqDSgf
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:543c810f-074f-5d83-91bd-8841134c34e5@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260603T173000
+DTEND;TZID=America/New_York:20260603T193000
+SUMMARY:Backup: Camp AI: Agents at Work
+LOCATION:Datadog - Headquarters\, 620 Eighth Ave\,\, New York\, NY 10018
+DESCRIPTION:Strong brands and possible VP Eng density\, but Midtown conflicts with the downtown MCP route.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Datadog - Headquarters\, 620 Eighth Ave\,\, New York\, NY 10018 (exact_from_partiful_maps)\nRank/tier/score: 19 / S / 78\nURL: https://partiful.com/e/Fp5STyPH0McEt0awlWFD
+URL:https://partiful.com/e/Fp5STyPH0McEt0awlWFD
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:dba2ea12-6cc1-55a4-9427-dc6724038489@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260604T180000
+DTEND;TZID=America/New_York:20260604T200000
+SUMMARY:Backup: Agents at Scale
+LOCATION:Spring St and Broadway\, New York\, NY
+DESCRIPTION:Strong event\, but it overlaps the higher-priority Shipping Faster panel.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Spring St and Broadway\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 10 / S / 93\nURL: https://partiful.com/e/6BlGFmwIdpyndqyLYS2v?c=bv5YqCoL
+URL:https://partiful.com/e/6BlGFmwIdpyndqyLYS2v?c=bv5YqCoL
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:d692172c-6286-54f4-99e1-06222d5af5eb@techweek-2026-event-picker
+DTSTAMP:20260509T212937Z
+DTSTART;TZID=America/New_York:20260604T200000
+DTEND;TZID=America/New_York:20260604T213000
+SUMMARY:Backup: Free Phos\, Real Convos. Agents in your DMs
+LOCATION:Pho Dragon Restaurant\, 47 W 14th St\, New York\, NY 10011
+DESCRIPTION:Late casual founder/builder option if Thursday energy is still good and no curated dinner lands.\nTentative/apply or backup event\; compare against the primary route before accepting.\nVenue: Pho Dragon Restaurant\, 47 W 14th St\, New York\, NY 10011 (exact_from_partiful_maps)\nRank/tier/score: 18 / S / 79\nURL: https://partiful.com/e/ed2EFWip0do9OuYmVPZI
+URL:https://partiful.com/e/ed2EFWip0do9OuYmVPZI
+STATUS:TENTATIVE
+END:VEVENT
+END:VCALENDAR

@@ -1,0 +1,9 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+
+# Local RSVP profile includes personal contact details. Keep status CSV trackable.
+.codex/techweek-rsvp-profile.json
+
+# Large raw Partiful page cache. The derived CSV/JSON/XLSX files are the stable project artifacts.
+techweek_nyc_event_pages/
