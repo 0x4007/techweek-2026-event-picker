@@ -123,6 +123,9 @@ Do not assume every event has the same questionnaire IDs. Fetch/inspect each eve
 The transport-aware signed-up calendar was generated and synced to Apple Calendar on 2026-05-09.
 
 Current generated files:
+- `TECHWEEK_AGENDA.md`: user-facing agenda document with goals, conversation plan, day-by-day route, swap rules, and follow-up process.
+- `TECHWEEK_AGENDA.html`: formatted HTML export generated from the Markdown source with `cmark`.
+- `TECHWEEK_AGENDA.docx`: Word export generated from the HTML export with macOS `textutil`.
 - `build_signed_up_calendar.py`: source of truth for regenerating the signed-up calendar artifacts.
 - `techweek_signed_up_transport_schedule.md`: human-readable operational route plus all-RSVP reference.
 - `techweek_signed_up_transport_schedule.csv`: spreadsheet-friendly output with stable IDs, route blocks, and RSVP metadata.
