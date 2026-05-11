@@ -41,16 +41,19 @@ from build_techweek_transit_calendar import (
 )
 
 
-STATUS_CSV = Path(".codex/techweek_signup_status.csv")
+ROOT = Path(__file__).resolve().parents[1]
 
-OUTPUT_MD = Path("techweek_signed_up_transport_schedule.md")
-OUTPUT_CSV = Path("techweek_signed_up_transport_schedule.csv")
-OUTPUT_XLSX = Path("techweek_signed_up_transport_schedule.xlsx")
-SCHEDULE_ICS = Path("techweek_signed_up_operational_with_travel.ics")
-ALL_RSVP_ICS = Path("techweek_signed_up_all_rsvps_reference.ics")
-APPLE_SCRIPT = Path("sync_techweek_to_apple_calendar.applescript")
-GOOGLE_VIA_APPLE_SCRIPT = Path("sync_techweek_to_google_calendar_via_apple.applescript")
-GOOGLE_EVENTKIT_JSON = Path("techweek_google_schedule_eventkit.json")
+STATUS_CSV = ROOT / ".codex/techweek_signup_status.csv"
+EVENT_PAGES_DIR = ROOT / "data/source/event_pages"
+
+OUTPUT_MD = ROOT / "outputs/signed_up/techweek_signed_up_transport_schedule.md"
+OUTPUT_CSV = ROOT / "outputs/signed_up/techweek_signed_up_transport_schedule.csv"
+OUTPUT_XLSX = ROOT / "outputs/signed_up/techweek_signed_up_transport_schedule.xlsx"
+SCHEDULE_ICS = ROOT / "outputs/signed_up/techweek_signed_up_operational_with_travel.ics"
+ALL_RSVP_ICS = ROOT / "outputs/signed_up/techweek_signed_up_all_rsvps_reference.ics"
+APPLE_SCRIPT = ROOT / "outputs/sync/sync_techweek_to_apple_calendar.applescript"
+GOOGLE_VIA_APPLE_SCRIPT = ROOT / "outputs/sync/sync_techweek_to_google_calendar_via_apple.applescript"
+GOOGLE_EVENTKIT_JSON = ROOT / "outputs/sync/techweek_google_schedule_eventkit.json"
 
 SCHEDULE_CALENDAR = "NY Tech Week 2026 - Schedule"
 REFERENCE_CALENDAR = "NY Tech Week 2026 - All RSVPs"
@@ -92,6 +95,225 @@ CATEGORY_LABELS = {
     "primary": "PRIMARY",
     "apply": "CURATED",
     "backup": "BACKUP",
+}
+
+
+def rel(path: Path) -> str:
+    return path.relative_to(ROOT).as_posix()
+
+
+def coaching(opening: str, ask: str, listen_for: str, follow_up: str) -> str:
+    return "\n".join(
+        [
+            "Sales coaching:",
+            "Pitch: Accolades credits the engineering work commit counts miss, using source-linked GitHub and Slack evidence.",
+            f"Open: {opening}",
+            f"Ask: {ask}",
+            f"Listen for: {listen_for}",
+            f"Follow-up: {follow_up}",
+        ]
+    )
+
+
+SALES_COACHING = {
+    "6408": coaching(
+        "Use the agent/spec theme. Say you are studying how specs, PRs, and Slack context survive agentic workflows.",
+        "When an agent touches a ticket, what artifact proves who shaped the outcome?",
+        "Specs as source of truth, issue quality, review quality, manager trust, missing context.",
+        "Ask for 20 minutes with whoever owns engineering process or agent adoption.",
+    ),
+    "44": coaching(
+        "Frame vibe coding as a team-process problem, not a solo productivity trick.",
+        "What breaks when vibe coding becomes team development across reviews, specs, and handoffs?",
+        "Review bottlenecks, low-trust AI output, unclear ownership, managers losing visibility.",
+        "Send a short write-up on contribution evidence for AI-assisted teams.",
+    ),
+    "5978": coaching(
+        "Open-source rooms should hear the maintainer-labor angle first.",
+        "How do you credit review, triage, specs, and maintainer work that never becomes a commit?",
+        "Contributor rewards, bounty systems, maintainer burnout, attribution disputes.",
+        "Ask for intros to maintainers, DevRel leads, or teams running contributor programs.",
+    ),
+    "4551": coaching(
+        "Use enterprise SDLC language: trustworthy artifacts, change control, and evidence trails.",
+        "Which engineering artifacts stay reliable when AI changes how teams plan, review, and ship?",
+        "Auditability, manager reports, PR review evidence, specs scattered across tools.",
+        "Ask to compare their SDLC reporting process with an Accolades evidence report.",
+    ),
+    "4341": coaching(
+        "This is the highest-priority CTO/platform room. Lead with the control-plane problem.",
+        "What should managers measure once copilots are part of every development workflow?",
+        "CTO/VP Eng pain, platform ownership, productivity reporting, GitHub/code review evidence.",
+        "Push for a concrete post-Tech Week call if they own DevEx, platform, or engineering metrics.",
+    ),
+    "4161": coaching(
+        "Use DevEx language and avoid sounding like HR analytics.",
+        "Where does DevEx stop being tooling and start being contribution evidence?",
+        "Internal developer platforms, friction measurement, review quality, invisible glue work.",
+        "Ask who owns DevEx metrics and whether source-linked contribution evidence would help.",
+    ),
+    "5889": coaching(
+        "Tie security and data controls to audit-ready engineering evidence.",
+        "How are you proving AI-assisted engineering work was reviewed without leaking sensitive context?",
+        "Security reviews, data access, compliance needs, audit trails, manager sign-off.",
+        "Offer a follow-up focused on source-linked evidence without surveillance dashboards.",
+    ),
+    "4444": coaching(
+        "Talk about the IDE as the point where human and agent work blur.",
+        "When agents write code, what human work still needs credit?",
+        "Prompting, spec writing, review corrections, architectural judgment, tool orchestration.",
+        "Ask to sanity-check the Accolades framing with builders using coding agents daily.",
+    ),
+    "5529": coaching(
+        "Use the event title directly: if agents are users, the system of record matters.",
+        "If the agent is the user, what becomes the system of record for useful work?",
+        "Tool schemas, docs, prompts, guardrails, review evidence, ownership boundaries.",
+        "Ask for feedback on whether Accolades should track agent-orchestration evidence explicitly.",
+    ),
+    "4664": coaching(
+        "MCP people will understand context plumbing. Map that to later evaluation.",
+        "What context should tools expose so contribution can be evaluated after the work ships?",
+        "Tool-call trails, context sources, agent actions, human review, integration ownership.",
+        "Ask for technical feedback on evidence capture from tool and agent workflows.",
+    ),
+    "5372": coaching(
+        "This is a direct AI-coding workflow room. Start with manager trust.",
+        "What changed in your review process after AI started writing more code?",
+        "Review overload, shallow approvals, unclear ownership, productivity claims without evidence.",
+        "Ask for a buyer call with the engineering leader responsible for AI coding adoption.",
+    ),
+    "5114": coaching(
+        "Use the codebase-as-spec theme and make Accolades feel complementary.",
+        "What would make a codebase trustworthy enough for agents and managers?",
+        "Source-linked context, specs in code, review trails, stale docs, manager confidence.",
+        "Ask to exchange notes on codebase evidence and Accolades after the event.",
+    ),
+    "5722": coaching(
+        "For agent fleet and autonomous systems people, focus on orchestration accountability.",
+        "How do teams know who did useful orchestration, review, and correction work across agent fleets?",
+        "Multi-agent coordination, operations work, incident reviews, hidden platform labor.",
+        "Ask for intros to platform leads running agent or automation infrastructure.",
+    ),
+    "5110": coaching(
+        "Use the Slack angle: work decisions often happen outside GitHub.",
+        "Which important engineering decisions live in Slack, and do they ever make it into reviews or planning?",
+        "Slack decisions, cross-functional handoffs, lost context, collaboration evidence.",
+        "Ask whether Slack-linked contribution credit would help managers or team leads.",
+    ),
+    "5962": coaching(
+        "Hardware and robotics teams have heavy coordination work before code ships.",
+        "How do you credit specs, integration debugging, reviews, and ops work across hardware/software boundaries?",
+        "Systems integration, test evidence, field debugging, cross-discipline ownership.",
+        "Ask for founder/operator feedback rather than pushing a pure software-team sale.",
+    ),
+    "4200": coaching(
+        "This is broad B2B. Keep the pitch short and qualify fast.",
+        "Does your engineering team use GitHub and Slack heavily enough that contribution visibility is a management problem?",
+        "Founder with 5+ engineers, remote team, AI coding adoption, performance-review pain.",
+        "Ask for a warm intro to the CTO or VP Eng if the person is not the buyer.",
+    ),
+    "4522": coaching(
+        "For MCP/control-plane conversations, talk about instrumenting context and actions.",
+        "What needs to be logged so a manager can understand who influenced an agent-driven outcome?",
+        "Context sources, tool permissions, traceability, review responsibility, platform ownership.",
+        "Ask to compare notes with anyone building internal agent infrastructure.",
+    ),
+    "4224": coaching(
+        "API and identity demos are a good opening for permissions plus evidence.",
+        "When agents call internal APIs, how do you audit who requested, reviewed, and approved the work?",
+        "API governance, permissions, review evidence, enterprise buyers, workflow logs.",
+        "Ask for intros to teams responsible for developer platform or internal API governance.",
+    ),
+    "5415": coaching(
+        "Use liability language carefully: evidence, review, and accountability.",
+        "If AI-assisted work causes a problem, what evidence would you want before assigning responsibility?",
+        "Audit trails, legal/compliance sensitivity, review records, decision provenance.",
+        "Ask if source-linked engineering evidence would be useful for compliance conversations.",
+    ),
+    "5437": coaching(
+        "Enterprise AI buyers care about governance and platform ownership.",
+        "Where do manager reports and audit evidence fit into your enterprise AI rollout?",
+        "Governance, internal platforms, production agents, executive reporting, risk controls.",
+        "Ask for a specific post-event call with the platform, DevEx, or AI governance owner.",
+    ),
+    "5925": coaching(
+        "Use infrastructure scale as the bridge into contribution evidence.",
+        "In the agent era, what evidence do infra teams need to trust work done across tools and systems?",
+        "Platform scale, agent infrastructure, toolchain visibility, engineering productivity.",
+        "Ask for technical feedback from infra leaders rather than a generic founder follow-up.",
+    ),
+    "5820": coaching(
+        "AI-native founders will understand the operating-model shift.",
+        "How do AI-native teams evaluate human contribution when agents produce more of the visible output?",
+        "Small teams scaling fast, agent-heavy workflows, contribution rewards, manager memory breaking down.",
+        "Ask for a founder-to-founder product critique and one relevant buyer intro.",
+    ),
+    "4719": coaching(
+        "Agent harnesses are about production reliability; connect that to human accountability.",
+        "What human evidence needs to sit beside the harness output before an enterprise trusts agent work?",
+        "Enterprise adoption, internal platforms, review gates, evaluation records, ownership.",
+        "Ask to discuss how Accolades could consume evidence from agent harness workflows.",
+    ),
+    "4778": coaching(
+        "This is a direct CTO room. Ask about pain before explaining the product.",
+        "What is hardest for your managers to evaluate now that AI touches more engineering work?",
+        "Performance reviews, planning evidence, PR quality, distributed-team context, DevEx ownership.",
+        "If pain is clear, ask for a 20-minute CTO follow-up and permission to send a one-pager.",
+    ),
+    "5693": coaching(
+        "Keep this practical: agents at work means work attribution is getting messy.",
+        "When an agent helps ship something, who gets credit for the useful parts of the workflow?",
+        "Agent orchestration, prompt/spec work, review corrections, workflow ownership.",
+        "Ask for examples of workflows Accolades should recognize or avoid recognizing.",
+    ),
+    "4197": coaching(
+        "Use leadership language: visibility without surveillance.",
+        "What evidence do tech leaders wish they had for planning and reviews without turning into surveillance?",
+        "Manager reporting, trust, team health, engineering productivity, executive visibility.",
+        "Ask for a leadership-focused follow-up if they manage engineers or internal platforms.",
+    ),
+    "4191": coaching(
+        "For agent scale, focus on attribution across many automated steps.",
+        "When agents run at scale, how do you separate valuable human judgment from automated output?",
+        "Evaluation gaps, agent ops, review ownership, platform labor, traceability.",
+        "Ask to learn how they log agent work today and whether source-linked credit would fit.",
+    ),
+    "4826": coaching(
+        "This is a live-demo room. Use your own build story, then ask about workflow data.",
+        "Which parts of your AI workflow create useful evidence that managers should see later?",
+        "Prompting, issue specs, PRs, Slack decisions, demos that could become repeatable workflows.",
+        "Ask demo builders to name one evidence source Accolades should integrate first.",
+    ),
+    "4183": coaching(
+        "This may be the best direct engineering-manager room. Be crisp and buyer-oriented.",
+        "What do your managers use as evidence when deciding who moved a project forward?",
+        "Performance-review pain, review quality, planning work, manager memory, team rewards.",
+        "Ask for a concrete follow-up with the engineering leader or manager who owns the pain.",
+    ),
+    "5204": coaching(
+        "This is less direct; use prediction and decision quality as the bridge.",
+        "How do you know which people or artifacts actually improved a technical decision?",
+        "Decision provenance, forecasts versus outcomes, accountability, source-linked context.",
+        "Only pursue deep follow-up if they have an engineering team with GitHub/Slack pain.",
+    ),
+    "5231": coaching(
+        "At dinner, sell softly. Use founder-to-founder learning first.",
+        "How are AI builders changing how they reward and evaluate work inside their teams?",
+        "AI-native operating models, fast-growing teams, founder pain, engineering leadership gaps.",
+        "Ask for one sharp product critique and one relevant engineering-leader intro.",
+    ),
+    "5207": coaching(
+        "Use the DM/agent framing to talk about decisions in conversational channels.",
+        "When agents and teammates work in DMs, what context should be preserved for later credit or audit?",
+        "Slack/DM work, agent conversations, missing provenance, informal decisions.",
+        "Ask for feedback on Slack-first evidence capture if the person runs engineering workflows.",
+    ),
+    "250": coaching(
+        "Treat this as a lower-pressure builder salon and look for AI-native founders.",
+        "How does your team credit prompt work, specs, review, and product judgment around AI coding?",
+        "Builder workflows, early team habits, contribution rewards, technical-founder pain.",
+        "Ask for feedback or an intro; do not over-invest unless they match the ICP.",
+    ),
 }
 
 MANUAL_POINTS = [
@@ -145,9 +367,14 @@ def geocode_is_usable(geo: dict[str, object]) -> bool:
 
 
 def event_end_from_page(row: dict[str, str], start_dt: dt.datetime) -> dt.datetime:
-    html_path = row.get("local_html_path") or ""
-    if html_path and Path(html_path).exists():
-        html_text = Path(html_path).read_text(errors="ignore")
+    html_path_text = row.get("local_html_path") or ""
+    html_path = Path(html_path_text)
+    if html_path_text and not html_path.exists():
+        moved_path = EVENT_PAGES_DIR / html_path.name
+        if moved_path.exists():
+            html_path = moved_path
+    if html_path_text and html_path.exists():
+        html_text = html_path.read_text(errors="ignore")
         event_json = jsonld_event(html_text)
         end_dt = local_dt_from_utc(str(event_json.get("endDate", ""))) if event_json else None
         if end_dt and start_dt < end_dt <= start_dt + dt.timedelta(hours=10):
@@ -248,6 +475,7 @@ def load_signed_events() -> list[dict]:
                 "next_step": status_row.get("next_step", ""),
                 "notes": status_row.get("notes", ""),
                 "route_note": EVENT_NOTES.get(rerank_row["id"], ""),
+                "sales_coaching": SALES_COACHING.get(rerank_row["id"], ""),
             }
         )
     if missing:
@@ -306,6 +534,7 @@ def travel_row(
         "venue_precision": "",
         "next_step": "",
         "notes": "",
+        "sales_coaching": "",
     }
 
 
@@ -458,6 +687,8 @@ def md_day_sections(rows: list[dict]) -> str:
             lines.append(f"  - Scheduled event end: {row['actual_end_dt'].strftime('%H:%M')}; route calendar plans an earlier departure.")
         if row["note"]:
             lines.append(f"  - {row['note']}")
+        if row.get("sales_coaching"):
+            lines.append("  - " + row["sales_coaching"].replace("\n", "\n  - "))
         lines.append(f"  - Venue basis: {row['venue_query']} ({row['venue_precision']})")
         lines.append(f"  - Rank {row['rank']}, tier {row['tier']}, score {row['opportunity_score']}; {row['fit_summary']}")
     return "\n".join(lines)
@@ -489,12 +720,12 @@ def write_markdown(schedule_rows: list[dict], reference_rows: list[dict], all_re
         "",
         "## Files",
         "",
-        f"- Apple Calendar sync script: `{APPLE_SCRIPT}`",
-        f"- Google-backed Calendar.app sync script: `{GOOGLE_VIA_APPLE_SCRIPT}`",
-        f"- Operational import: `{SCHEDULE_ICS}`",
-        f"- All-RSVP reference import: `{ALL_RSVP_ICS}`",
-        f"- Spreadsheet: `{OUTPUT_XLSX}`",
-        f"- CSV: `{OUTPUT_CSV}`",
+        f"- Apple Calendar sync script: `{rel(APPLE_SCRIPT)}`",
+        f"- Google-backed Calendar.app sync script: `{rel(GOOGLE_VIA_APPLE_SCRIPT)}`",
+        f"- Operational import: `{rel(SCHEDULE_ICS)}`",
+        f"- All-RSVP reference import: `{rel(ALL_RSVP_ICS)}`",
+        f"- Spreadsheet: `{rel(OUTPUT_XLSX)}`",
+        f"- CSV: `{rel(OUTPUT_CSV)}`",
     ]
     OUTPUT_MD.write_text("\n".join(contents) + "\n", encoding="utf-8")
 
@@ -523,6 +754,7 @@ def flat_csv_row(row: dict) -> dict[str, str]:
         "subway_segments": row.get("subway_segments", ""),
         "transit_risk": row.get("transit_risk", ""),
         "note": row.get("note", ""),
+        "sales_coaching": row.get("sales_coaching", ""),
         "rank": row.get("rank", ""),
         "tier": row.get("tier", ""),
         "opportunity_score": row.get("opportunity_score", ""),
@@ -609,6 +841,7 @@ def write_ics(path: Path, rows: list[dict], calendar_name: str, transparent: boo
                 f"PartifulID: {row.get('partiful_id', '')}",
                 row.get("note", ""),
                 row.get("route_details", ""),
+                row.get("sales_coaching", ""),
                 f"RSVP status: {row.get('status', '')}",
                 f"Category: {row.get('category', '')}",
                 f"Venue basis: {row.get('venue_query', '')} ({row.get('venue_precision', '')})",
@@ -705,6 +938,45 @@ def applescript_date(value: dt.datetime) -> str:
     return f"my makeDate({value.day}, {value.hour}, {value.minute})"
 
 
+def applescript_cleanup_handlers() -> list[str]:
+    return [
+        "on isManagedTechWeekEvent(theEvent)",
+        "\tset eventSummary to \"\"",
+        "\tset eventDescription to \"\"",
+        "\tset eventUID to \"\"",
+        "\ttell application \"Calendar\"",
+        "\t\ttry",
+        "\t\t\tset eventSummary to summary of theEvent as text",
+        "\t\tend try",
+        "\t\ttry",
+        "\t\t\tset eventDescription to description of theEvent as text",
+        "\t\tend try",
+        "\t\ttry",
+        "\t\t\tset eventUID to uid of theEvent as text",
+        "\t\tend try",
+        "\tend tell",
+        "\tif eventUID contains \"techweek-2026-event-picker\" then return true",
+        "\tif eventSummary starts with \"[TW-\" then return true",
+        "\tif eventDescription contains \"CalendarBlockID: TW-\" then return true",
+        "\tif eventDescription contains \"TechWeekID: TW-\" then return true",
+        "\tif eventSummary starts with \"Tech Week:\" and eventDescription contains \"partiful.com\" then return true",
+        "\tif eventSummary starts with \"Apply:\" and eventDescription contains \"partiful.com\" then return true",
+        "\tif eventSummary starts with \"Backup:\" and eventDescription contains \"partiful.com\" then return true",
+        "\tif eventSummary starts with \"Travel:\" and eventDescription contains \"Rank/tier/score:\" then return true",
+        "\treturn false",
+        "end isManagedTechWeekEvent",
+        "",
+        "on deleteManagedTechWeekEvents(targetCal, windowStart, windowEnd)",
+        "\ttell application \"Calendar\"",
+        "\t\tset existingEvents to every event of targetCal whose start date is greater than or equal to windowStart and start date is less than windowEnd",
+        "\t\trepeat with existingEvent in existingEvents",
+        "\t\t\tif my isManagedTechWeekEvent(existingEvent) then delete existingEvent",
+        "\t\tend repeat",
+        "\tend tell",
+        "end deleteManagedTechWeekEvents",
+    ]
+
+
 def applescript_description(row: dict) -> str:
     return "\n".join(
         part
@@ -715,6 +987,7 @@ def applescript_description(row: dict) -> str:
             f"PartifulID: {row.get('partiful_id', '')}",
             row.get("note", ""),
             row.get("route_details", ""),
+            row.get("sales_coaching", ""),
             f"RSVP status: {row.get('status', '')}",
             f"Category: {row.get('category', '')}",
             f"Venue basis: {row.get('venue_query', '')} ({row.get('venue_precision', '')})",
@@ -747,6 +1020,8 @@ def write_applescript(schedule_rows: list[dict], reference_rows: list[dict]) -> 
         "\treturn d",
         "end makeDate",
         "",
+        *applescript_cleanup_handlers(),
+        "",
         "with timeout of 900 seconds",
         "tell application \"Calendar\"",
         "\tset scheduleName to " + applescript_string(SCHEDULE_CALENDAR),
@@ -757,8 +1032,8 @@ def write_applescript(schedule_rows: list[dict], reference_rows: list[dict]) -> 
         "\tset referenceCal to calendar referenceName",
         "\tset windowStart to my makeDate(1, 0, 0)",
         "\tset windowEnd to my makeDate(8, 0, 0)",
-        "\tdelete (every event of scheduleCal whose start date is greater than or equal to windowStart and start date is less than windowEnd)",
-        "\tdelete (every event of referenceCal whose start date is greater than or equal to windowStart and start date is less than windowEnd)",
+        "\tmy deleteManagedTechWeekEvents(scheduleCal, windowStart, windowEnd)",
+        "\tmy deleteManagedTechWeekEvents(referenceCal, windowStart, windowEnd)",
         "",
         "\t-- Operational route with transit blocks.",
     ]
@@ -789,6 +1064,8 @@ def write_google_via_apple_applescript(schedule_rows: list[dict]) -> None:
         "\treturn d",
         "end makeDate",
         "",
+        *applescript_cleanup_handlers(),
+        "",
         "with timeout of 900 seconds",
         "tell application \"Calendar\"",
         "\tset targetName to " + applescript_string(GOOGLE_VIA_APPLE_TARGET_CALENDAR),
@@ -796,11 +1073,7 @@ def write_google_via_apple_applescript(schedule_rows: list[dict]) -> None:
         "\tset targetCal to calendar targetName",
         "\tset windowStart to my makeDate(1, 0, 0)",
         "\tset windowEnd to my makeDate(8, 0, 0)",
-        "\tset existingEvents to every event of targetCal whose start date is greater than or equal to windowStart and start date is less than windowEnd",
-        "\trepeat with existingEvent in existingEvents",
-        "\t\tset eventSummary to summary of existingEvent",
-        "\t\tif eventSummary starts with \"[TW-\" then delete existingEvent",
-        "\tend repeat",
+        "\tmy deleteManagedTechWeekEvents(targetCal, windowStart, windowEnd)",
         "",
         "\t-- Operational route only. Alternatives/backups stay out of the Google-backed busy calendar.",
     ]
@@ -840,6 +1113,18 @@ def write_google_eventkit_json(schedule_rows: list[dict]) -> None:
 
 
 def main() -> None:
+    for path in [
+        OUTPUT_MD,
+        OUTPUT_CSV,
+        OUTPUT_XLSX,
+        SCHEDULE_ICS,
+        ALL_RSVP_ICS,
+        APPLE_SCRIPT,
+        GOOGLE_VIA_APPLE_SCRIPT,
+        GOOGLE_EVENTKIT_JSON,
+    ]:
+        path.parent.mkdir(parents=True, exist_ok=True)
+
     events = load_signed_events()
     schedule_rows = build_operational_route(events)
     all_reference_rows = [reference_event_row(event) for event in events]

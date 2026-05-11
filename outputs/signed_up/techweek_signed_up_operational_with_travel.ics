@@ -24,7 +24,7 @@ END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
 UID:846d43aa-615d-5ef0-82fc-37e60609c85c@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260601T132200
 DTEND;TZID=America/New_York:20260601T140000
 SUMMARY:[TW-6408-TRAVEL-IN] FiDi home base -> Beyond the Spec Masterclass: 
@@ -42,7 +42,7 @@ URL:https://partiful.com/e/FHiuNwzr13e3YBI4ssUX
 END:VEVENT
 BEGIN:VEVENT
 UID:fa32bd10-a69d-5513-93fa-96903b4c039d@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260601T140000
 DTEND;TZID=America/New_York:20260601T150000
 SUMMARY:[TW-6408] [PENDING] Beyond the Spec Masterclass: Engineering in the
@@ -51,17 +51,24 @@ LOCATION:Flatiron
 DESCRIPTION:TechWeekID: TW-6408\nCalendarBlockID: TW-6408-SCHEDULE\nRerankI
  D: 6408\nPartifulID: FHiuNwzr13e3YBI4ssUX\nWait for host approval Submitte
  d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
- \nRSVP status: applied\nCategory: primary\nVenue basis: IBM One Madison Av
- enue\, 1 Madison Ave\,\, New York\, NY 10010 (exact_from_partiful_maps)\nR
- ank/tier/score: 24 / S / 74\nURL: https://partiful.com/e/FHiuNwzr13e3YBI4s
- sUX
+ \nSales coaching:\nPitch: Accolades credits the engineering work commit co
+ unts miss\, using source-linked GitHub and Slack evidence.\nOpen: Use the 
+ agent/spec theme. Say you are studying how specs\, PRs\, and Slack context
+  survive agentic workflows.\nAsk: When an agent touches a ticket\, what ar
+ tifact proves who shaped the outcome?\nListen for: Specs as source of trut
+ h\, issue quality\, review quality\, manager trust\, missing context.\nFol
+ low-up: Ask for 20 minutes with whoever owns engineering process or agent 
+ adoption.\nRSVP status: applied\nCategory: primary\nVenue basis: IBM One M
+ adison Avenue\, 1 Madison Ave\,\, New York\, NY 10010 (exact_from_partiful
+ _maps)\nRank/tier/score: 24 / S / 74\nURL: https://partiful.com/e/FHiuNwzr
+ 13e3YBI4ssUX
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/FHiuNwzr13e3YBI4ssUX
 END:VEVENT
 BEGIN:VEVENT
 UID:1403a52e-3927-5832-b03c-7e2b6397cbe4@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260601T155000
 DTEND;TZID=America/New_York:20260601T160000
 SUMMARY:[TW-44-TRAVEL-IN] Beyond the Spec Masterclass: Engineering in the A
@@ -80,24 +87,31 @@ URL:https://partiful.com/e/xowd9F3kB7mPFN1luUwY
 END:VEVENT
 BEGIN:VEVENT
 UID:d895f8c5-ecb2-5b38-aee0-7407a84bafa0@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260601T160000
 DTEND;TZID=America/New_York:20260601T170000
 SUMMARY:[TW-44] [PENDING] From Vibe Coding to AI-Driven Development
 LOCATION:WeWork\, 135 Madison Ave\, New York\, NY
 DESCRIPTION:TechWeekID: TW-44\nCalendarBlockID: TW-44-SCHEDULE\nRerankID: 4
  4\nPartifulID: xowd9F3kB7mPFN1luUwY\nWait for host approval Submitted via 
- Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=2\; plusOne=TBD.\nRSVP 
- status: applied\nCategory: primary\nVenue basis: WeWork\, 135 Madison Ave\
- , New York\, NY (exact_from_signup_status)\nRank/tier/score: 29 / A / 71\n
- URL: https://partiful.com/e/xowd9F3kB7mPFN1luUwY
+ Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=2\; plusOne=TBD.\nSales
+  coaching:\nPitch: Accolades credits the engineering work commit counts mi
+ ss\, using source-linked GitHub and Slack evidence.\nOpen: Frame vibe codi
+ ng as a team-process problem\, not a solo productivity trick.\nAsk: What b
+ reaks when vibe coding becomes team development across reviews\, specs\, a
+ nd handoffs?\nListen for: Review bottlenecks\, low-trust AI output\, uncle
+ ar ownership\, managers losing visibility.\nFollow-up: Send a short write-
+ up on contribution evidence for AI-assisted teams.\nRSVP status: applied\n
+ Category: primary\nVenue basis: WeWork\, 135 Madison Ave\, New York\, NY (
+ exact_from_signup_status)\nRank/tier/score: 29 / A / 71\nURL: https://part
+ iful.com/e/xowd9F3kB7mPFN1luUwY
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/xowd9F3kB7mPFN1luUwY
 END:VEVENT
 BEGIN:VEVENT
 UID:0d1b348b-6e7d-5e63-b2a2-d804be433902@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260601T172800
 DTEND;TZID=America/New_York:20260601T180000
 SUMMARY:[TW-5978-TRAVEL-IN] From Vibe Coding to AI-Driven Development -> Op
@@ -115,7 +129,7 @@ URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
 END:VEVENT
 BEGIN:VEVENT
 UID:eff88aaf-9ccf-5735-8f9b-77ec6b957c16@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260601T180000
 DTEND;TZID=America/New_York:20260601T210000
 SUMMARY:[TW-5978] [PENDING] Open Source Must Win
@@ -124,16 +138,23 @@ DESCRIPTION:TechWeekID: TW-5978\nCalendarBlockID: TW-5978-SCHEDULE\nRerankI
  D: 5978\nPartifulID: OF1vP5L8dtXKRtInyWKs\nIf this is not approved\, use r
  egistered backup NYC B2B at Skinos instead. Wait for host approval Submitt
  ed via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=2\; plusOne=TBD.
- \nRSVP status: applied\nCategory: primary\nVenue basis: Delancey St Essex 
- St\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 37 / A /
-  64\nURL: https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
+ \nSales coaching:\nPitch: Accolades credits the engineering work commit co
+ unts miss\, using source-linked GitHub and Slack evidence.\nOpen: Open-sou
+ rce rooms should hear the maintainer-labor angle first.\nAsk: How do you c
+ redit review\, triage\, specs\, and maintainer work that never becomes a c
+ ommit?\nListen for: Contributor rewards\, bounty systems\, maintainer burn
+ out\, attribution disputes.\nFollow-up: Ask for intros to maintainers\, De
+ vRel leads\, or teams running contributor programs.\nRSVP status: applied\
+ nCategory: primary\nVenue basis: Delancey St Essex St\, New York\, NY (app
+ rox_neighborhood_hidden)\nRank/tier/score: 37 / A / 64\nURL: https://parti
+ ful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
 END:VEVENT
 BEGIN:VEVENT
 UID:d34b410f-2059-59b7-8d8d-74a71ae6dfee@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260601T210000
 DTEND;TZID=America/New_York:20260601T213500
 SUMMARY:[TW-20260601-TRAVEL-HOME] Open Source Must Win -> FiDi home base
@@ -149,7 +170,7 @@ URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
 END:VEVENT
 BEGIN:VEVENT
 UID:a49ef921-7fba-5110-a649-b888f10f9abc@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260602T111300
 DTEND;TZID=America/New_York:20260602T120000
 SUMMARY:[TW-4551-TRAVEL-IN] FiDi home base -> How to Write a Book on AI in 
@@ -167,7 +188,7 @@ URL:https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
 END:VEVENT
 BEGIN:VEVENT
 UID:03b6979e-69e1-581c-9666-f024735c3118@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260602T120000
 DTEND;TZID=America/New_York:20260602T134500
 SUMMARY:[TW-4551] [PENDING] How to Write a Book on AI in Enterprise SDLC Wh
@@ -176,16 +197,23 @@ LOCATION:Midtown
 DESCRIPTION:TechWeekID: TW-4551\nCalendarBlockID: TW-4551-SCHEDULE\nRerankI
  D: 4551\nPartifulID: M7pXmV8sOXT11yHb9pKw\nWait for host approval Submitte
  d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
- \nRSVP status: applied\nCategory: primary\nVenue basis: Bryant Park\, New 
- York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 33 / A / 68\nURL:
-  https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
+ \nSales coaching:\nPitch: Accolades credits the engineering work commit co
+ unts miss\, using source-linked GitHub and Slack evidence.\nOpen: Use ente
+ rprise SDLC language: trustworthy artifacts\, change control\, and evidenc
+ e trails.\nAsk: Which engineering artifacts stay reliable when AI changes 
+ how teams plan\, review\, and ship?\nListen for: Auditability\, manager re
+ ports\, PR review evidence\, specs scattered across tools.\nFollow-up: Ask
+  to compare their SDLC reporting process with an Accolades evidence report
+ .\nRSVP status: applied\nCategory: primary\nVenue basis: Bryant Park\, New
+  York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 33 / A / 68\nURL
+ : https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
 END:VEVENT
 BEGIN:VEVENT
 UID:12db12ba-c3ab-5ffd-8d03-c308733cced9@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260602T160000
 DTEND;TZID=America/New_York:20260602T173000
 SUMMARY:[TW-4341] [PENDING] From Copilot to Control Plane - Visdom
@@ -193,16 +221,23 @@ LOCATION:Midtown
 DESCRIPTION:TechWeekID: TW-4341\nCalendarBlockID: TW-4341-SCHEDULE\nRerankI
  D: 4341\nPartifulID: bn5h1g13xzOV6R5XkLaE\nWait for host approval Submitte
  d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
- \nRSVP status: applied\nCategory: primary\nVenue basis: Bryant Park\, New 
- York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 1 / S / 100\nURL:
-  https://partiful.com/e/bn5h1g13xzOV6R5XkLaE
+ \nSales coaching:\nPitch: Accolades credits the engineering work commit co
+ unts miss\, using source-linked GitHub and Slack evidence.\nOpen: This is 
+ the highest-priority CTO/platform room. Lead with the control-plane proble
+ m.\nAsk: What should managers measure once copilots are part of every deve
+ lopment workflow?\nListen for: CTO/VP Eng pain\, platform ownership\, prod
+ uctivity reporting\, GitHub/code review evidence.\nFollow-up: Push for a c
+ oncrete post-Tech Week call if they own DevEx\, platform\, or engineering 
+ metrics.\nRSVP status: applied\nCategory: primary\nVenue basis: Bryant Par
+ k\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 1 / S / 1
+ 00\nURL: https://partiful.com/e/bn5h1g13xzOV6R5XkLaE
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/bn5h1g13xzOV6R5XkLaE
 END:VEVENT
 BEGIN:VEVENT
 UID:37d2cef5-64f8-5471-a7f4-7b9a8b26cc43@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260602T173600
 DTEND;TZID=America/New_York:20260602T180000
 SUMMARY:[TW-4161-TRAVEL-IN] From Copilot to Control Plane - Visdom -> Futur
@@ -220,7 +255,7 @@ URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 END:VEVENT
 BEGIN:VEVENT
 UID:ddb32591-8b87-5e6f-b247-4c9057734bd1@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260602T180000
 DTEND;TZID=America/New_York:20260602T210000
 SUMMARY:[TW-4161] [PENDING] Future of DevEx
@@ -228,16 +263,23 @@ LOCATION:SoHo
 DESCRIPTION:TechWeekID: TW-4161\nCalendarBlockID: TW-4161-SCHEDULE\nRerankI
  D: 4161\nPartifulID: 7DYGSiY1WUuRSvEnD5gp\nWait for host approval Submitte
  d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
- \nRSVP status: applied\nCategory: primary\nVenue basis: Spring St and Broa
- dway\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 3 / S 
- / 100\nURL: https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
+ \nSales coaching:\nPitch: Accolades credits the engineering work commit co
+ unts miss\, using source-linked GitHub and Slack evidence.\nOpen: Use DevE
+ x language and avoid sounding like HR analytics.\nAsk: Where does DevEx st
+ op being tooling and start being contribution evidence?\nListen for: Inter
+ nal developer platforms\, friction measurement\, review quality\, invisibl
+ e glue work.\nFollow-up: Ask who owns DevEx metrics and whether source-lin
+ ked contribution evidence would help.\nRSVP status: applied\nCategory: pri
+ mary\nVenue basis: Spring St and Broadway\, New York\, NY (approx_neighbor
+ hood_hidden)\nRank/tier/score: 3 / S / 100\nURL: https://partiful.com/e/7D
+ YGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 END:VEVENT
 BEGIN:VEVENT
 UID:046c3636-03d2-5f11-af07-25b1c46bcf06@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260602T210000
 DTEND;TZID=America/New_York:20260602T212000
 SUMMARY:[TW-20260602-TRAVEL-HOME] Future of DevEx -> FiDi home base
@@ -254,7 +296,7 @@ URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 END:VEVENT
 BEGIN:VEVENT
 UID:752da39d-d6a0-5315-8e41-4268a9fc2d9f@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260603T112900
 DTEND;TZID=America/New_York:20260603T120000
 SUMMARY:[TW-5889-TRAVEL-IN] FiDi home base -> Building secure AI for your d
@@ -272,7 +314,7 @@ URL:https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
 END:VEVENT
 BEGIN:VEVENT
 UID:fa9922e0-1d50-5ba1-954b-455b076f0139@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260603T120000
 DTEND;TZID=America/New_York:20260603T131500
 SUMMARY:[TW-5889] [PENDING] Building secure AI for your data: DeepFellow De
@@ -281,16 +323,23 @@ LOCATION:Chelsea
 DESCRIPTION:TechWeekID: TW-5889\nCalendarBlockID: TW-5889-SCHEDULE\nRerankI
  D: 5889\nPartifulID: 4HvzWY1VZlHgK21fMBUz\nWait for host approval Submitte
  d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
- \nRSVP status: applied\nCategory: primary\nVenue basis: 23rd Street and 8t
- h Avenue\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 16
-  / S / 80\nURL: https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
+ \nSales coaching:\nPitch: Accolades credits the engineering work commit co
+ unts miss\, using source-linked GitHub and Slack evidence.\nOpen: Tie secu
+ rity and data controls to audit-ready engineering evidence.\nAsk: How are 
+ you proving AI-assisted engineering work was reviewed without leaking sens
+ itive context?\nListen for: Security reviews\, data access\, compliance ne
+ eds\, audit trails\, manager sign-off.\nFollow-up: Offer a follow-up focus
+ ed on source-linked evidence without surveillance dashboards.\nRSVP status
+ : applied\nCategory: primary\nVenue basis: 23rd Street and 8th Avenue\, Ne
+ w York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 16 / S / 80\nUR
+ L: https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
 END:VEVENT
 BEGIN:VEVENT
 UID:966d56cd-917c-5a3c-845d-a1c80095733e@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260603T133500
 DTEND;TZID=America/New_York:20260603T140000
 SUMMARY:[TW-4444-TRAVEL-IN] Building secure AI for your data: DeepFellow De
@@ -310,7 +359,7 @@ URL:https://partiful.com/e/1N6CtiCpYquktoTh5NUm
 END:VEVENT
 BEGIN:VEVENT
 UID:9b72522c-81e3-5ff6-b942-903f38cc44de@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260603T140000
 DTEND;TZID=America/New_York:20260603T150000
 SUMMARY:[TW-4444] [PENDING] The Future of Coding Agents and IDE
@@ -318,16 +367,22 @@ LOCATION:1155 6th Ave\, New York\, NY 10036
 DESCRIPTION:TechWeekID: TW-4444\nCalendarBlockID: TW-4444-SCHEDULE\nRerankI
  D: 4444\nPartifulID: 1N6CtiCpYquktoTh5NUm\nWait for host approval Submitte
  d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=2\; plusOne=TBD.\
- nRSVP status: applied\nCategory: primary\nVenue basis: 1155 6th Ave\, New 
- York\, NY 10036 (manual_exact_manhattan)\nRank/tier/score: 27 / A / 72\nUR
- L: https://partiful.com/e/1N6CtiCpYquktoTh5NUm
+ nSales coaching:\nPitch: Accolades credits the engineering work commit cou
+ nts miss\, using source-linked GitHub and Slack evidence.\nOpen: Talk abou
+ t the IDE as the point where human and agent work blur.\nAsk: When agents 
+ write code\, what human work still needs credit?\nListen for: Prompting\, 
+ spec writing\, review corrections\, architectural judgment\, tool orchestr
+ ation.\nFollow-up: Ask to sanity-check the Accolades framing with builders
+  using coding agents daily.\nRSVP status: applied\nCategory: primary\nVenu
+ e basis: 1155 6th Ave\, New York\, NY 10036 (manual_exact_manhattan)\nRank
+ /tier/score: 27 / A / 72\nURL: https://partiful.com/e/1N6CtiCpYquktoTh5NUm
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/1N6CtiCpYquktoTh5NUm
 END:VEVENT
 BEGIN:VEVENT
 UID:3b504dc4-eb63-52c9-9648-a065a1ffce92@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260603T154000
 DTEND;TZID=America/New_York:20260603T160000
 SUMMARY:[TW-5529-TRAVEL-IN] The Future of Coding Agents and IDE -> Fireside
@@ -344,7 +399,7 @@ URL:https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
 END:VEVENT
 BEGIN:VEVENT
 UID:ddc0c184-15cb-51af-8391-566a44d99597@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260603T160000
 DTEND;TZID=America/New_York:20260603T171500
 SUMMARY:[TW-5529] [REG] Fireside chat - When coding agents are the user?
@@ -352,16 +407,23 @@ LOCATION:New York\, NY
 DESCRIPTION:TechWeekID: TW-5529\nCalendarBlockID: TW-5529-SCHEDULE\nRerankI
  D: 5529\nPartifulID: E8NhJNHWGhMetLlrFvQ7\nRegistered\; monitor for update
  s Submitted via Partiful API\; rsvpStatus=GOING\; count=2\; plusOne=TBD.\n
- RSVP status: registered\nCategory: primary\nVenue basis: 28th Street and B
- roadway\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 15 
- / S / 81\nURL: https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
+ Sales coaching:\nPitch: Accolades credits the engineering work commit coun
+ ts miss\, using source-linked GitHub and Slack evidence.\nOpen: Use the ev
+ ent title directly: if agents are users\, the system of record matters.\nA
+ sk: If the agent is the user\, what becomes the system of record for usefu
+ l work?\nListen for: Tool schemas\, docs\, prompts\, guardrails\, review e
+ vidence\, ownership boundaries.\nFollow-up: Ask for feedback on whether Ac
+ colades should track agent-orchestration evidence explicitly.\nRSVP status
+ : registered\nCategory: primary\nVenue basis: 28th Street and Broadway\, N
+ ew York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 15 / S / 81\nU
+ RL: https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
 END:VEVENT
 BEGIN:VEVENT
 UID:5a93a757-7a3a-551a-a210-cadd6be7f6a0@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260603T174000
 DTEND;TZID=America/New_York:20260603T180000
 SUMMARY:[TW-4664-TRAVEL-IN] Fireside chat - When coding agents are the user
@@ -379,7 +441,7 @@ URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
 END:VEVENT
 BEGIN:VEVENT
 UID:675881a5-a86b-58af-9f4a-7422e1cc4277@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260603T180000
 DTEND;TZID=America/New_York:20260603T203000
 SUMMARY:[TW-4664] [PENDING] MCP in the Wild: Panel & Night of Networking
@@ -387,16 +449,23 @@ LOCATION:East Village
 DESCRIPTION:TechWeekID: TW-4664\nCalendarBlockID: TW-4664-SCHEDULE\nRerankI
  D: 4664\nPartifulID: 6ZuudQBBZXcMNjdMynJ2\nWait for host approval Submitte
  d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
- \nRSVP status: applied\nCategory: primary\nVenue basis: Astor Place\, New 
- York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 58 / A / 63\nURL:
-  https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
+ \nSales coaching:\nPitch: Accolades credits the engineering work commit co
+ unts miss\, using source-linked GitHub and Slack evidence.\nOpen: MCP peop
+ le will understand context plumbing. Map that to later evaluation.\nAsk: W
+ hat context should tools expose so contribution can be evaluated after the
+  work ships?\nListen for: Tool-call trails\, context sources\, agent actio
+ ns\, human review\, integration ownership.\nFollow-up: Ask for technical f
+ eedback on evidence capture from tool and agent workflows.\nRSVP status: a
+ pplied\nCategory: primary\nVenue basis: Astor Place\, New York\, NY (appro
+ x_neighborhood_hidden)\nRank/tier/score: 58 / A / 63\nURL: https://partifu
+ l.com/events/6ZuudQBBZXcMNjdMynJ2
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
 END:VEVENT
 BEGIN:VEVENT
 UID:bfe26f7f-6307-51ce-b1b2-1c78dcce93c9@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260603T203000
 DTEND;TZID=America/New_York:20260603T205000
 SUMMARY:[TW-20260603-TRAVEL-HOME] MCP in the Wild: Panel & Night of Network
@@ -414,7 +483,7 @@ URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
 END:VEVENT
 BEGIN:VEVENT
 UID:46388065-4db5-5dc7-a344-5ed26454666a@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260604T153600
 DTEND;TZID=America/New_York:20260604T160000
 SUMMARY:[TW-5372-TRAVEL-IN] FiDi home base -> Shipping Faster with AI Codin
@@ -432,7 +501,7 @@ URL:https://partiful.com/e/5K5c4eODrGPKME7or20H
 END:VEVENT
 BEGIN:VEVENT
 UID:15f56d44-ee0e-5d50-97c9-c8adff07b4e3@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260604T160000
 DTEND;TZID=America/New_York:20260604T185100
 SUMMARY:[TW-5372] [PENDING] Shipping Faster with AI Coding Agents: What's W
@@ -443,17 +512,23 @@ DESCRIPTION:TechWeekID: TW-5372\nCalendarBlockID: TW-5372-SCHEDULE\nRerankI
  n make the registered 19:00 Stop Making AI Guess event. Wait for host appr
  oval Submitted via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; 
  plusOne=none. Route calendar shortens this from the event's scheduled 19:0
- 0 end\; leave 9 min early for transit.\nRSVP status: applied\nCategory: pr
- imary\nVenue basis: Spring St and Broadway\, New York\, NY (approx_neighbo
- rhood_hidden)\nRank/tier/score: 4 / S / 100\nURL: https://partiful.com/e/5
- K5c4eODrGPKME7or20H
+ 0 end\; leave 9 min early for transit.\nSales coaching:\nPitch: Accolades 
+ credits the engineering work commit counts miss\, using source-linked GitH
+ ub and Slack evidence.\nOpen: This is a direct AI-coding workflow room. St
+ art with manager trust.\nAsk: What changed in your review process after AI
+  started writing more code?\nListen for: Review overload\, shallow approva
+ ls\, unclear ownership\, productivity claims without evidence.\nFollow-up:
+  Ask for a buyer call with the engineering leader responsible for AI codin
+ g adoption.\nRSVP status: applied\nCategory: primary\nVenue basis: Spring 
+ St and Broadway\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/sc
+ ore: 4 / S / 100\nURL: https://partiful.com/e/5K5c4eODrGPKME7or20H
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/5K5c4eODrGPKME7or20H
 END:VEVENT
 BEGIN:VEVENT
 UID:9e3c9ffb-534f-53ff-a05a-f9be8f6da7cd@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260604T185100
 DTEND;TZID=America/New_York:20260604T190000
 SUMMARY:[TW-5114-TRAVEL-IN] Shipping Faster with AI Coding Agents: What's W
@@ -474,7 +549,7 @@ URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
 END:VEVENT
 BEGIN:VEVENT
 UID:b2d7f748-f6f3-52b6-9c90-295fa1c9d774@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260604T190000
 DTEND;TZID=America/New_York:20260604T204500
 SUMMARY:[TW-5114] [REG] Stop Making AI Guess: When Your Codebase Becomes th
@@ -484,17 +559,23 @@ DESCRIPTION:TechWeekID: TW-5114\nCalendarBlockID: TW-5114-SCHEDULE\nRerankI
  D: 5114\nPartifulID: X0u5GrmzvIUTrjoAOgVm\nRegistered direct. This is the 
  Thursday anchor unless a substantially better curated dinner approves. Reg
  istered\; monitor for updates Submitted via Partiful API\; rsvpStatus=GOIN
- G\; count=2\; plusOne=TBD.\nRSVP status: registered\nCategory: apply\nVenu
- e basis: Union Square\, Manhattan\, New York\, NY (approx_neighborhood_hid
- den)\nRank/tier/score: 21 / S / 76\nURL: https://partiful.com/e/X0u5GrmzvI
- UTrjoAOgVm
+ G\; count=2\; plusOne=TBD.\nSales coaching:\nPitch: Accolades credits the 
+ engineering work commit counts miss\, using source-linked GitHub and Slack
+  evidence.\nOpen: Use the codebase-as-spec theme and make Accolades feel c
+ omplementary.\nAsk: What would make a codebase trustworthy enough for agen
+ ts and managers?\nListen for: Source-linked context\, specs in code\, revi
+ ew trails\, stale docs\, manager confidence.\nFollow-up: Ask to exchange n
+ otes on codebase evidence and Accolades after the event.\nRSVP status: reg
+ istered\nCategory: apply\nVenue basis: Union Square\, Manhattan\, New York
+ \, NY (approx_neighborhood_hidden)\nRank/tier/score: 21 / S / 76\nURL: htt
+ ps://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
 END:VEVENT
 BEGIN:VEVENT
 UID:13da028c-c76e-5ef0-ad10-58fa20cd2852@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260604T204500
 DTEND;TZID=America/New_York:20260604T210300
 SUMMARY:[TW-20260604-TRAVEL-HOME] Stop Making AI Guess: When Your Codebase 
@@ -513,7 +594,7 @@ URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
 END:VEVENT
 BEGIN:VEVENT
 UID:e0e99f41-a181-517b-be10-3c63a0f3eb64@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260605T162200
 DTEND;TZID=America/New_York:20260605T170000
 SUMMARY:[TW-5722-TRAVEL-IN] FiDi home base -> Bare Metal Happy Hour: Autono
@@ -531,7 +612,7 @@ URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
 END:VEVENT
 BEGIN:VEVENT
 UID:b041ab5e-83d6-5a47-b34d-7a4f724462b7@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260605T170000
 DTEND;TZID=America/New_York:20260605T200000
 SUMMARY:[TW-5722] [PENDING] Bare Metal Happy Hour: Autonomous Systems & Age
@@ -540,16 +621,23 @@ LOCATION:Union Square
 DESCRIPTION:TechWeekID: TW-5722\nCalendarBlockID: TW-5722-SCHEDULE\nRerankI
  D: 5722\nPartifulID: jkjGahQgmH9PLIxjfTFt\nWait for host approval Submitte
  d via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
- \nRSVP status: applied\nCategory: primary\nVenue basis: Union Square Park\
- , 201 Park Ave S\, New York\, NY 10003 (exact_from_partiful_maps)\nRank/ti
- er/score: 45 / A / 64\nURL: https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
+ \nSales coaching:\nPitch: Accolades credits the engineering work commit co
+ unts miss\, using source-linked GitHub and Slack evidence.\nOpen: For agen
+ t fleet and autonomous systems people\, focus on orchestration accountabil
+ ity.\nAsk: How do teams know who did useful orchestration\, review\, and c
+ orrection work across agent fleets?\nListen for: Multi-agent coordination\
+ , operations work\, incident reviews\, hidden platform labor.\nFollow-up: 
+ Ask for intros to platform leads running agent or automation infrastructur
+ e.\nRSVP status: applied\nCategory: primary\nVenue basis: Union Square Par
+ k\, 201 Park Ave S\, New York\, NY 10003 (exact_from_partiful_maps)\nRank/
+ tier/score: 45 / A / 64\nURL: https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
 END:VEVENT
 BEGIN:VEVENT
 UID:529f0c1b-c1d5-59df-9f68-7a46f9f3f6a6@techweek-2026-event-picker
-DTSTAMP:20260509T223044Z
+DTSTAMP:20260511T213425Z
 DTSTART;TZID=America/New_York:20260605T200000
 DTEND;TZID=America/New_York:20260605T202200
 SUMMARY:[TW-20260605-TRAVEL-HOME] Bare Metal Happy Hour: Autonomous Systems

@@ -195,8 +195,8 @@ Use these if a primary event is full, hidden venue is inconvenient, or energy ch
 
 ## Files
 
-- Import primary calendar: `techweek_nyc_accolades_primary_with_travel.ics`
-- Import apply/tentative calendar: `techweek_nyc_accolades_apply_tentative.ics`
-- Import backup calendar: `techweek_nyc_accolades_backups_tentative.ics`
-- Spreadsheet: `techweek_nyc_accolades_detailed_calendar.xlsx`
-- CSV: `techweek_nyc_accolades_detailed_calendar.csv`
+- Import primary calendar: `outputs/accolades/techweek_nyc_accolades_primary_with_travel.ics`
+- Import apply/tentative calendar: `outputs/accolades/techweek_nyc_accolades_apply_tentative.ics`
+- Import backup calendar: `outputs/accolades/techweek_nyc_accolades_backups_tentative.ics`
+- Spreadsheet: `outputs/accolades/techweek_nyc_accolades_detailed_calendar.xlsx`
+- CSV: `outputs/accolades/techweek_nyc_accolades_detailed_calendar.csv`

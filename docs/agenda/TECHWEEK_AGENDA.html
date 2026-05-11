@@ -87,7 +87,7 @@
 <h2>Approval Monitoring</h2>
 <p>RSVP account: <code>techweek2026@pavlovcik.com</code></p>
 <p>Check approval emails periodically with:</p>
-<pre><code class="language-bash">python3 check_techweek_acceptance_emails.py
+<pre><code class="language-bash">python3 scripts/check_techweek_acceptance_emails.py
 </code></pre>
 <p>If local Apple Mail is stale, search Gmail directly:</p>
 <pre><code class="language-text">to:techweek2026@pavlovcik.com after:2026/5/9 (partiful OR &quot;Tech Week&quot; OR NYTechWeek) (approved OR accepted OR confirmed OR &quot;you're in&quot; OR waitlist)
@@ -323,10 +323,10 @@
 </ul>
 <h2>Files To Keep In Sync</h2>
 <ul>
-<li><code>techweek_signed_up_transport_schedule.md</code>: generated full schedule and RSVP reference.</li>
-<li><code>techweek_signed_up_transport_schedule.csv</code>: spreadsheet-friendly schedule with stable IDs.</li>
-<li><code>techweek_signed_up_operational_with_travel.ics</code>: route calendar import.</li>
-<li><code>techweek_signed_up_all_rsvps_reference.ics</code>: alternatives/reference import.</li>
+<li><code>outputs/signed_up/techweek_signed_up_transport_schedule.md</code>: generated full schedule and RSVP reference.</li>
+<li><code>outputs/signed_up/techweek_signed_up_transport_schedule.csv</code>: spreadsheet-friendly schedule with stable IDs.</li>
+<li><code>outputs/signed_up/techweek_signed_up_operational_with_travel.ics</code>: route calendar import.</li>
+<li><code>outputs/signed_up/techweek_signed_up_all_rsvps_reference.ics</code>: alternatives/reference import.</li>
 <li><code>.codex/techweek_signup_status.csv</code>: row-level RSVP status.</li>
-<li><code>SIGNUP_STATE_HANDOFF.md</code>: agent handoff and RSVP state.</li>
+<li><code>docs/handoffs/SIGNUP_STATE_HANDOFF.md</code>: agent handoff and RSVP state.</li>
 </ul>

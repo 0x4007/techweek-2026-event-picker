@@ -13,16 +13,16 @@ Profile / answer policy:
 - `.codex/techweek-rsvp-profile.json`
 
 Planning handoffs already used:
-- `SIGNUP_AGENT_HANDOFF.md`
-- `BACKUP_SIGNUP_AGENT_HANDOFF.md`
+- `docs/handoffs/SIGNUP_AGENT_HANDOFF.md`
+- `docs/handoffs/BACKUP_SIGNUP_AGENT_HANDOFF.md`
 
 ## Current Totals
 
 Rows tracked: 34
 
 By status:
-- Registered: 4
-- Applied / pending host approval: 29
+- Registered: 5
+- Applied / pending host approval: 28
 - Waitlisted: 1
 - Needs action: 0
 
@@ -42,7 +42,7 @@ Partiful browser session:
 
 - Do not shotgun additional events unless the user explicitly asks.
 - Do not submit paid checkout without user direction.
-- Periodically check for Tech Week / Partiful approval emails after `2026-05-09 18:00:00 America/New_York`. Use `python3 check_techweek_acceptance_emails.py` from the repo root. It defaults to the RSVP alias `techweek2026@pavlovcik.com`. As of the alias-filtered run at about 2026-05-09 19:31 ET, local Apple Mail had zero Envelope Index recipient rows for that alias, zero raw `.emlx` hits for that address, and no matching approval/status emails after 18:00 ET. If this remains stale, check Gmail directly with: `to:techweek2026@pavlovcik.com after:2026/5/9 (partiful OR "Tech Week" OR NYTechWeek) (approved OR accepted OR confirmed OR "you're in" OR waitlist)`.
+- Periodically check for Tech Week / Partiful approval emails after `2026-05-09 18:00:00 America/New_York`. Use `python3 scripts/check_techweek_acceptance_emails.py` from the repo root. It defaults to the RSVP alias `techweek2026@pavlovcik.com`. As of the alias-filtered run at about 2026-05-09 19:31 ET, local Apple Mail had zero Envelope Index recipient rows for that alias, zero raw `.emlx` hits for that address, and no matching approval/status emails after 18:00 ET. If this remains stale, check Gmail directly with: `to:techweek2026@pavlovcik.com after:2026/5/9 (partiful OR "Tech Week" OR NYTechWeek) (approved OR accepted OR confirmed OR "you're in" OR waitlist)`.
 - The only paid item currently identified is the secondary Luma ticket for `Software for Hardware`, priced at `$20`. Partiful registration is complete. The user explicitly said not to complete the Luma checkout; keep it unpaid/skipped.
 - `Camp AI: Agents at Work` was submitted after the user confirmed age 21+. It is pending host approval.
 - `Steal These AI Workflows` has both Partiful application and secondary Google Form build submission completed.
@@ -86,7 +86,7 @@ These were submitted and should be monitored for host approval:
 1. `4am IRR - for the inner IRR nerd in you!`
    - URL: `https://partiful.com/e/iyeVYNaUJxZqidnHixwa`
    - Count: 2, plus-one TBD
-   - Note: submitted before `SIGNUP_AGENT_HANDOFF.md` was read.
+   - Note: submitted before `docs/handoffs/SIGNUP_AGENT_HANDOFF.md` was read.
 
 ### Primary
 

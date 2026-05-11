@@ -25,18 +25,21 @@ from uuid import NAMESPACE_URL, uuid5
 from xml.sax.saxutils import escape
 
 
-RERANK_CSV = Path("techweek_nyc_accolades_full_rerank.csv")
-OUTPUT_CSV = Path("techweek_nyc_accolades_detailed_calendar.csv")
-OUTPUT_MD = Path("techweek_nyc_accolades_detailed_calendar.md")
-OUTPUT_XLSX = Path("techweek_nyc_accolades_detailed_calendar.xlsx")
-PRIMARY_ICS = Path("techweek_nyc_accolades_primary_with_travel.ics")
-APPLY_ICS = Path("techweek_nyc_accolades_apply_tentative.ics")
-BACKUP_ICS = Path("techweek_nyc_accolades_backups_tentative.ics")
+ROOT = Path(__file__).resolve().parents[1]
 
-GEOCODE_CACHE = Path("techweek_location_geocode_cache.json")
-STATION_CACHE = Path("nyc_subway_stations_cache.json")
-TRIP_CACHE = Path("techweek_subway_trip_cache.json")
-OSRM_CACHE = Path("techweek_osrm_foot_cache.json")
+RERANK_CSV = ROOT / "data/rankings/techweek_nyc_accolades_full_rerank.csv"
+OUTPUT_CSV = ROOT / "outputs/accolades/techweek_nyc_accolades_detailed_calendar.csv"
+OUTPUT_MD = ROOT / "outputs/accolades/techweek_nyc_accolades_detailed_calendar.md"
+OUTPUT_XLSX = ROOT / "outputs/accolades/techweek_nyc_accolades_detailed_calendar.xlsx"
+PRIMARY_ICS = ROOT / "outputs/accolades/techweek_nyc_accolades_primary_with_travel.ics"
+APPLY_ICS = ROOT / "outputs/accolades/techweek_nyc_accolades_apply_tentative.ics"
+BACKUP_ICS = ROOT / "outputs/accolades/techweek_nyc_accolades_backups_tentative.ics"
+
+GEOCODE_CACHE = ROOT / "data/cache/techweek_location_geocode_cache.json"
+STATION_CACHE = ROOT / "data/cache/nyc_subway_stations_cache.json"
+TRIP_CACHE = ROOT / "data/cache/techweek_subway_trip_cache.json"
+OSRM_CACHE = ROOT / "data/cache/techweek_osrm_foot_cache.json"
+EVENT_PAGES_DIR = ROOT / "data/source/event_pages"
 
 TZID = "America/New_York"
 USER_AGENT = "techweek-2026-event-picker/1.0 (local planning script)"
@@ -167,6 +170,10 @@ def read_json(path: Path, default):
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
     return default
+
+
+def rel(path: Path) -> str:
+    return path.relative_to(ROOT).as_posix()
 
 
 def write_json(path: Path, value) -> None:
@@ -337,8 +344,20 @@ def parse_start(row: dict[str, str]) -> dt.datetime:
     return dt.datetime(year, month, day, hour, minute, second)
 
 
+def local_html_path(row: dict[str, str]) -> Path | None:
+    html_path_text = row.get("local_html_path") or ""
+    if not html_path_text:
+        return None
+    html_path = Path(html_path_text)
+    if html_path.exists():
+        return html_path
+    moved_path = EVENT_PAGES_DIR / html_path.name
+    return moved_path if moved_path.exists() else None
+
+
 def extract_venue(row: dict[str, str], geocode_cache: dict[str, dict]) -> tuple[Point, dict]:
-    html_text = Path(row["local_html_path"]).read_text(errors="ignore") if row.get("local_html_path") else ""
+    html_path = local_html_path(row)
+    html_text = html_path.read_text(errors="ignore") if html_path else ""
     event_json = jsonld_event(html_text)
     loc = event_json.get("location", {}) if isinstance(event_json, dict) else {}
     venue_name = ""
@@ -689,11 +708,11 @@ def write_markdown(rows: list[dict]) -> None:
         "",
         "## Files",
         "",
-        f"- Import primary calendar: `{PRIMARY_ICS.name}`",
-        f"- Import apply/tentative calendar: `{APPLY_ICS.name}`",
-        f"- Import backup calendar: `{BACKUP_ICS.name}`",
-        f"- Spreadsheet: `{OUTPUT_XLSX.name}`",
-        f"- CSV: `{OUTPUT_CSV.name}`",
+        f"- Import primary calendar: `{rel(PRIMARY_ICS)}`",
+        f"- Import apply/tentative calendar: `{rel(APPLY_ICS)}`",
+        f"- Import backup calendar: `{rel(BACKUP_ICS)}`",
+        f"- Spreadsheet: `{rel(OUTPUT_XLSX)}`",
+        f"- CSV: `{rel(OUTPUT_CSV)}`",
     ]
     OUTPUT_MD.write_text("\n".join(contents) + "\n", encoding="utf-8")
 
@@ -818,6 +837,9 @@ def write_xlsx(rows: list[dict]) -> None:
 
 
 def main() -> None:
+    for path in [OUTPUT_CSV, OUTPUT_MD, OUTPUT_XLSX, PRIMARY_ICS, APPLY_ICS, BACKUP_ICS]:
+        path.parent.mkdir(parents=True, exist_ok=True)
+
     events, points = build_events()
     primary_rows = build_primary_with_travel(events, points)
     rows = primary_rows + event_entries(events, "apply") + event_entries(events, "backup")

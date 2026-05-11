@@ -98,7 +98,31 @@ else {
 let predicate = store.predicateForEvents(withStart: windowStart, end: windowEnd, calendars: [targetCalendar])
 let existingEvents = store.events(matching: predicate)
 var deleted = 0
-for event in existingEvents where event.title.hasPrefix("[TW-") {
+func isManagedTechWeekEvent(_ event: EKEvent) -> Bool {
+    let title = event.title ?? ""
+    let notes = event.notes ?? ""
+    if title.hasPrefix("[TW-") {
+        return true
+    }
+    if notes.contains("CalendarBlockID: TW-") || notes.contains("TechWeekID: TW-") {
+        return true
+    }
+    if title.hasPrefix("Tech Week:") && notes.contains("partiful.com") {
+        return true
+    }
+    if title.hasPrefix("Apply:") && notes.contains("partiful.com") {
+        return true
+    }
+    if title.hasPrefix("Backup:") && notes.contains("partiful.com") {
+        return true
+    }
+    if title.hasPrefix("Travel:") && notes.contains("Rank/tier/score:") {
+        return true
+    }
+    return false
+}
+
+for event in existingEvents where isManagedTechWeekEvent(event) {
     try store.remove(event, span: .thisEvent, commit: false)
     deleted += 1
 }
@@ -131,4 +155,4 @@ for row in techWeekEvents {
 
 try store.commit()
 
-print("Synced \(created) Tech Week operational blocks to \(targetCalendar.title) [source: \(targetCalendar.source.title)]. Deleted \(deleted) prior TW-* blocks.")
+print("Synced \(created) Tech Week operational blocks to \(targetCalendar.title) [source: \(targetCalendar.source.title)]. Deleted \(deleted) prior managed Tech Week blocks.")

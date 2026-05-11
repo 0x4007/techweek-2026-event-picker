@@ -100,7 +100,7 @@ RSVP account: `techweek2026@pavlovcik.com`
 Check approval emails periodically with:
 
 ```bash
-python3 check_techweek_acceptance_emails.py
+python3 scripts/check_techweek_acceptance_emails.py
 ```
 
 If local Apple Mail is stale, search Gmail directly:
@@ -300,10 +300,10 @@ Registered anchors:
 
 ## Files To Keep In Sync
 
-- `techweek_signed_up_transport_schedule.md`: generated full schedule and RSVP reference.
-- `techweek_signed_up_transport_schedule.csv`: spreadsheet-friendly schedule with stable IDs.
-- `techweek_signed_up_operational_with_travel.ics`: route calendar import.
-- `techweek_signed_up_all_rsvps_reference.ics`: alternatives/reference import.
+- `outputs/signed_up/techweek_signed_up_transport_schedule.md`: generated full schedule and RSVP reference.
+- `outputs/signed_up/techweek_signed_up_transport_schedule.csv`: spreadsheet-friendly schedule with stable IDs.
+- `outputs/signed_up/techweek_signed_up_operational_with_travel.ics`: route calendar import.
+- `outputs/signed_up/techweek_signed_up_all_rsvps_reference.ics`: alternatives/reference import.
 - `.codex/techweek_signup_status.csv`: row-level RSVP status.
-- `SIGNUP_STATE_HANDOFF.md`: agent handoff and RSVP state.
+- `docs/handoffs/SIGNUP_STATE_HANDOFF.md`: agent handoff and RSVP state.
 

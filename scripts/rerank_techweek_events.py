@@ -15,13 +15,15 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 
-INPUT = Path("techweek_nyc_events_with_descriptions.csv")
-ALL_OUTPUT = Path("techweek_nyc_accolades_full_rerank.csv")
-OPEN_OUTPUT = Path("techweek_nyc_accolades_practical_non_invite_rerank.csv")
-INVITE_OUTPUT = Path("techweek_nyc_accolades_invite_or_apply_rerank.csv")
-METADATA_ONLY_OUTPUT = Path("techweek_nyc_accolades_metadata_only_rerank.csv")
-TOP_PICKS = Path("techweek_nyc_accolades_full_rerank_top_picks.md")
-WORKBOOK_OUTPUT = Path("techweek_nyc_accolades_rerank.xlsx")
+ROOT = Path(__file__).resolve().parents[1]
+
+INPUT = ROOT / "data/source/techweek_nyc_events_with_descriptions.csv"
+ALL_OUTPUT = ROOT / "data/rankings/techweek_nyc_accolades_full_rerank.csv"
+OPEN_OUTPUT = ROOT / "data/rankings/techweek_nyc_accolades_practical_non_invite_rerank.csv"
+INVITE_OUTPUT = ROOT / "data/rankings/techweek_nyc_accolades_invite_or_apply_rerank.csv"
+METADATA_ONLY_OUTPUT = ROOT / "data/rankings/techweek_nyc_accolades_metadata_only_rerank.csv"
+TOP_PICKS = ROOT / "data/rankings/techweek_nyc_accolades_full_rerank_top_picks.md"
+WORKBOOK_OUTPUT = ROOT / "data/rankings/techweek_nyc_accolades_rerank.xlsx"
 
 
 BUYER_PATTERNS = [

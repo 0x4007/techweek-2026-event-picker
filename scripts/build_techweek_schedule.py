@@ -10,12 +10,14 @@ from pathlib import Path
 from uuid import uuid5, NAMESPACE_URL
 
 
-RERANK_CSV = Path("techweek_nyc_accolades_full_rerank.csv")
-SCHEDULE_CSV = Path("techweek_nyc_accolades_schedule.csv")
-SCHEDULE_MD = Path("techweek_nyc_accolades_schedule.md")
-PRIMARY_ICS = Path("techweek_nyc_accolades_primary_calendar.ics")
-BACKUP_ICS = Path("techweek_nyc_accolades_backup_calendar.ics")
-APPLY_ICS = Path("techweek_nyc_accolades_apply_calendar.ics")
+ROOT = Path(__file__).resolve().parents[1]
+
+RERANK_CSV = ROOT / "data/rankings/techweek_nyc_accolades_full_rerank.csv"
+SCHEDULE_CSV = ROOT / "outputs/accolades/techweek_nyc_accolades_schedule.csv"
+SCHEDULE_MD = ROOT / "outputs/accolades/techweek_nyc_accolades_schedule.md"
+PRIMARY_ICS = ROOT / "outputs/accolades/techweek_nyc_accolades_primary_calendar.ics"
+BACKUP_ICS = ROOT / "outputs/accolades/techweek_nyc_accolades_backup_calendar.ics"
+APPLY_ICS = ROOT / "outputs/accolades/techweek_nyc_accolades_apply_calendar.ics"
 
 TZID = "America/New_York"
 
@@ -233,6 +235,10 @@ def text(value: str | None) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
 
 
+def rel(path: Path) -> str:
+    return path.relative_to(ROOT).as_posix()
+
+
 def load_events() -> dict[str, dict[str, str]]:
     with RERANK_CSV.open(newline="", encoding="utf-8-sig") as f:
         return {row["id"]: row for row in csv.DictReader(f)}
@@ -256,7 +262,7 @@ def enrich_plan(events_by_id: dict[str, dict[str, str]]) -> list[dict[str, str]]
                 "end_time": end.strftime("%H:%M"),
                 "location": event["location"],
                 "name": event["name"],
-                "host_company": event["host_company"],
+                "host_company": event["company"],
                 "rank": event["rank"],
                 "tier": event["tier"],
                 "opportunity_score": event["opportunity_score"],
@@ -418,9 +424,9 @@ def write_markdown(rows: list[dict[str, str]]) -> None:
         "",
         "## Calendar Files",
         "",
-        f"- Primary: [{PRIMARY_ICS.name}]({PRIMARY_ICS.name})",
-        f"- Apply / tentative: [{APPLY_ICS.name}]({APPLY_ICS.name})",
-        f"- Backups: [{BACKUP_ICS.name}]({BACKUP_ICS.name})",
+        f"- Primary: [{rel(PRIMARY_ICS)}]({rel(PRIMARY_ICS)})",
+        f"- Apply / tentative: [{rel(APPLY_ICS)}]({rel(APPLY_ICS)})",
+        f"- Backups: [{rel(BACKUP_ICS)}]({rel(BACKUP_ICS)})",
     ]
     SCHEDULE_MD.write_text("\n".join(contents) + "\n", encoding="utf-8")
 

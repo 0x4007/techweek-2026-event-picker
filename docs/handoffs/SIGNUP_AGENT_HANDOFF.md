@@ -13,22 +13,22 @@ Product context: UbiquityOS Accolades turns GitHub/Slack work evidence into sour
 
 ## Files To Use
 
-- `techweek_nyc_accolades_detailed_calendar.md`  
+- `outputs/accolades/techweek_nyc_accolades_detailed_calendar.md`  
   Human-readable schedule with travel blocks, venue precision, and why each event is included.
 
-- `techweek_nyc_accolades_detailed_calendar.csv`  
+- `outputs/accolades/techweek_nyc_accolades_detailed_calendar.csv`  
   Machine-readable schedule, including primary/apply/backup buckets.
 
-- `techweek_nyc_accolades_primary_with_travel.ics`  
+- `outputs/accolades/techweek_nyc_accolades_primary_with_travel.ics`  
   Primary calendar import, includes travel blocks.
 
-- `techweek_nyc_accolades_apply_tentative.ics`  
+- `outputs/accolades/techweek_nyc_accolades_apply_tentative.ics`  
   Invite/apply/curated targets. Import as tentative only.
 
-- `techweek_nyc_accolades_backups_tentative.ics`  
+- `outputs/accolades/techweek_nyc_accolades_backups_tentative.ics`  
   Backup options. Import as tentative only.
 
-- `techweek_nyc_accolades_rerank.xlsx`  
+- `data/rankings/techweek_nyc_accolades_rerank.xlsx`  
   Full rerank workbook if more options are needed.
 
 ## Signup Priority
@@ -187,7 +187,7 @@ Shorter version:
 - Downtown and near-downtown are preferred.
 - Midtown is acceptable only for strong buyer fit.
 - Several Partiful events hide the exact venue until RSVP. In the detailed calendar, those are marked as `approx_neighborhood_hidden`.
-- Use `techweek_nyc_accolades_detailed_calendar.md` for current travel estimates. Transit estimates use current SubwayInfo.nyc route estimates and are not guaranteed for June 2026 service changes.
+- Use `outputs/accolades/techweek_nyc_accolades_detailed_calendar.md` for current travel estimates. Transit estimates use current SubwayInfo.nyc route estimates and are not guaranteed for June 2026 service changes.
 
 ## Signup Behavior
 
