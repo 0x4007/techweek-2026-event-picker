@@ -1,4 +1,5 @@
 .DS_Store
+.env
 __pycache__/
 *.py[cod]
 outputs/sync/sync_techweek_google_eventkit
@@ -6,6 +7,7 @@ outputs/sync/sync_google_personal_june_*.applescript
 
 # Local RSVP profile includes personal contact details. Keep status CSV trackable.
 .codex/techweek-rsvp-profile.json
+.codex/techweek_app_state.json
 .codex/*.png
 
 # Large raw Partiful page cache. The derived CSV/JSON/XLSX files are the stable project artifacts.

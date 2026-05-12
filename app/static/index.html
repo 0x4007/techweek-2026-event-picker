@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    >
+    <meta name="theme-color" content="#f5f3ee">
+    <title>Tech Week Route</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body data-page="techweek-app">
+    <svg aria-hidden="true" width="0" height="0" style="position: absolute">
+      <symbol id="icon-calendar" viewBox="0 0 24 24">
+        <path
+          d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"
+        />
+      </symbol>
+      <symbol id="icon-layers" viewBox="0 0 24 24">
+        <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+        <path d="m3 12 9 5 9-5" />
+        <path d="m3 16 9 5 9-5" />
+      </symbol>
+      <symbol id="icon-message" viewBox="0 0 24 24">
+        <path d="M21 12a7 7 0 0 1-7 7H8l-5 3 2-5a7 7 0 1 1 16-5Z" />
+      </symbol>
+      <symbol id="icon-user-plus" viewBox="0 0 24 24">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+        <path d="M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+        <path d="M19 8v6M22 11h-6" />
+      </symbol>
+      <symbol id="icon-map-pin" viewBox="0 0 24 24">
+        <path d="M12 21s7-4.7 7-11a7 7 0 1 0-14 0c0 6.3 7 11 7 11Z" />
+        <path d="M12 10.5h.01" />
+      </symbol>
+      <symbol id="icon-sparkles" viewBox="0 0 24 24">
+        <path d="m12 3 1.7 5.2L19 10l-5.3 1.8L12 17l-1.7-5.2L5 10l5.3-1.8L12 3Z" />
+        <path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" />
+      </symbol>
+      <symbol id="icon-download" viewBox="0 0 24 24">
+        <path d="M12 3v12" />
+        <path d="m7 10 5 5 5-5" />
+        <path d="M5 21h14" />
+      </symbol>
+      <symbol id="icon-x" viewBox="0 0 24 24">
+        <path d="M6 6l12 12M18 6 6 18" />
+      </symbol>
+      <symbol id="icon-send" viewBox="0 0 24 24">
+        <path d="M22 2 11 13" />
+        <path d="m22 2-7 20-4-9-9-4 20-7Z" />
+      </symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14" />
+      </symbol>
+      <symbol id="icon-copy" viewBox="0 0 24 24">
+        <path d="M8 8h11v11H8z" />
+        <path d="M5 16H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+      </symbol>
+      <symbol id="icon-external" viewBox="0 0 24 24">
+        <path d="M14 4h6v6" />
+        <path d="m10 14 10-10" />
+        <path d="M20 15v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h4" />
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <path d="M20 6 9 17l-5-5" />
+      </symbol>
+      <symbol id="icon-clock" viewBox="0 0 24 24">
+        <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
+        <path d="M12 7v5l3 2" />
+      </symbol>
+      <symbol id="icon-slash" viewBox="0 0 24 24">
+        <path d="M4 4l16 16" />
+        <path d="M12 21a9 9 0 0 0 7.4-14.1M9.5 3.4A9 9 0 0 0 4.6 17" />
+      </symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24">
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="M6 6l1 15h10l1-15" />
+        <path d="M10 11v6M14 11v6" />
+      </symbol>
+      <symbol id="icon-camera" viewBox="0 0 24 24">
+        <path
+          d="M5 7h3l2-3h4l2 3h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"
+        />
+        <path d="M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+      </symbol>
+    </svg>
+    <header>
+      <section>
+        <p>NYC Tech Week</p>
+        <h1 data-page-title>Route</h1>
+      </section>
+      <nav aria-label="Schedule views">
+        <button type="button" data-view-button="route" aria-current="page">
+          <svg><use href="#icon-calendar"></use></svg><span>Route</span>
+        </button>
+        <button type="button" data-view-button="backup">
+          <svg><use href="#icon-layers"></use></svg><span>Backups</span>
+        </button>
+        <button type="button" data-view-button="crm">
+          <svg><use href="#icon-user-plus"></use></svg><span>CRM</span>
+        </button>
+      </nav>
+    </header>
+
+    <main>
+      <section data-panel="route">
+        <article data-next-card>
+          <p>Next</p>
+          <h2 data-next-title>Loading route...</h2>
+          <dl>
+            <div>
+              <dt>Time</dt>
+              <dd data-next-time></dd>
+            </div>
+            <div>
+              <dt>Place</dt>
+              <dd data-next-place></dd>
+            </div>
+          </dl>
+          <menu>
+            <button
+              type="button"
+              data-ask="Give me a bullet list with the next block and opening line."
+            >
+              <svg><use href="#icon-sparkles"></use></svg><span>Ask</span>
+            </button>
+            <a href="/api/ics/operational">
+              <svg><use href="#icon-download"></use></svg><span>ICS</span>
+            </a>
+          </menu>
+        </article>
+
+        <section aria-label="Day picker" data-day-tabs></section>
+        <section aria-label="Route entries" data-route-list></section>
+      </section>
+
+      <section data-panel="backup" hidden>
+        <section>
+          <h2>Backups</h2>
+          <p data-sync-status>Google sync: ICS export</p>
+        </section>
+        <section aria-label="Reference entries" data-reference-list></section>
+      </section>
+
+      <section data-panel="crm" hidden>
+        <section data-crm-card>
+          <header>
+            <section>
+              <p>Lead capture</p>
+              <h2 data-crm-event-title>Current event</h2>
+            </section>
+          </header>
+          <form data-lead-form>
+            <label>
+              <span>Event</span>
+              <select name="calendarBlockId" data-lead-event></select>
+            </label>
+            <section data-card-scan>
+              <label data-card-scan-button role="button" tabindex="0">
+                <input type="file" accept="image/*" capture="environment" data-card-input>
+                <svg><use href="#icon-camera"></use></svg><span>Scan card</span>
+              </label>
+              <p data-card-scan-status>Prefills only. Review before saving.</p>
+              <img alt="" data-card-preview hidden>
+            </section>
+            <section data-lead-fields>
+              <label>
+                <span>Name</span>
+                <input name="name" autocomplete="name">
+              </label>
+              <label>
+                <span>Company</span>
+                <input name="company" autocomplete="organization">
+              </label>
+              <label>
+                <span>Role</span>
+                <input name="role" autocomplete="organization-title">
+              </label>
+              <label>
+                <span>Email</span>
+                <input name="email" type="email" autocomplete="email" inputmode="email">
+              </label>
+              <label>
+                <span>Phone</span>
+                <input name="phone" type="tel" autocomplete="tel" inputmode="tel">
+              </label>
+            </section>
+            <section data-lead-meta>
+              <label>
+                <span>Priority</span>
+                <select name="priority">
+                  <option value="A">A</option>
+                  <option value="B" selected>B</option>
+                  <option value="C">C</option>
+                </select>
+              </label>
+              <label>
+                <span>Follow-up</span>
+                <input name="followUp" placeholder="20 min call / intro / notes">
+              </label>
+            </section>
+            <label data-send-follow-up>
+              <input type="checkbox" name="sendFollowUpEmail">
+              <span>Send follow-up email</span>
+              <small data-follow-up-email-status>Email off</small>
+            </label>
+            <label>
+              <span>Notes</span>
+              <textarea
+                name="notes"
+                rows="3"
+                placeholder="Pain signal, context, promised follow-up..."
+              ></textarea>
+            </label>
+            <p data-lead-error hidden></p>
+            <menu>
+              <button type="submit">
+                <svg><use href="#icon-check"></use></svg><span>Save lead</span>
+              </button>
+            </menu>
+          </form>
+        </section>
+        <section aria-label="Captured leads" data-leads-list></section>
+      </section>
+    </main>
+
+    <button type="button" data-chat-fab data-chat-open>
+      <svg><use href="#icon-message"></use></svg><span>Ask</span>
+    </button>
+
+    <div data-event-backdrop hidden></div>
+    <aside data-event-modal role="dialog" aria-modal="true" aria-label="Block details" hidden>
+      <header>
+        <section>
+          <p data-event-type></p>
+          <h2 data-event-title></h2>
+        </section>
+        <button type="button" aria-label="Close details" data-event-close data-icon-only>
+          <svg><use href="#icon-x"></use></svg>
+        </button>
+      </header>
+      <dl>
+        <div>
+          <dt>Time</dt>
+          <dd data-event-time></dd>
+        </div>
+        <div>
+          <dt>Place</dt>
+          <dd data-event-place></dd>
+        </div>
+      </dl>
+      <p data-event-detail></p>
+      <menu data-event-actions></menu>
+    </aside>
+
+    <div data-agent-backdrop hidden></div>
+    <aside data-agent-drawer role="dialog" aria-modal="true" aria-label="Tech Week agent" hidden>
+      <section data-agent-header>
+        <section>
+          <p>Agent</p>
+          <h2>Route assistant</h2>
+        </section>
+        <menu data-agent-tools>
+          <button type="button" aria-label="New chat" data-chat-new data-icon-only>
+            <svg><use href="#icon-plus"></use></svg>
+          </button>
+          <button
+            type="button"
+            aria-label="Chat history"
+            aria-expanded="false"
+            data-chat-history-toggle
+            data-icon-only
+          >
+            <svg><use href="#icon-clock"></use></svg>
+          </button>
+          <button type="button" aria-label="Close agent" data-chat-close data-icon-only>
+            <svg><use href="#icon-x"></use></svg>
+          </button>
+        </menu>
+      </section>
+      <section aria-label="Chat history" data-chat-history hidden></section>
+      <section data-chat-log aria-live="polite"></section>
+      <section data-agent-composer>
+        <section aria-label="Quick prompts" data-prompts>
+          <button type="button" data-ask="What should I do next?">
+            <svg><use href="#icon-calendar"></use></svg><span>Next</span>
+          </button>
+          <button type="button" data-ask="Can I make the next event on time?">
+            <svg><use href="#icon-clock"></use></svg><span>Timing</span>
+          </button>
+          <button
+            type="button"
+            data-ask="Which backup should I use tonight if the primary falls through?"
+          >
+            <svg><use href="#icon-layers"></use></svg><span>Backup</span>
+          </button>
+          <button type="button" data-ask="Give me the opening line and ask for the next event.">
+            <svg><use href="#icon-sparkles"></use></svg><span>Pitch</span>
+          </button>
+        </section>
+        <form data-chat-form>
+          <textarea
+            name="prompt"
+            rows="2"
+            autocomplete="off"
+            placeholder="Message Tech Week agent"
+          ></textarea>
+          <button type="submit" aria-label="Send message" data-icon-only disabled>
+            <svg><use href="#icon-send"></use></svg>
+          </button>
+        </form>
+      </section>
+    </aside>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "imports": {
+    "js-tiktoken": "npm:js-tiktoken@1.0.20",
+    "pg": "npm:pg@8.20.0",
+    "playwright": "npm:playwright@1.56.1"
+  },
+  "deploy": {
+    "runtime": {
+      "type": "dynamic",
+      "entrypoint": "app/server.ts"
+    }
+  },
+  "tasks": {
+    "dev": "deno run --env-file=.env --watch --allow-read=app,outputs,.codex,data,docs,/Users/nv/repos/ubiquity-os-marketplace/text-conversation-rewards --allow-write=.codex --allow-run=tesseract,magick --allow-env=DATABASE_URL,UOS_AI_TOKEN,OPENAI_API_KEY,OPENAI_BASE_URL,UOS_AI_BASE_URL,RESEND_API_KEY,RESEND_EMAIL_FROM --allow-net=0.0.0.0:8787,127.0.0.1:8787,localhost:8787,ai.ubq.fi,api.resend.com,nominatim.openstreetmap.org,subwayinfo.nyc app/server.ts",
+    "start": "deno run --env-file=.env --allow-read=app,outputs,.codex,data,docs,/Users/nv/repos/ubiquity-os-marketplace/text-conversation-rewards --allow-write=.codex --allow-run=tesseract,magick --allow-env=DATABASE_URL,UOS_AI_TOKEN,OPENAI_API_KEY,OPENAI_BASE_URL,UOS_AI_BASE_URL,RESEND_API_KEY,RESEND_EMAIL_FROM --allow-net=0.0.0.0:8787,127.0.0.1:8787,localhost:8787,ai.ubq.fi,api.resend.com,nominatim.openstreetmap.org,subwayinfo.nyc app/server.ts",
+    "check": "deno fmt --check app e2e && deno lint app e2e && deno test --allow-env=DATABASE_URL --allow-read=outputs,.codex,data,docs,/Users/nv/repos/ubiquity-os-marketplace/text-conversation-rewards app",
+    "e2e": "deno test --env-file=.env --allow-read --allow-write --allow-net --allow-env --allow-run --allow-sys e2e",
+    "logs": "tail -f .codex/techweek_app_server.log | rg --line-buffered 'agent_context|ocr_|client_log|requestId|Business card OCR|x-uos|x-deno'"
+  },
+  "fmt": {
+    "lineWidth": 100,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": false
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-window-prefix"]
+    }
+  }
+}
