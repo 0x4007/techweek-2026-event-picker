@@ -13,7 +13,7 @@ jobs:
     permissions:
       contents: read
     env:
-      DENO_DEPLOY_ORG: 0x4007
+      DENO_DEPLOY_ORG: "0x4007"
       DENO_DEPLOY_APP: techweek-2026-event-picker
       DENO_DEPLOY_REGION: us
       DEPLOY_ROOT: .deploy-root
