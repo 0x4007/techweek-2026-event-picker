@@ -1,5 +1,6 @@
 .DS_Store
 .env
+.deploy-root/
 __pycache__/
 *.py[cod]
 outputs/sync/sync_techweek_google_eventkit

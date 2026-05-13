@@ -1,0 +1,120 @@
+name: Deno Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      DENO_DEPLOY_ORG: 0x4007
+      DENO_DEPLOY_APP: techweek-2026-event-picker
+      DENO_DEPLOY_REGION: us
+      DEPLOY_ROOT: .deploy-root
+      ENTRYPOINT: app/server.ts
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Show tool versions
+        run: deno --version
+
+      - name: Prepare deploy root
+        run: scripts/prepare_deno_deploy_root.sh "$DEPLOY_ROOT"
+
+      - name: Validate deploy root
+        working-directory: ${{ env.DEPLOY_ROOT }}
+        run: deno task check
+
+      - name: Ensure Deno app exists
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DENO_DEPLOY_TOKEN:-}" ]; then
+            echo "::error::DENO_DEPLOY_TOKEN repo secret is required"
+            exit 1
+          fi
+
+          set +e
+          probe_output="$(deno deploy env list --token "$DENO_DEPLOY_TOKEN" --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" 2>&1)"
+          probe_status=$?
+          set -e
+
+          if [ "$probe_status" -eq 0 ]; then
+            echo "Deno Deploy app $DENO_DEPLOY_APP already exists."
+            exit 0
+          fi
+
+          if ! printf '%s\n' "$probe_output" | grep -qi "not found"; then
+            echo "$probe_output"
+            exit "$probe_status"
+          fi
+
+          deno deploy create \
+            --token "$DENO_DEPLOY_TOKEN" \
+            --org "$DENO_DEPLOY_ORG" \
+            --app "$DENO_DEPLOY_APP" \
+            --source local \
+            --do-not-use-detected-build-config \
+            --app-directory . \
+            --runtime-mode dynamic \
+            --entrypoint "$ENTRYPOINT" \
+            --working-directory . \
+            --install-command true \
+            --build-command true \
+            --pre-deploy-command true \
+            --build-timeout 5 \
+            --build-memory-limit 1024 \
+            --region "$DENO_DEPLOY_REGION" \
+            --no-wait \
+            "$DEPLOY_ROOT"
+
+      - name: Deploy
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          set -euo pipefail
+          attempt=1
+          max_attempts=5
+          while true; do
+            set +e
+            output="$(deno deploy --token "$DENO_DEPLOY_TOKEN" --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" --prod "$DEPLOY_ROOT" 2>&1)"
+            status=$?
+            set -e
+
+            if [ "$status" -eq 0 ]; then
+              echo "$output"
+              break
+            fi
+
+            if [ "$attempt" -lt "$max_attempts" ] && printf '%s\n' "$output" | grep -Eqi '(unexpected internal error|temporar|timeout|timed out|connection reset|connection closed|network error|rate limit|throttl|503|502|504)'; then
+              sleep_for=$((attempt * 10))
+              echo "::warning::Deno Deploy transient failure on attempt $attempt; retrying in ${sleep_for}s"
+              echo "$output"
+              sleep "$sleep_for"
+              attempt=$((attempt + 1))
+              continue
+            fi
+
+            echo "$output"
+            exit "$status"
+          done
+
+      - name: Verify deployment
+        run: |
+          set -euo pipefail
+          base_url="https://${DENO_DEPLOY_APP}.${DENO_DEPLOY_ORG}.deno.net"
+          curl -fsS "$base_url/" >/dev/null
+          curl -fsS "$base_url/api/health" | grep -q '"status": "ready"'
