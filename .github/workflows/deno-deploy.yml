@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Deno
         uses: denoland/setup-deno@v2
@@ -37,7 +39,29 @@ jobs:
         working-directory: ${{ env.DEPLOY_ROOT }}
         run: deno task check
 
+      - name: Detect deploy changes
+        id: deploy_changes
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed="$(git diff --name-only HEAD^ HEAD)"
+          if printf '%s\n' "$changed" | grep -Eq '^(app/|outputs/signed_up/|data/rankings/techweek_nyc_accolades_full_rerank|docs/agenda/TECHWEEK_AGENDA\.md|docs/handoffs/|deno\.json|deno\.lock|README\.md|scripts/prepare_deno_deploy_root\.sh)'; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Ensure Deno app exists
+        if: steps.deploy_changes.outputs.deploy == 'true'
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
@@ -82,6 +106,7 @@ jobs:
             "$DEPLOY_ROOT"
 
       - name: Deploy
+        if: steps.deploy_changes.outputs.deploy == 'true'
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
@@ -99,7 +124,7 @@ jobs:
               break
             fi
 
-            if [ "$attempt" -lt "$max_attempts" ] && printf '%s\n' "$output" | grep -Eqi '(unexpected internal error|temporar|timeout|timed out|connection reset|connection closed|network error|rate limit|throttl|503|502|504)'; then
+            if [ "$attempt" -lt "$max_attempts" ] && printf '%s\n' "$output" | grep -Eqi '(unexpected internal error|revision failed|temporar|timeout|timed out|connection reset|connection closed|network error|rate limit|throttl|503|502|504)'; then
               sleep_for=$((attempt * 10))
               echo "::warning::Deno Deploy transient failure on attempt $attempt; retrying in ${sleep_for}s"
               echo "$output"
