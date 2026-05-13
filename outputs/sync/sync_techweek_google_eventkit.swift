@@ -21,11 +21,18 @@ struct TechWeekEvent: Decodable {
 
 let targetCalendarTitle = "Personal"
 let preferredSourceHint = "pavlovcik@gmail.com"
-let jsonPath = CommandLine.arguments.dropFirst().first ?? "techweek_google_schedule_eventkit.json"
+let args = Array(CommandLine.arguments.dropFirst())
+let cleanupOnly = args.contains("--cleanup-only")
+let jsonPath = args.first(where: { !$0.hasPrefix("--") }) ?? "outputs/sync/techweek_google_schedule_eventkit.json"
 
-let decoder = JSONDecoder()
-let payload = try Data(contentsOf: URL(fileURLWithPath: jsonPath))
-let techWeekEvents = try decoder.decode([TechWeekEvent].self, from: payload)
+let techWeekEvents: [TechWeekEvent]
+if cleanupOnly {
+    techWeekEvents = []
+} else {
+    let decoder = JSONDecoder()
+    let payload = try Data(contentsOf: URL(fileURLWithPath: jsonPath))
+    techWeekEvents = try decoder.decode([TechWeekEvent].self, from: payload)
+}
 
 let dateFormatter = DateFormatter()
 dateFormatter.locale = Locale(identifier: "en_US_POSIX")
@@ -98,9 +105,13 @@ else {
 let predicate = store.predicateForEvents(withStart: windowStart, end: windowEnd, calendars: [targetCalendar])
 let existingEvents = store.events(matching: predicate)
 var deleted = 0
+
 func isManagedTechWeekEvent(_ event: EKEvent) -> Bool {
     let title = event.title ?? ""
     let notes = event.notes ?? ""
+    if title == "TechWeek" {
+        return true
+    }
     if title.hasPrefix("[TW-") {
         return true
     }
@@ -125,6 +136,12 @@ func isManagedTechWeekEvent(_ event: EKEvent) -> Bool {
 for event in existingEvents where isManagedTechWeekEvent(event) {
     try store.remove(event, span: .thisEvent, commit: false)
     deleted += 1
+}
+
+if cleanupOnly {
+    try store.commit()
+    print("Deleted \(deleted) managed Tech Week blocks from \(targetCalendar.title) [source: \(targetCalendar.source.title)].")
+    exit(0)
 }
 
 var created = 0

@@ -92,17 +92,20 @@ Skip or record as blocked when:
 Current signup results are recorded in:
 - `.codex/techweek_signup_status.csv`
 
-Summary as of 2026-05-09:
+Summary as of the 2026-05-12 live Partiful sync:
 - 12 primary targets from `docs/handoffs/SIGNUP_AGENT_HANDOFF.md` submitted.
 - 9 apply/curated targets from `docs/handoffs/SIGNUP_AGENT_HANDOFF.md` submitted.
 - 12 backup targets from `docs/handoffs/BACKUP_SIGNUP_AGENT_HANDOFF.md` processed.
-- 5 direct registrations/approvals are marked `registered`.
-- 28 targets are marked `applied` / pending host approval.
-- 1 target is marked `waitlisted`.
+- 12 rows are marked `registered`, including the earlier `4am IRR` test / pre-handoff submission.
+- 11 non-test rows are marked `registered`.
+- 20 targets are marked `applied` / pending host approval.
+- 2 targets are marked `waitlisted`.
 - No Partiful signup blockers remain.
 - `Camp AI: Agents at Work` was submitted after the user confirmed age 21+.
 - `Software for Hardware` is registered on Partiful, but its secondary Luma ticket is a $20 paid checkout. User explicitly said not to complete it; keep it unpaid/skipped.
 - `Steal These AI Workflows` has both the Partiful application and secondary Google Form build submission completed.
+- Newly approved since the earlier handoff: `Open Source Must Win`, `How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing`, `The Future of Coding Agents and IDE`, `AI BUILDERS DINNER`, `Cloudflare + Shopify: Build for the Agent Era`, and `AI, Algorithms & Liability: What Tech Leaders & Creators Need to Know`.
+- `Engineering Leaders After Hours` moved to Partiful `WAITLISTED_FOR_APPROVAL`.
 
 The first tested event, submitted before the priority handoff was read, was submitted successfully as an application:
 - Event: `4am IRR - for the inner IRR nerd in you!`
@@ -152,11 +155,12 @@ Calendar ID scheme:
 - All-RSVP reference blocks use `TW-<rerank_id>-REFERENCE`.
 - Travel-to-event blocks use `TW-<rerank_id>-TRAVEL-IN`.
 - Travel-home blocks use `TW-YYYYMMDD-TRAVEL-HOME`.
-- The visible calendar title includes the stable ID.
-- Event descriptions include `TechWeekID`, `CalendarBlockID`, `RerankID`, and `PartifulID`.
+- Visible calendar titles should not include stable IDs; keep titles human-readable.
+- Event descriptions include `TechWeekID`, `CalendarBlockID`, `RerankID`, and `PartifulID` for future dedupe and updates.
+- Event descriptions include Google Maps links. Fixed-location blocks use search links; travel blocks use directions links.
 - The CSV includes `techweek_id`, `calendar_block_id`, `partiful_id`, and `rerank_id` columns for future updates.
 
-Operational route currently blocks 13 events and 17 transit blocks:
+Operational route currently blocks 13 events, 17 transit blocks, 10 meal/reset blocks, and 6 sleep blocks:
 - `TW-6408` Mon 2026-06-01 14:00 Beyond the Spec.
 - `TW-44` Mon 2026-06-01 16:00 From Vibe Coding.
 - `TW-5978` Mon 2026-06-01 18:00 Open Source Must Win.
@@ -173,21 +177,23 @@ Operational route currently blocks 13 events and 17 transit blocks:
 
 All-RSVP reference calendar excludes the earlier `4am IRR` test submission. Its current non-test snapshot is:
 - 33 total submitted RSVPs.
-- 4 registered.
-- 28 applied / pending approval.
-- 1 waitlisted.
+- 11 registered.
+- 20 applied / pending approval.
+- 2 waitlisted.
 
 Duplicate-rendering fix:
 - `NY Tech Week 2026 - Schedule` contains the operational route: 13 event blocks plus 17 transit/walk blocks.
+- It also includes 10 meal/reset blocks, mostly one hour, with a 30-minute quick-food slot on the dense Wednesday route.
+- It includes 6 staggered late 8-hour sleep blocks from June 1-6. Bedtimes range from 02:43 to 04:15, with every night-to-night shift kept at 30 minutes or less.
 - `NY Tech Week 2026 - All RSVPs` now excludes the 13 scheduled route events and contains only 20 alternatives/backups.
-- The generated CSV has 50 rows total: 30 `schedule` rows and 20 `reference` rows.
+- The generated CSV has 66 rows total: 46 `schedule` rows and 20 `reference` rows.
 - There should be no overlap between `techweek_id` values in schedule event rows and reference rows.
 
 Google Calendar status:
 - The operational route was written to the Google-backed macOS Calendar.app `Personal` calendar on 2026-05-09 using small day-by-day AppleScript batches.
 - Completed write batches: June 1 = 7 blocks, June 2 = 6 blocks, June 3 = 9 blocks, June 4 = 5 blocks, June 5 = 3 blocks.
 - A post-write count/read verification against `Personal` timed out, so visually verify in Google Calendar before assuming cloud sync is complete.
-- The helper for this route is `scripts/sync_google_personal_day_batches.py`; it now deletes managed Tech Week blocks for each target day before rewriting that day's current operational route. It recognizes current `[TW-...]` summaries, `CalendarBlockID: TW-` / `TechWeekID: TW-` notes, and older generated `Tech Week:`, `Travel:`, `Apply:`, and `Backup:` imports.
+- The helper for this route is `scripts/sync_google_personal_day_batches.py`; it now deletes managed Tech Week blocks for each target day before rewriting that day's current operational route. It recognizes current `CalendarBlockID: TW-` / `TechWeekID: TW-` notes, old `[TW-...]` summaries, and older generated `Tech Week:`, `Travel:`, `Apply:`, and `Backup:` imports.
 - The DevTools browser is not logged into Google Calendar.
 - No Google Calendar MCP/tool resources are exposed.
 - `gcalcli` is installable via `pipx`, but requires a user-provided OAuth `client_id` and `client_secret`.

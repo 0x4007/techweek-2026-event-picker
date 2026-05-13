@@ -5,10 +5,8 @@
     "playwright": "npm:playwright@1.56.1"
   },
   "deploy": {
-    "runtime": {
-      "type": "dynamic",
-      "entrypoint": "app/server.ts"
-    }
+    "org": "0x4007",
+    "app": "techweek-2026-event-picker"
   },
   "tasks": {
     "dev": "deno run --env-file=.env --watch --allow-read=app,outputs,.codex,data,docs,/Users/nv/repos/ubiquity-os-marketplace/text-conversation-rewards --allow-write=.codex --allow-run=tesseract,magick --allow-env=DATABASE_URL,UOS_AI_TOKEN,OPENAI_API_KEY,OPENAI_BASE_URL,UOS_AI_BASE_URL,RESEND_API_KEY,RESEND_EMAIL_FROM --allow-net=0.0.0.0:8787,127.0.0.1:8787,localhost:8787,ai.ubq.fi,api.resend.com,nominatim.openstreetmap.org,subwayinfo.nyc app/server.ts",

@@ -42,6 +42,7 @@ def description(row: dict[str, str]) -> str:
             f"Category: {row['category']}",
             row["note"],
             row["route_details"],
+            f"Google Maps: {row.get('google_maps_url', '')}" if row.get("google_maps_url") else "",
             f"URL: {row['event_url']}",
         ]
         if part
@@ -73,6 +74,7 @@ def cleanup_handlers() -> list[str]:
         "\t\tend try",
         "\tend tell",
         "\tif eventUID contains \"techweek-2026-event-picker\" then return true",
+        "\tif eventSummary is \"TechWeek\" then return true",
         "\tif eventSummary starts with \"[TW-\" then return true",
         "\tif eventDescription contains \"CalendarBlockID: TW-\" then return true",
         "\tif eventDescription contains \"TechWeekID: TW-\" then return true",

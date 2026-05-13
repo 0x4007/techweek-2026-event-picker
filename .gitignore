@@ -8,7 +8,15 @@ outputs/sync/sync_google_personal_june_*.applescript
 # Local RSVP profile includes personal contact details. Keep status CSV trackable.
 .codex/techweek-rsvp-profile.json
 .codex/techweek_app_state.json
+.codex/*.jpg
+.codex/*.jpeg
 .codex/*.png
+.codex/*.svg
+.codex/*.log
+.codex/*.pid
+.codex/*.plist
+.codex/ocr-local/
+.codex/ocr-test/
 
 # Large raw Partiful page cache. The derived CSV/JSON/XLSX files are the stable project artifacts.
 data/source/event_pages/

@@ -47,9 +47,9 @@ Last updated: 2026-05-09.
 
 ## Recommended Google Import Path
 
-The operational route was also written into the Google-backed macOS `Personal` calendar in small day batches. If Google Calendar sync is enabled for that calendar, those events should appear in Google Calendar after macOS sync catches up.
+The operational route includes event, transit, meal/reset, and staggered late 8-hour sleep blocks. Calendar notes include Google Maps search links for fixed locations and directions links for travel blocks. The route was also written into the Google-backed macOS `Personal` calendar in small day batches. If Google Calendar sync is enabled for that calendar, those events should appear in Google Calendar after macOS sync catches up.
 
-The current day-batch helper deletes managed Tech Week blocks before writing. It recognizes the current `[TW-...]` summaries and `CalendarBlockID: TW-` / `TechWeekID: TW-` notes, plus older generated `Tech Week:`, `Travel:`, `Apply:`, and `Backup:` imports. Calendar.app access to the Google-backed calendar may still hang; the helper has a process timeout and should be rerun one day at a time if needed.
+The current day-batch helper deletes managed Tech Week blocks before writing. It recognizes current `CalendarBlockID: TW-` / `TechWeekID: TW-` notes, old `[TW-...]` summaries, plus older generated `Tech Week:`, `Travel:`, `Apply:`, and `Backup:` imports. Calendar.app access to the Google-backed calendar may still hang; the helper has a process timeout and should be rerun one day at a time if needed.
 
 Open Google Calendar in a browser where you are logged in:
 
@@ -74,4 +74,4 @@ pipx run gcalcli init
 pipx run gcalcli import --calendar "Personal" outputs/signed_up/techweek_signed_up_operational_with_travel.ics
 ```
 
-Before re-importing, delete existing `TW-` events from the target calendar or use a dedicated Tech Week calendar to avoid duplicates.
+Before re-importing, delete existing generated Tech Week events from the target calendar or use a dedicated Tech Week calendar to avoid duplicates.

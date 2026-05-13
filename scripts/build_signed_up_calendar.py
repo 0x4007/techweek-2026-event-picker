@@ -15,6 +15,7 @@ import datetime as dt
 import json
 import math
 import re
+import urllib.parse
 import zipfile
 from pathlib import Path
 from uuid import NAMESPACE_URL, uuid5
@@ -59,6 +60,19 @@ SCHEDULE_CALENDAR = "NY Tech Week 2026 - Schedule"
 REFERENCE_CALENDAR = "NY Tech Week 2026 - All RSVPs"
 GOOGLE_VIA_APPLE_TARGET_CALENDAR = "Personal"
 
+LOCATION_MAP_QUERIES = {
+    "FiDi home base": HOME["venue_query"],
+    "Financial District": "Financial District, New York, NY",
+    "Flatiron": "Flatiron, New York, NY",
+    "Lower East Side": "Lower East Side, New York, NY",
+    "Midtown": "Midtown Manhattan, New York, NY",
+    "SoHo": "SoHo, New York, NY",
+    "Chelsea": "Chelsea, New York, NY",
+    "Union Square": "Union Square, Manhattan, New York, NY",
+    "East Village": "East Village, New York, NY",
+    "Brooklyn": "Brooklyn, New York, NY",
+}
+
 # This is the practical attendance route from the rerank, adjusted to include
 # the now-registered Thursday "Stop Making AI Guess" event.
 OPERATIONAL_ROUTE_IDS = [
@@ -85,6 +99,140 @@ EVENT_NOTES = {
     "4200": "Registered backup near FiDi. Use if Open Source Must Win is not approved or is too low signal in practice.",
 }
 
+MEAL_BLOCKS = [
+    {
+        "date": "2026-06-01",
+        "start": "12:15",
+        "end": "13:15",
+        "title": "Meal: Lunch / reset",
+        "location": "FiDi home base",
+        "note": "One-hour food buffer before leaving for the first event.",
+    },
+    {
+        "date": "2026-06-01",
+        "start": "21:00",
+        "end": "22:00",
+        "title": "Meal: Dinner after Open Source Must Win",
+        "location": "Lower East Side",
+        "note": "One-hour meal buffer before heading home.",
+    },
+    {
+        "date": "2026-06-02",
+        "start": "13:45",
+        "end": "14:45",
+        "title": "Meal: Lunch / reset",
+        "location": "Midtown",
+        "note": "One-hour break after the Enterprise SDLC session.",
+    },
+    {
+        "date": "2026-06-02",
+        "start": "21:00",
+        "end": "22:00",
+        "title": "Meal: Dinner after Future of DevEx",
+        "location": "SoHo",
+        "note": "One-hour meal buffer before heading home.",
+    },
+    {
+        "date": "2026-06-03",
+        "start": "10:45",
+        "end": "11:15",
+        "title": "Meal: Quick breakfast / lunch before dense Wednesday",
+        "location": "FiDi home base",
+        "note": "Hectic-day 30-minute food buffer before the midday run starts.",
+    },
+    {
+        "date": "2026-06-03",
+        "start": "15:00",
+        "end": "15:30",
+        "title": "Meal: Quick food / reset",
+        "location": "Midtown",
+        "note": "Hectic-day 30-minute grab-and-go slot before the next walk.",
+    },
+    {
+        "date": "2026-06-03",
+        "start": "20:30",
+        "end": "21:30",
+        "title": "Meal: Dinner after MCP in the Wild",
+        "location": "East Village",
+        "note": "One-hour meal buffer before heading home.",
+    },
+    {
+        "date": "2026-06-04",
+        "start": "14:30",
+        "end": "15:30",
+        "title": "Meal: Late lunch / reset",
+        "location": "FiDi home base",
+        "note": "One-hour meal buffer before leaving for the Thursday route.",
+    },
+    {
+        "date": "2026-06-04",
+        "start": "20:45",
+        "end": "21:45",
+        "title": "Meal: Dinner after Stop Making AI Guess",
+        "location": "Union Square",
+        "note": "One-hour meal buffer before heading home.",
+    },
+    {
+        "date": "2026-06-05",
+        "start": "15:10",
+        "end": "16:10",
+        "title": "Meal: Early dinner before Bare Metal",
+        "location": "FiDi home base",
+        "note": "One-hour food buffer before the Friday evening event.",
+    },
+]
+
+SLEEP_BLOCKS = [
+    {
+        "date": "2026-06-01",
+        "start": "03:13",
+        "end": "11:13",
+        "title": "Sleep: 8 hours",
+        "location": "FiDi home base",
+        "note": "Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.",
+    },
+    {
+        "date": "2026-06-02",
+        "start": "02:43",
+        "end": "10:43",
+        "title": "Sleep: 8 hours",
+        "location": "FiDi home base",
+        "note": "Staggered late sleep block; wake leaves 30 minutes before the first travel block.",
+    },
+    {
+        "date": "2026-06-03",
+        "start": "02:45",
+        "end": "10:45",
+        "title": "Sleep: 8 hours",
+        "location": "FiDi home base",
+        "note": "Staggered late sleep block; wake lands on the quick breakfast/lunch block.",
+    },
+    {
+        "date": "2026-06-04",
+        "start": "03:15",
+        "end": "11:15",
+        "title": "Sleep: 8 hours",
+        "location": "FiDi home base",
+        "note": "Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.",
+    },
+    {
+        "date": "2026-06-05",
+        "start": "03:45",
+        "end": "11:45",
+        "title": "Sleep: 8 hours",
+        "location": "FiDi home base",
+        "note": "Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.",
+    },
+    {
+        "date": "2026-06-06",
+        "start": "04:15",
+        "end": "12:15",
+        "title": "Sleep: 8 hours",
+        "location": "FiDi home base",
+        "note": "Staggered late sleep block after the final Tech Week route day.",
+    },
+]
+
 STATUS_LABELS = {
     "registered": "REG",
     "applied": "PENDING",
@@ -100,6 +248,56 @@ CATEGORY_LABELS = {
 
 def rel(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
+
+
+def maps_query_for_location(location: str) -> str:
+    location = str(location or "").strip()
+    return LOCATION_MAP_QUERIES.get(location, location)
+
+
+def google_maps_search_url(query: str) -> str:
+    query = maps_query_for_location(query)
+    if not query:
+        return ""
+    return "https://www.google.com/maps/search/?" + urllib.parse.urlencode({"api": "1", "query": query})
+
+
+def point_maps_query(point: Point | dict) -> str:
+    if isinstance(point, dict):
+        lat = point.get("lat")
+        lon = point.get("lon")
+        if lat is not None and lon is not None:
+            return f"{lat},{lon}"
+        return maps_query_for_location(point.get("venue_query") or point.get("location") or point.get("name") or "")
+    return f"{point.lat},{point.lon}"
+
+
+def google_maps_directions_url(origin: str, destination: str, route_mode: str = "") -> str:
+    if not origin or not destination:
+        return ""
+    params = {
+        "api": "1",
+        "origin": origin,
+        "destination": destination,
+    }
+    if route_mode == "walk":
+        params["travelmode"] = "walking"
+    elif route_mode in {"subway", "transit"}:
+        params["travelmode"] = "transit"
+    return "https://www.google.com/maps/dir/?" + urllib.parse.urlencode(params)
+
+
+def row_google_maps_url(row: dict) -> str:
+    if row.get("google_maps_url"):
+        return row["google_maps_url"]
+    if row.get("entry_type") == "travel" and " -> " in str(row.get("location", "")):
+        origin, destination = str(row["location"]).split(" -> ", 1)
+        return google_maps_directions_url(
+            maps_query_for_location(origin),
+            maps_query_for_location(destination),
+            row.get("route_mode", ""),
+        )
+    return google_maps_search_url(row.get("venue_query") or row.get("location", ""))
 
 
 def coaching(opening: str, ask: str, listen_for: str, follow_up: str) -> str:
@@ -472,6 +670,7 @@ def load_signed_events() -> list[dict]:
                 "opportunity_score": rerank_row.get("opportunity_score", ""),
                 "fit_summary": rerank_row.get("fit_summary", ""),
                 "event_url": status_row["partiful_url"],
+                "google_maps_url": google_maps_search_url(venue_query or display_location),
                 "next_step": status_row.get("next_step", ""),
                 "notes": status_row.get("notes", ""),
                 "route_note": EVENT_NOTES.get(rerank_row["id"], ""),
@@ -484,11 +683,112 @@ def load_signed_events() -> list[dict]:
 
 
 def schedule_title(event: dict) -> str:
-    return f"[{event['techweek_id']}] [{event['status_label']}] {event['name']}"
+    return f"[{event['status_label']}] {event['name']}"
 
 
 def reference_title(event: dict) -> str:
-    return f"[{event['techweek_id']}] [{event['status_label']} {event['category_label']}] {event['name']}"
+    return f"[{event['status_label']} {event['category_label']}] {event['name']}"
+
+
+def meal_datetime(date_value: str, time_value: str) -> dt.datetime:
+    year, month, day = [int(part) for part in date_value.split("-")]
+    hour, minute = [int(part) for part in time_value.split(":")]
+    return dt.datetime(year, month, day, hour, minute)
+
+
+def meal_row(meal: dict) -> dict:
+    start_dt = meal_datetime(meal["date"], meal["start"])
+    end_dt = meal_datetime(meal["date"], meal["end"])
+    key = meal["title"].lower()
+    if "lunch" in key:
+        meal_kind = "LUNCH"
+    elif "dinner" in key:
+        meal_kind = "DINNER"
+    else:
+        meal_kind = "FOOD"
+    return {
+        "id": "",
+        "entry_type": "meal",
+        "calendar": "schedule",
+        "start_dt": start_dt,
+        "end_dt": end_dt,
+        "actual_start_dt": start_dt,
+        "actual_end_dt": end_dt,
+        "title": meal["title"],
+        "location": meal["location"],
+        "techweek_id": "",
+        "calendar_block_id": f"TW-{start_dt.strftime('%Y%m%d')}-MEAL-{meal_kind}",
+        "partiful_id": "",
+        "status": "registered",
+        "status_label": "MEAL",
+        "category": "meal",
+        "category_label": "MEAL",
+        "route_mode": "",
+        "travel_minutes": "",
+        "route_details": "",
+        "subway_segments": "",
+        "transit_risk": "",
+        "note": meal["note"],
+        "event_url": "",
+        "google_maps_url": google_maps_search_url(meal["location"]),
+        "rank": "",
+        "tier": "",
+        "opportunity_score": "",
+        "fit_summary": "",
+        "venue_query": meal["location"],
+        "venue_precision": "meal_buffer",
+        "next_step": "",
+        "notes": "",
+        "sales_coaching": "",
+    }
+
+
+def meal_rows_for_day(date_value: str) -> list[dict]:
+    return [meal_row(meal) for meal in MEAL_BLOCKS if meal["date"] == date_value]
+
+
+def sleep_row(sleep: dict) -> dict:
+    start_dt = meal_datetime(sleep["date"], sleep["start"])
+    end_dt = meal_datetime(sleep["date"], sleep["end"])
+    return {
+        "id": "",
+        "entry_type": "sleep",
+        "calendar": "schedule",
+        "start_dt": start_dt,
+        "end_dt": end_dt,
+        "actual_start_dt": start_dt,
+        "actual_end_dt": end_dt,
+        "title": sleep["title"],
+        "location": sleep["location"],
+        "techweek_id": "",
+        "calendar_block_id": f"TW-{start_dt.strftime('%Y%m%d')}-SLEEP",
+        "partiful_id": "",
+        "status": "registered",
+        "status_label": "SLEEP",
+        "category": "sleep",
+        "category_label": "SLEEP",
+        "route_mode": "",
+        "travel_minutes": "",
+        "route_details": "",
+        "subway_segments": "",
+        "transit_risk": "",
+        "note": sleep["note"],
+        "event_url": "",
+        "google_maps_url": google_maps_search_url(sleep["location"]),
+        "rank": "",
+        "tier": "",
+        "opportunity_score": "",
+        "fit_summary": "",
+        "venue_query": sleep["location"],
+        "venue_precision": "sleep_buffer",
+        "next_step": "",
+        "notes": "",
+        "sales_coaching": "",
+    }
+
+
+def sleep_rows() -> list[dict]:
+    return [sleep_row(sleep) for sleep in SLEEP_BLOCKS]
 
 
 def travel_row(
@@ -502,6 +802,7 @@ def travel_row(
     related_techweek_id: str,
     partiful_id: str,
     event_url: str,
+    google_maps_url: str,
 ) -> dict:
     return {
         "entry_type": "travel",
@@ -510,7 +811,7 @@ def travel_row(
         "end_dt": end_dt,
         "actual_start_dt": start_dt,
         "actual_end_dt": end_dt,
-        "title": f"[{calendar_block_id}] {title}",
+        "title": f"Travel: {title}",
         "location": location,
         "techweek_id": related_techweek_id,
         "calendar_block_id": calendar_block_id,
@@ -526,6 +827,7 @@ def travel_row(
         "transit_risk": route["risk"],
         "note": note,
         "event_url": event_url,
+        "google_maps_url": google_maps_url,
         "rank": "",
         "tier": "",
         "opportunity_score": "",
@@ -589,12 +891,13 @@ def build_operational_route(events: list[dict]) -> list[dict]:
     trip_cache = read_json(TRIP_CACHE, {})
     osrm_cache = read_json(OSRM_CACHE, {})
 
-    rows: list[dict] = []
+    rows: list[dict] = sleep_rows()
     by_day: dict[str, list[dict]] = {}
     for event in selected:
         by_day.setdefault(event["date"], []).append(event)
 
-    for _, day_events in sorted(by_day.items()):
+    for day, day_events in sorted(by_day.items()):
+        day_rows: list[dict] = []
         previous_point: Point | dict = HOME
         previous_event_entry: dict | None = None
         for event in day_events:
@@ -620,7 +923,7 @@ def build_operational_route(events: list[dict]) -> list[dict]:
 
             origin_name = previous_point["name"] if isinstance(previous_point, dict) else previous_point.name
             if travel_minutes > 0:
-                rows.append(
+                day_rows.append(
                     travel_row(
                         travel_start,
                         travel_end,
@@ -632,19 +935,31 @@ def build_operational_route(events: list[dict]) -> list[dict]:
                         event["techweek_id"],
                         event["partiful_id"],
                         event["event_url"],
+                        google_maps_directions_url(
+                            point_maps_query(previous_point),
+                            point_maps_query(event["point"]),
+                            route["mode"],
+                        ),
                     )
                 )
             event_entry = schedule_event_row(event)
-            rows.append(event_entry)
+            day_rows.append(event_entry)
             previous_point = event["point"]
             previous_event_entry = event_entry
 
         if previous_event_entry:
+            day_meal_rows = meal_rows_for_day(day)
+            day_rows.extend(day_meal_rows)
+
             route = route_between(previous_point, HOME, stations, trip_cache, osrm_cache)
-            rows.append(
+            travel_home_start = max(
+                [previous_event_entry["end_dt"]]
+                + [row["end_dt"] for row in day_meal_rows if row["start_dt"] >= previous_event_entry["end_dt"]]
+            )
+            day_rows.append(
                 travel_row(
-                    previous_event_entry["end_dt"],
-                    previous_event_entry["end_dt"] + dt.timedelta(minutes=route["minutes"]),
+                    travel_home_start,
+                    travel_home_start + dt.timedelta(minutes=route["minutes"]),
                     f"{previous_point.name} -> FiDi home base",
                     f"{previous_point.name} -> FiDi home base",
                     route,
@@ -653,8 +968,15 @@ def build_operational_route(events: list[dict]) -> list[dict]:
                     previous_event_entry.get("techweek_id", ""),
                     previous_event_entry.get("partiful_id", ""),
                     previous_event_entry.get("event_url", ""),
+                    google_maps_directions_url(
+                        point_maps_query(previous_point),
+                        point_maps_query(HOME),
+                        route["mode"],
+                    ),
                 )
             )
+
+        rows.extend(day_rows)
 
     return sorted(rows, key=lambda row: row["start_dt"])
 
@@ -678,6 +1000,15 @@ def md_day_sections(rows: list[dict]) -> str:
         if row["entry_type"] == "travel":
             lines.append(f"- {time_range} | Travel | {row['route_mode']} | {row['title']}")
             lines.append(f"  - {row['travel_minutes']} min: {row['route_details']}")
+            if row_google_maps_url(row):
+                lines.append(f"  - Google Maps: {row_google_maps_url(row)}")
+            if row["note"]:
+                lines.append(f"  - {row['note']}")
+            continue
+        if row["entry_type"] in {"meal", "sleep"}:
+            lines.append(f"- {time_range} | {row['location']} | {row['title']}")
+            if row_google_maps_url(row):
+                lines.append(f"  - Google Maps: {row_google_maps_url(row)}")
             if row["note"]:
                 lines.append(f"  - {row['note']}")
             continue
@@ -687,6 +1018,8 @@ def md_day_sections(rows: list[dict]) -> str:
             lines.append(f"  - Scheduled event end: {row['actual_end_dt'].strftime('%H:%M')}; route calendar plans an earlier departure.")
         if row["note"]:
             lines.append(f"  - {row['note']}")
+        if row_google_maps_url(row):
+            lines.append(f"  - Google Maps: {row_google_maps_url(row)}")
         if row.get("sales_coaching"):
             lines.append("  - " + row["sales_coaching"].replace("\n", "\n  - "))
         lines.append(f"  - Venue basis: {row['venue_query']} ({row['venue_precision']})")
@@ -703,7 +1036,7 @@ def write_markdown(schedule_rows: list[dict], reference_rows: list[dict], all_re
         "",
         "Home anchor: FiDi / Wall St station. Travel blocks use OSM/Nominatim geocoding plus SubwayInfo.nyc station-trip estimates where subway beats walking. Hidden venues use neighborhood centroids until hosts reveal exact addresses.",
         "",
-        "The operational calendar is the route to actually keep open. The all-RSVP calendar excludes scheduled route events, so enabling both calendars does not render duplicate event blocks.",
+        "The operational calendar is the route to actually keep open. It includes events, transit, meal/reset blocks, staggered late 8-hour sleep blocks, and Google Maps links in every block's notes. The all-RSVP calendar excludes scheduled route events, so enabling both calendars does not render duplicate event blocks.",
         "",
         f"RSVP status snapshot: {status_counts.get('registered', 0)} registered, {status_counts.get('applied', 0)} applied, {status_counts.get('waitlisted', 0)} waitlisted.",
         f"All-RSVP calendar rows after scheduled-event dedupe: {len(reference_rows)}.",
@@ -759,6 +1092,7 @@ def flat_csv_row(row: dict) -> dict[str, str]:
         "tier": row.get("tier", ""),
         "opportunity_score": row.get("opportunity_score", ""),
         "event_url": row.get("event_url", ""),
+        "google_maps_url": row_google_maps_url(row),
     }
 
 
@@ -796,7 +1130,7 @@ def fold_ics_line(line: str) -> list[str]:
 
 
 def ics_status(row: dict) -> str:
-    if row["entry_type"] == "travel" or row["status"] == "registered":
+    if row["entry_type"] in {"travel", "meal", "sleep"} or row["status"] == "registered":
         return "CONFIRMED"
     return "TENTATIVE"
 
@@ -845,6 +1179,7 @@ def write_ics(path: Path, rows: list[dict], calendar_name: str, transparent: boo
                 f"RSVP status: {row.get('status', '')}",
                 f"Category: {row.get('category', '')}",
                 f"Venue basis: {row.get('venue_query', '')} ({row.get('venue_precision', '')})",
+                f"Google Maps: {row_google_maps_url(row)}" if row_google_maps_url(row) else "",
                 f"Rank/tier/score: {row.get('rank', '')} / {row.get('tier', '')} / {row.get('opportunity_score', '')}",
                 f"URL: {row.get('event_url', '')}",
             ]
@@ -956,6 +1291,7 @@ def applescript_cleanup_handlers() -> list[str]:
         "\t\tend try",
         "\tend tell",
         "\tif eventUID contains \"techweek-2026-event-picker\" then return true",
+        "\tif eventSummary is \"TechWeek\" then return true",
         "\tif eventSummary starts with \"[TW-\" then return true",
         "\tif eventDescription contains \"CalendarBlockID: TW-\" then return true",
         "\tif eventDescription contains \"TechWeekID: TW-\" then return true",
@@ -991,6 +1327,7 @@ def applescript_description(row: dict) -> str:
             f"RSVP status: {row.get('status', '')}",
             f"Category: {row.get('category', '')}",
             f"Venue basis: {row.get('venue_query', '')} ({row.get('venue_precision', '')})",
+            f"Google Maps: {row_google_maps_url(row)}" if row_google_maps_url(row) else "",
             f"Rank/tier/score: {row.get('rank', '')} / {row.get('tier', '')} / {row.get('opportunity_score', '')}",
             f"URL: {row.get('event_url', '')}",
         ]
@@ -1107,6 +1444,7 @@ def write_google_eventkit_json(schedule_rows: list[dict]) -> None:
                 "end": fmt_dt(row["end_dt"]),
                 "notes": applescript_description(row),
                 "url": row.get("event_url", ""),
+                "google_maps_url": row_google_maps_url(row),
             }
         )
     GOOGLE_EVENTKIT_JSON.write_text(json.dumps(rows, indent=2), encoding="utf-8")
