@@ -115,7 +115,7 @@ jobs:
           max_attempts=5
           while true; do
             set +e
-            output="$(deno deploy --token "$DENO_DEPLOY_TOKEN" --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" --prod "$DEPLOY_ROOT" 2>&1)"
+            output="$(deno deploy --token "$DENO_DEPLOY_TOKEN" --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" --prod --no-wait "$DEPLOY_ROOT" 2>&1)"
             status=$?
             set -e
 
