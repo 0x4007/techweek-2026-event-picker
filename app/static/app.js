@@ -1789,7 +1789,8 @@ async function askAgent(prompt) {
         clientContext,
       }),
     });
-    if (!response.ok || !response.body) throw new Error(response.statusText);
+    if (!response.ok) throw new Error(await agentResponseErrorMessage(response));
+    if (!response.body) throw new Error("The agent response did not include a stream.");
     const result = await readAgentStream(response.body, pendingContent);
     pending.dataset.streaming = "false";
     pendingContent.innerHTML = renderMarkdown(result.text);
@@ -1804,6 +1805,16 @@ async function askAgent(prompt) {
     attachMessageTools(pending, message);
   } finally {
     setBusy(false);
+  }
+}
+
+async function agentResponseErrorMessage(response) {
+  const fallback = response.statusText || `Agent request failed with HTTP ${response.status}.`;
+  try {
+    const body = await response.json();
+    return body?.error?.message || body?.message || fallback;
+  } catch {
+    return fallback;
   }
 }
 
