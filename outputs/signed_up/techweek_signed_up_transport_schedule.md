@@ -1,6 +1,6 @@
 # Signed-Up NYC Tech Week Schedule
 
-Home anchor: FiDi / Wall St station. Travel blocks use OSM/Nominatim geocoding plus SubwayInfo.nyc station-trip estimates where subway beats walking. Hidden venues use neighborhood centroids until hosts reveal exact addresses.
+Home anchor: 15 Cliff Street, New York, NY 10038. Travel blocks use OSM/Nominatim geocoding plus SubwayInfo.nyc station-trip estimates where subway beats walking. Hidden venues use neighborhood centroids until hosts reveal exact addresses.
 
 The operational calendar is the route to actually keep open. It includes events, transit, meal/reset blocks, staggered late 8-hour sleep blocks, and Google Maps links in every block's notes. The all-RSVP calendar excludes scheduled route events, so enabling both calendars does not render duplicate event blocks.
 
@@ -11,15 +11,15 @@ All-RSVP calendar rows after scheduled-event dedupe: 20.
 
 ### Monday, 2026-06-01
 
-- 03:13-11:13 | FiDi home base | Sleep: 8 hours
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY
+- 03:13-11:13 | 15 Cliff Street, New York, NY 10038 | Sleep: 8 hours
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
   - Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.
-- 12:15-13:15 | FiDi home base | Meal: Lunch / reset
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY
+- 12:15-13:15 | 15 Cliff Street, New York, NY 10038 | Meal: Lunch / reset
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
   - One-hour food buffer before leaving for the first event.
-- 13:22-14:00 | Travel | subway+walk | Travel: FiDi home base -> Beyond the Spec Masterclass: Engineering in the Age of Agents
-  - 38 min: Walk 0 min to Wall St (2/3); subway 31 min; walk 2 min from 23 St-Baruch College (4/6); includes 5 min buffer.
-  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.7408301%2C-73.9868072
+- 13:21-14:00 | Travel | subway+walk | Travel: 15 Cliff Street, New York, NY 10038 -> Beyond the Spec Masterclass: Engineering in the Age of Agents
+  - 39 min: Walk 3 min to Fulton St (2/3); subway 29 min; walk 2 min from 23 St-Baruch College (4/6); includes 5 min buffer.
+  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7408301%2C-73.9868072
 - 14:00-15:00 | Flatiron | [[PENDING] Beyond the Spec Masterclass: Engineering in the Age of Agents](https://partiful.com/e/FHiuNwzr13e3YBI4ssUX)
   - Wait for host approval Submitted via Partiful API; rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
   - Google Maps: https://www.google.com/maps/search/?api=1&query=IBM+One+Madison+Avenue%2C+1+Madison+Ave%2C%2C+New+York%2C+NY+10010
@@ -62,18 +62,18 @@ All-RSVP calendar rows after scheduled-event dedupe: 20.
 - 21:00-22:00 | Lower East Side | Meal: Dinner after Open Source Must Win
   - Google Maps: https://www.google.com/maps/search/?api=1&query=Lower+East+Side%2C+New+York%2C+NY
   - One-hour meal buffer before heading home.
-- 22:00-22:35 | Travel | walk | Travel: Open Source Must Win -> FiDi home base
-  - 35 min: Walk approx 35 min / 2751 m using OSM-geocoded points.
-  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.718618%2C-73.988136&destination=40.706821%2C-74.0091&travelmode=walking
+- 22:00-22:30 | Travel | walk | Travel: Open Source Must Win -> 15 Cliff Street, New York, NY 10038
+  - 30 min: Walk approx 30 min / 2327 m using OSM-geocoded points.
+  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.718618%2C-73.988136&destination=40.7084297%2C-74.0056635&travelmode=walking
 
 ### Tuesday, 2026-06-02
 
-- 02:43-10:43 | FiDi home base | Sleep: 8 hours
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY
+- 02:43-10:43 | 15 Cliff Street, New York, NY 10038 | Sleep: 8 hours
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
   - Staggered late sleep block; wake leaves 30 minutes before the first travel block.
-- 11:13-12:00 | Travel | subway+walk | Travel: FiDi home base -> How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing
-  - 47 min: Walk 0 min to Wall St (2/3); subway 40 min; walk 2 min from 42 St-Bryant Pk (B/D/F/M); includes 5 min buffer.
-  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.753751%2C-73.983543
+- 11:12-12:00 | Travel | subway+walk | Travel: 15 Cliff Street, New York, NY 10038 -> How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing
+  - 48 min: Walk 3 min to Fulton St (2/3); subway 38 min; walk 2 min from 42 St-Bryant Pk (B/D/F/M); includes 5 min buffer.
+  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.753751%2C-73.983543
 - 12:00-13:45 | New York, NY | [[REG] How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing](https://partiful.com/e/M7pXmV8sOXT11yHb9pKw)
   - On the list; monitor for updates Submitted via Partiful API; Partiful live sync 2026-05-12: rsvpStatus=APPROVED; count=1; plusOne=none; approved 2026-05-11 10:21 ET.
   - Google Maps: https://www.google.com/maps/search/?api=1&query=Bryant+Park%2C+New+York%2C+NY
@@ -116,21 +116,21 @@ All-RSVP calendar rows after scheduled-event dedupe: 20.
 - 21:00-22:00 | SoHo | Meal: Dinner after Future of DevEx
   - Google Maps: https://www.google.com/maps/search/?api=1&query=SoHo%2C+New+York%2C+NY
   - One-hour meal buffer before heading home.
-- 22:00-22:20 | Travel | subway+walk | Travel: Future of DevEx -> FiDi home base
-  - 20 min: Walk 0 min to Prince St (N/Q/R/W); subway 15 min; walk 0 min from Wall St (2/3); includes 5 min buffer.
-  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.724329%2C-73.997702&destination=40.706821%2C-74.0091
+- 22:00-22:21 | Travel | subway+walk | Travel: Future of DevEx -> 15 Cliff Street, New York, NY 10038
+  - 21 min: Walk 0 min to Prince St (N/Q/R/W); subway 13 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.
+  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.724329%2C-73.997702&destination=40.7084297%2C-74.0056635
 
 ### Wednesday, 2026-06-03
 
-- 02:45-10:45 | FiDi home base | Sleep: 8 hours
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY
+- 02:45-10:45 | 15 Cliff Street, New York, NY 10038 | Sleep: 8 hours
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
   - Staggered late sleep block; wake lands on the quick breakfast/lunch block.
-- 10:45-11:15 | FiDi home base | Meal: Quick breakfast / lunch before dense Wednesday
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY
+- 10:45-11:15 | 15 Cliff Street, New York, NY 10038 | Meal: Quick breakfast / lunch before dense Wednesday
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
   - Hectic-day 30-minute food buffer before the midday run starts.
-- 11:29-12:00 | Travel | subway+walk | Travel: FiDi home base -> Building secure AI for your data: DeepFellow Demo + Q&A
-  - 31 min: Walk 0 min to Wall St (2/3); subway 22 min; walk 4 min from 23 St (A/C/E); includes 5 min buffer.
-  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.744081%2C-73.999562
+- 11:28-12:00 | Travel | subway+walk | Travel: 15 Cliff Street, New York, NY 10038 -> Building secure AI for your data: DeepFellow Demo + Q&A
+  - 32 min: Walk 3 min to Fulton St (2/3); subway 20 min; walk 4 min from 23 St (A/C/E); includes 5 min buffer.
+  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.744081%2C-73.999562
 - 12:00-13:15 | Chelsea | [[PENDING] Building secure AI for your data: DeepFellow Demo + Q&A](https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN)
   - Wait for host approval Submitted via Partiful API; rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
   - Google Maps: https://www.google.com/maps/search/?api=1&query=23rd+Street+and+8th+Avenue%2C+New+York%2C+NY
@@ -190,21 +190,21 @@ All-RSVP calendar rows after scheduled-event dedupe: 20.
 - 20:30-21:30 | East Village | Meal: Dinner after MCP in the Wild
   - Google Maps: https://www.google.com/maps/search/?api=1&query=East+Village%2C+New+York%2C+NY
   - One-hour meal buffer before heading home.
-- 21:30-21:50 | Travel | subway+walk | Travel: MCP in the Wild: Panel & Night of Networking -> FiDi home base
-  - 20 min: Walk 1 min to Astor Pl (4/6); subway 14 min; walk 0 min from Wall St (2/3); includes 5 min buffer.
-  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.72985%2C-73.99139&destination=40.706821%2C-74.0091
+- 21:30-21:51 | Travel | subway+walk | Travel: MCP in the Wild: Panel & Night of Networking -> 15 Cliff Street, New York, NY 10038
+  - 21 min: Walk 1 min to Astor Pl (4/6); subway 12 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.
+  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.72985%2C-73.99139&destination=40.7084297%2C-74.0056635
 
 ### Thursday, 2026-06-04
 
-- 03:15-11:15 | FiDi home base | Sleep: 8 hours
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY
+- 03:15-11:15 | 15 Cliff Street, New York, NY 10038 | Sleep: 8 hours
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
   - Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.
-- 14:30-15:30 | FiDi home base | Meal: Late lunch / reset
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY
+- 14:30-15:30 | 15 Cliff Street, New York, NY 10038 | Meal: Late lunch / reset
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
   - One-hour meal buffer before leaving for the Thursday route.
-- 15:36-16:00 | Travel | subway+walk | Travel: FiDi home base -> Shipping Faster with AI Coding Agents: What's Working and What's Not
-  - 24 min: Walk 0 min to Wall St (2/3); subway 19 min; walk 0 min from Prince St (N/Q/R/W); includes 5 min buffer.
-  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.724329%2C-73.997702
+- 15:35-16:00 | Travel | subway+walk | Travel: 15 Cliff Street, New York, NY 10038 -> Shipping Faster with AI Coding Agents: What's Working and What's Not
+  - 25 min: Walk 3 min to Fulton St (2/3); subway 17 min; walk 0 min from Prince St (N/Q/R/W); includes 5 min buffer.
+  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.724329%2C-73.997702
 - 16:00-18:51 | New York, NY | [[PENDING] Shipping Faster with AI Coding Agents: What's Working and What's Not](https://partiful.com/e/5K5c4eODrGPKME7or20H)
   - Scheduled event end: 19:00; route calendar plans an earlier departure.
   - Leave early if needed so you can make the registered 19:00 Stop Making AI Guess event. Wait for host approval Submitted via Partiful API; rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none. Route calendar shortens this from the event's scheduled 19:00 end; leave 9 min early for transit.
@@ -235,21 +235,21 @@ All-RSVP calendar rows after scheduled-event dedupe: 20.
 - 20:45-21:45 | Union Square | Meal: Dinner after Stop Making AI Guess
   - Google Maps: https://www.google.com/maps/search/?api=1&query=Union+Square%2C+Manhattan%2C+New+York%2C+NY
   - One-hour meal buffer before heading home.
-- 21:45-22:03 | Travel | subway+walk | Travel: Stop Making AI Guess: When Your Codebase Becomes the Spec -> FiDi home base
-  - 18 min: Walk 0 min to 14 St-Union Sq (N/Q/R/W); subway 13 min; walk 0 min from Wall St (2/3); includes 5 min buffer.
-  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.735736%2C-73.990568&destination=40.706821%2C-74.0091
+- 21:45-22:04 | Travel | subway+walk | Travel: Stop Making AI Guess: When Your Codebase Becomes the Spec -> 15 Cliff Street, New York, NY 10038
+  - 19 min: Walk 0 min to 14 St-Union Sq (N/Q/R/W); subway 11 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.
+  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.735736%2C-73.990568&destination=40.7084297%2C-74.0056635
 
 ### Friday, 2026-06-05
 
-- 03:45-11:45 | FiDi home base | Sleep: 8 hours
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY
+- 03:45-11:45 | 15 Cliff Street, New York, NY 10038 | Sleep: 8 hours
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
   - Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.
-- 15:10-16:10 | FiDi home base | Meal: Early dinner before Bare Metal
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY
+- 15:10-16:10 | 15 Cliff Street, New York, NY 10038 | Meal: Early dinner before Bare Metal
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
   - One-hour food buffer before the Friday evening event.
-- 16:22-17:00 | Travel | subway+walk | Travel: FiDi home base -> Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration
-  - 38 min: Walk 0 min to Wall St (2/3); subway 29 min; walk 4 min from 14 St-Union Sq (N/Q/R/W); includes 5 min buffer.
-  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.7365763%2C-73.9885429
+- 16:21-17:00 | Travel | subway+walk | Travel: 15 Cliff Street, New York, NY 10038 -> Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration
+  - 39 min: Walk 3 min to Fulton St (2/3); subway 27 min; walk 4 min from 14 St-Union Sq (N/Q/R/W); includes 5 min buffer.
+  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7365763%2C-73.9885429
 - 17:00-20:00 | Union Square | [[PENDING] Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration](https://partiful.com/e/jkjGahQgmH9PLIxjfTFt)
   - Wait for host approval Submitted via Partiful API; rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
   - Google Maps: https://www.google.com/maps/search/?api=1&query=Union+Square+Park%2C+201+Park+Ave+S%2C+New+York%2C+NY+10003
@@ -261,14 +261,14 @@ All-RSVP calendar rows after scheduled-event dedupe: 20.
   - Follow-up: Ask for intros to platform leads running agent or automation infrastructure.
   - Venue basis: Union Square Park, 201 Park Ave S, New York, NY 10003 (exact_from_partiful_maps)
   - Rank 45, tier A, score 64; product: open source fit; topic: devtools, infra/platform, AI; signal: builders/operators, networking format
-- 20:00-20:22 | Travel | subway+walk | Travel: Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> FiDi home base
-  - 22 min: Walk 4 min to 14 St-Union Sq (N/Q/R/W); subway 13 min; walk 0 min from Wall St (2/3); includes 5 min buffer.
-  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7365763%2C-73.9885429&destination=40.706821%2C-74.0091
+- 20:00-20:23 | Travel | subway+walk | Travel: Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> 15 Cliff Street, New York, NY 10038
+  - 23 min: Walk 4 min to 14 St-Union Sq (N/Q/R/W); subway 11 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.
+  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7365763%2C-73.9885429&destination=40.7084297%2C-74.0056635
 
 ### Saturday, 2026-06-06
 
-- 04:15-12:15 | FiDi home base | Sleep: 8 hours
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY
+- 04:15-12:15 | 15 Cliff Street, New York, NY 10038 | Sleep: 8 hours
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
   - Staggered late sleep block after the final Tech Week route day.
 
 ## All RSVP Reference, Scheduled Events Removed

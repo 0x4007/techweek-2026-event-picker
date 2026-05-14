@@ -55,6 +55,7 @@ export type NormalizedPartifulEvent = {
   status: PartifulSyncStatus;
   rawStatus: string;
   rawEventStatus: string;
+  description: string;
   startAt: string;
   endAt: string;
   updatedAt: string;
@@ -161,6 +162,11 @@ export type PartifulSnapshotFetchTarget = {
 export type PartifulSnapshotFetcher = (
   target: PartifulSnapshotFetchTarget,
 ) => Promise<unknown>;
+
+export type PartifulSnapshotExtractionResult = {
+  snapshots: unknown[];
+  warnings: PartifulSyncIssue[];
+};
 
 const REGISTERED_STATUS_KEYS = new Set([
   "APPROVED",
@@ -430,10 +436,25 @@ export function normalizePartifulSnapshot(
 
   const rawStatus = firstString(
     getPath(rsvpRecord, ["status"]),
+    getPath(rsvpRecord, ["state"]),
+    getPath(rsvpRecord, ["approvalStatus"]),
     getPath(rsvpRecord, ["rsvpStatus"]),
     getPath(guestRecord, ["rsvpStatus"]),
     getPath(guestRecord, ["status"]),
+    getPath(guestRecord, ["state"]),
+    getPath(guestRecord, ["guestStatus"]),
+    getPath(guestRecord, ["approvalStatus"]),
+    getPath(guestRecord, ["attendanceStatus"]),
     getPath(guestRecord, ["rsvp", "status"]),
+    getPath(guestRecord, ["rsvp", "state"]),
+    getPath(guestRecord, ["rsvp", "approvalStatus"]),
+    getPath(root, ["guestStatus"]),
+    getPath(root, ["viewerStatus"]),
+    getPath(root, ["viewerRsvpStatus"]),
+    getPath(root, ["viewerRSVPStatus"]),
+    getPath(root, ["attendeeStatus"]),
+    getPath(root, ["attendanceStatus"]),
+    getPath(root, ["approvalStatus"]),
     getPath(root, ["rsvpStatus"]),
     getPath(root, ["rsvp_status"]),
     getPath(root, ["partifulRawStatus"]),
@@ -490,6 +511,12 @@ export function normalizePartifulSnapshot(
     status,
     rawStatus,
     rawEventStatus,
+    description: firstString(
+      getPath(eventRecord, ["description"]),
+      getPath(eventRecord, ["subtitle"]),
+      getPath(root, ["description"]),
+      getPath(root, ["eventDescription"]),
+    ),
     startAt: firstString(
       getPath(eventRecord, ["startDate"]),
       getPath(eventRecord, ["startAt"]),
@@ -550,6 +577,62 @@ export function normalizePartifulSnapshots(
   }
 
   return { events, errors, warnings };
+}
+
+export function extractPartifulSnapshotPayloads(input: unknown): PartifulSnapshotExtractionResult {
+  const snapshots: unknown[] = [];
+  const warnings: PartifulSyncIssue[] = [];
+  const parsedInput = parseJsonLike(input);
+  const root = asRecord(parsedInput);
+
+  if (Array.isArray(parsedInput)) {
+    for (const item of parsedInput) {
+      snapshots.push(...partifulSnapshotPayloadsFromCandidate(item));
+    }
+    return { snapshots, warnings };
+  }
+
+  if (!root) {
+    return {
+      snapshots,
+      warnings: [{
+        code: "invalid_snapshot_container",
+        message: "Partiful snapshot input must be a JSON object or array.",
+      }],
+    };
+  }
+
+  let foundExplicitSnapshotField = false;
+  for (const field of PARTIFUL_SNAPSHOT_ARRAY_FIELDS) {
+    const value = root[field];
+    if (value === undefined) continue;
+    foundExplicitSnapshotField = true;
+    if (!Array.isArray(value)) {
+      warnings.push({
+        code: "invalid_snapshot_array",
+        message: `Partiful snapshot field "${field}" must be an array when provided.`,
+        detail: { field },
+      });
+      continue;
+    }
+    for (const item of value) {
+      snapshots.push(...partifulSnapshotPayloadsFromCandidate(item, root));
+    }
+  }
+
+  if (!foundExplicitSnapshotField && looksLikeSnapshotContainer(root)) {
+    snapshots.push(...partifulSnapshotPayloadsFromCandidate(root));
+    return { snapshots, warnings };
+  }
+
+  for (const field of PARTIFUL_SNAPSHOT_SINGLE_FIELDS) {
+    const value = root[field];
+    if (value === undefined) continue;
+    foundExplicitSnapshotField = true;
+    snapshots.push(...partifulSnapshotPayloadsFromCandidate(value, root));
+  }
+
+  return { snapshots, warnings };
 }
 
 export async function fetchPartifulSnapshots(
@@ -687,7 +770,11 @@ function unwrapPartifulPayload(payload: unknown): {
   const event = firstRecord(
     getPath(root, ["props", "pageProps", "event"]),
     getPath(root, ["pageProps", "event"]),
+    getPath(root, ["__NEXT_DATA__", "props", "pageProps", "event"]),
     getPath(root, ["data", "event"]),
+    getPath(root, ["result", "event"]),
+    getPath(root, ["result", "eventInfo", "event"]),
+    getPath(root, ["result", "data", "event"]),
     getPath(root, ["result", "data", "json", "event"]),
     getPath(root, ["event"]),
     looksLikePartifulEvent(root) ? root : null,
@@ -695,22 +782,69 @@ function unwrapPartifulPayload(payload: unknown): {
   const guest = firstRecord(
     getPath(root, ["props", "pageProps", "guest"]),
     getPath(root, ["pageProps", "guest"]),
+    getPath(root, ["__NEXT_DATA__", "props", "pageProps", "guest"]),
     getPath(root, ["data", "guest"]),
+    getPath(root, ["data", "viewerGuest"]),
+    getPath(root, ["data", "myGuest"]),
+    getPath(root, ["result", "guest"]),
+    getPath(root, ["result", "viewerGuest"]),
+    getPath(root, ["result", "myGuest"]),
+    getPath(root, ["result", "currentGuest"]),
+    getPath(root, ["result", "data", "guest"]),
+    getPath(root, ["result", "data", "viewerGuest"]),
+    getPath(root, ["result", "data", "myGuest"]),
+    getPath(root, ["result", "data", "currentGuest"]),
     getPath(root, ["result", "data", "json", "guest"]),
+    getPath(root, ["result", "data", "json", "viewerGuest"]),
+    getPath(root, ["result", "data", "json", "myGuest"]),
     getPath(root, ["guest"]),
+    getPath(root, ["viewerGuest"]),
+    getPath(root, ["viewer", "guest"]),
+    getPath(root, ["myGuest"]),
+    getPath(root, ["currentGuest"]),
+    getPath(root, ["attendee"]),
+    getPath(root, ["attendance"]),
   );
   const rsvp = firstRecord(
     getPath(root, ["rsvp"]),
     getPath(root, ["data", "rsvp"]),
+    getPath(root, ["data", "viewerRsvp"]),
+    getPath(root, ["data", "viewerRSVP"]),
+    getPath(root, ["data", "myRsvp"]),
+    getPath(root, ["result", "rsvp"]),
+    getPath(root, ["result", "viewerRsvp"]),
+    getPath(root, ["result", "viewerRSVP"]),
+    getPath(root, ["result", "myRsvp"]),
+    getPath(root, ["result", "data", "rsvp"]),
+    getPath(root, ["result", "data", "viewerRsvp"]),
+    getPath(root, ["result", "data", "viewerRSVP"]),
+    getPath(root, ["result", "data", "myRsvp"]),
     getPath(root, ["result", "data", "json", "rsvp"]),
+    getPath(root, ["result", "data", "json", "viewerRsvp"]),
+    getPath(root, ["result", "data", "json", "viewerRSVP"]),
+    getPath(root, ["result", "data", "json", "myRsvp"]),
+    getPath(root, ["viewerRsvp"]),
+    getPath(root, ["viewerRSVP"]),
+    getPath(root, ["viewer", "rsvp"]),
+    getPath(root, ["myRsvp"]),
+    getPath(root, ["myRSVP"]),
+    getPath(root, ["currentRsvp"]),
+    getPath(root, ["attendee", "rsvp"]),
+    getPath(root, ["attendance", "rsvp"]),
     getPath(guest, ["rsvp"]),
   );
 
   if (getPath(root, ["props", "pageProps", "event"])) {
     return { root, event, guest, rsvp, source: "partiful_next_page_props" };
   }
+  if (getPath(root, ["__NEXT_DATA__", "props", "pageProps", "event"])) {
+    return { root, event, guest, rsvp, source: "partiful_next_data" };
+  }
   if (getPath(root, ["result", "data", "json"])) {
     return { root, event, guest, rsvp, source: "partiful_trpc_payload" };
+  }
+  if (getPath(root, ["result"])) {
+    return { root, event, guest, rsvp, source: "partiful_callable_payload" };
   }
   if (event && event !== root) return { root, event, guest, rsvp, source: "partiful_api_payload" };
   return { root, event, guest, rsvp, source: "partiful_status_payload" };
@@ -922,6 +1056,149 @@ function looksLikePartifulEvent(record: Record<string, unknown>): boolean {
     record.ref || record.publicShortUrl || record.locationInfo || record.guestStatusCounts ||
       record.questionnaireVersions || extractPartifulId(record),
   );
+}
+
+const PARTIFUL_SNAPSHOT_ARRAY_FIELDS = [
+  "snapshots",
+  "payloads",
+  "events",
+  "partifulEvents",
+  "targets",
+  "items",
+  "responses",
+  "networkResponses",
+  "pages",
+] as const;
+
+const PARTIFUL_SNAPSHOT_SINGLE_FIELDS = [
+  "snapshot",
+  "payload",
+  "event",
+  "partifulEvent",
+  "nextData",
+  "__NEXT_DATA__",
+  "pageProps",
+  "response",
+] as const;
+
+function partifulSnapshotPayloadsFromCandidate(
+  candidate: unknown,
+  inheritedMetadata: Record<string, unknown> | null = null,
+): unknown[] {
+  const parsed = parseJsonLike(candidate);
+  if (Array.isArray(parsed)) {
+    return parsed.flatMap((item) => partifulSnapshotPayloadsFromCandidate(item, inheritedMetadata));
+  }
+
+  const record = asRecord(parsed);
+  if (!record) return [];
+  const metadata = partifulSnapshotMetadata(record, inheritedMetadata);
+
+  for (const field of ["snapshot", "payload", "body", "json", "nextData", "__NEXT_DATA__"]) {
+    if (record[field] === undefined) continue;
+    const payload = parseJsonLike(record[field]);
+    if (Array.isArray(payload)) {
+      return payload.flatMap((item) => partifulSnapshotPayloadsFromCandidate(item, metadata));
+    }
+    return [attachPartifulSnapshotMetadata(payload, metadata)];
+  }
+
+  const response = asRecord(record.response);
+  if (response) {
+    for (const field of ["body", "json", "payload"]) {
+      if (response[field] === undefined) continue;
+      return partifulSnapshotPayloadsFromCandidate(
+        response[field],
+        partifulSnapshotMetadata(response, metadata),
+      );
+    }
+  }
+
+  if (looksLikeSnapshotContainer(record)) {
+    return [attachPartifulSnapshotMetadata(record, metadata)];
+  }
+  return [];
+}
+
+function looksLikeSnapshotContainer(record: Record<string, unknown>): boolean {
+  return Boolean(
+    getPath(record, ["props", "pageProps"]) ||
+      getPath(record, ["__NEXT_DATA__", "props", "pageProps"]) ||
+      getPath(record, ["result", "data", "json"]) ||
+      record.pageProps ||
+      record.event ||
+      record.guest ||
+      record.rsvp ||
+      record.viewerGuest ||
+      record.viewerRsvp ||
+      record.myGuest ||
+      record.myRsvp ||
+      record.attendee ||
+      record.attendance ||
+      extractPartifulId(record),
+  );
+}
+
+function partifulSnapshotMetadata(
+  record: Record<string, unknown>,
+  inheritedMetadata: Record<string, unknown> | null,
+): Record<string, unknown> {
+  const metadata: Record<string, unknown> = { ...(inheritedMetadata ?? {}) };
+  for (
+    const field of [
+      "partifulId",
+      "partiful_id",
+      "partifulEventUrl",
+      "partifulUrl",
+      "partiful_url",
+      "eventUrl",
+      "event_url",
+      "publicUrl",
+      "publicShortUrl",
+      "title",
+      "eventName",
+      "event_name",
+      "source",
+    ]
+  ) {
+    const value = record[field];
+    if (value !== undefined && metadata[field] === undefined) metadata[field] = value;
+  }
+
+  const url = firstString(record.eventUrl, record.event_url, record.partifulUrl, record.url);
+  if (url && extractPartifulId(url) && metadata.eventUrl === undefined) {
+    metadata.eventUrl = normalizePartifulEventUrl(url);
+  }
+  return metadata;
+}
+
+function attachPartifulSnapshotMetadata(
+  payload: unknown,
+  metadata: Record<string, unknown>,
+): unknown {
+  const parsed = parseJsonLike(payload);
+  if (Array.isArray(parsed)) {
+    return parsed.map((item) => attachPartifulSnapshotMetadata(item, metadata));
+  }
+  const record = asRecord(parsed);
+  if (!record) return parsed;
+
+  const output: Record<string, unknown> = { ...record };
+  for (const [key, value] of Object.entries(metadata)) {
+    if (value !== undefined && output[key] === undefined) output[key] = value;
+  }
+  return output;
+}
+
+function parseJsonLike(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const text = value.trim();
+  if (!text || !/^[\[{]/.test(text)) return value;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return value;
+  }
 }
 
 function looksLikePartifulId(value: unknown): value is string {

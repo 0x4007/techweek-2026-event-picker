@@ -59,9 +59,10 @@ GOOGLE_EVENTKIT_JSON = ROOT / "outputs/sync/techweek_google_schedule_eventkit.js
 SCHEDULE_CALENDAR = "NY Tech Week 2026 - Schedule"
 REFERENCE_CALENDAR = "NY Tech Week 2026 - All RSVPs"
 GOOGLE_VIA_APPLE_TARGET_CALENDAR = "Personal"
+HOME_BASE_LOCATION = HOME["name"]
 
 LOCATION_MAP_QUERIES = {
-    "FiDi home base": HOME["venue_query"],
+    HOME_BASE_LOCATION: HOME["venue_query"],
     "Financial District": "Financial District, New York, NY",
     "Flatiron": "Flatiron, New York, NY",
     "Lower East Side": "Lower East Side, New York, NY",
@@ -105,7 +106,7 @@ MEAL_BLOCKS = [
         "start": "12:15",
         "end": "13:15",
         "title": "Meal: Lunch / reset",
-        "location": "FiDi home base",
+        "location": HOME_BASE_LOCATION,
         "note": "One-hour food buffer before leaving for the first event.",
     },
     {
@@ -137,7 +138,7 @@ MEAL_BLOCKS = [
         "start": "10:45",
         "end": "11:15",
         "title": "Meal: Quick breakfast / lunch before dense Wednesday",
-        "location": "FiDi home base",
+        "location": HOME_BASE_LOCATION,
         "note": "Hectic-day 30-minute food buffer before the midday run starts.",
     },
     {
@@ -161,7 +162,7 @@ MEAL_BLOCKS = [
         "start": "14:30",
         "end": "15:30",
         "title": "Meal: Late lunch / reset",
-        "location": "FiDi home base",
+        "location": HOME_BASE_LOCATION,
         "note": "One-hour meal buffer before leaving for the Thursday route.",
     },
     {
@@ -177,7 +178,7 @@ MEAL_BLOCKS = [
         "start": "15:10",
         "end": "16:10",
         "title": "Meal: Early dinner before Bare Metal",
-        "location": "FiDi home base",
+        "location": HOME_BASE_LOCATION,
         "note": "One-hour food buffer before the Friday evening event.",
     },
 ]
@@ -188,7 +189,7 @@ SLEEP_BLOCKS = [
         "start": "03:13",
         "end": "11:13",
         "title": "Sleep: 8 hours",
-        "location": "FiDi home base",
+        "location": HOME_BASE_LOCATION,
         "note": "Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.",
     },
     {
@@ -196,7 +197,7 @@ SLEEP_BLOCKS = [
         "start": "02:43",
         "end": "10:43",
         "title": "Sleep: 8 hours",
-        "location": "FiDi home base",
+        "location": HOME_BASE_LOCATION,
         "note": "Staggered late sleep block; wake leaves 30 minutes before the first travel block.",
     },
     {
@@ -204,7 +205,7 @@ SLEEP_BLOCKS = [
         "start": "02:45",
         "end": "10:45",
         "title": "Sleep: 8 hours",
-        "location": "FiDi home base",
+        "location": HOME_BASE_LOCATION,
         "note": "Staggered late sleep block; wake lands on the quick breakfast/lunch block.",
     },
     {
@@ -212,7 +213,7 @@ SLEEP_BLOCKS = [
         "start": "03:15",
         "end": "11:15",
         "title": "Sleep: 8 hours",
-        "location": "FiDi home base",
+        "location": HOME_BASE_LOCATION,
         "note": "Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.",
     },
     {
@@ -220,7 +221,7 @@ SLEEP_BLOCKS = [
         "start": "03:45",
         "end": "11:45",
         "title": "Sleep: 8 hours",
-        "location": "FiDi home base",
+        "location": HOME_BASE_LOCATION,
         "note": "Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.",
     },
     {
@@ -228,7 +229,7 @@ SLEEP_BLOCKS = [
         "start": "04:15",
         "end": "12:15",
         "title": "Sleep: 8 hours",
-        "location": "FiDi home base",
+        "location": HOME_BASE_LOCATION,
         "note": "Staggered late sleep block after the final Tech Week route day.",
     },
 ]
@@ -960,8 +961,8 @@ def build_operational_route(events: list[dict]) -> list[dict]:
                 travel_row(
                     travel_home_start,
                     travel_home_start + dt.timedelta(minutes=route["minutes"]),
-                    f"{previous_point.name} -> FiDi home base",
-                    f"{previous_point.name} -> FiDi home base",
+                    f"{previous_point.name} -> {HOME_BASE_LOCATION}",
+                    f"{previous_point.name} -> {HOME_BASE_LOCATION}",
                     route,
                     "",
                     f"TW-{previous_event_entry['start_dt'].strftime('%Y%m%d')}-TRAVEL-HOME",
@@ -1034,7 +1035,7 @@ def write_markdown(schedule_rows: list[dict], reference_rows: list[dict], all_re
     contents = [
         "# Signed-Up NYC Tech Week Schedule",
         "",
-        "Home anchor: FiDi / Wall St station. Travel blocks use OSM/Nominatim geocoding plus SubwayInfo.nyc station-trip estimates where subway beats walking. Hidden venues use neighborhood centroids until hosts reveal exact addresses.",
+        f"Home anchor: {HOME_BASE_LOCATION}. Travel blocks use OSM/Nominatim geocoding plus SubwayInfo.nyc station-trip estimates where subway beats walking. Hidden venues use neighborhood centroids until hosts reveal exact addresses.",
         "",
         "The operational calendar is the route to actually keep open. It includes events, transit, meal/reset blocks, staggered late 8-hour sleep blocks, and Google Maps links in every block's notes. The all-RSVP calendar excludes scheduled route events, so enabling both calendars does not render duplicate event blocks.",
         "",

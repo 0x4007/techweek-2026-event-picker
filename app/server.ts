@@ -14,7 +14,19 @@ import {
   valueFingerprint,
 } from "./lib/cache_keys.ts";
 import {
+  buildCallableSnapshot,
+  callableResult,
+  callPartifulFunction,
+  defaultAuthFilePath,
+  ensureFreshPartifulAuth,
+  partifulIdFromUrl,
+  type PartifulTarget,
+  readStoredPartifulAuth,
+  type StoredPartifulAuth,
+} from "../scripts/lib/partiful_headless.ts";
+import {
   computePartifulSync,
+  extractPartifulSnapshotPayloads,
   type NormalizedPartifulEvent,
   type PartifulMergedEvent,
 } from "./lib/partiful_sync.ts";
@@ -52,6 +64,8 @@ const RANKINGS_CSV = new URL(
   import.meta.url,
 );
 const RSVP_PROFILE_JSON = new URL("../.codex/techweek-rsvp-profile.json", import.meta.url);
+const APP_STATE_JSON = new URL("../.codex/techweek_app_state.json", import.meta.url);
+const AGENDA_RUNS_DIR = new URL("../.codex/agenda-runs/", import.meta.url);
 const TEXT_REWARDS_REPO = new URL(
   "file:///Users/nv/repos/ubiquity-os-marketplace/text-conversation-rewards/",
 );
@@ -80,6 +94,101 @@ const RANKED_OPPORTUNITY_MAP_LIMIT = 260;
 const ROUTING_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 45;
 const PARTIFUL_SYNC_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 120;
 const AGENDA_RUN_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const PARTIFUL_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+const PARTIFUL_AUTO_SYNC_LOCK_TTL_MS = 5 * 60 * 1000;
+const MANUAL_AGENDA_ROUTE_POINTS = [
+  {
+    pattern: /\b(?:IBM One Madison|1 Madison Ave)\b/i,
+    query: "1 Madison Ave, New York, NY 10010",
+    precision: "manual_exact_manhattan",
+    lat: 40.7408301,
+    lon: -73.9868072,
+  },
+  {
+    pattern: /\b135 Madison Ave\b/i,
+    query: "135 Madison Ave, New York, NY",
+    precision: "manual_exact_manhattan",
+    lat: 40.7459513,
+    lon: -73.984086,
+  },
+  {
+    pattern: /\b1155\s+6th\s+Ave\b/i,
+    query: "1155 6th Ave, New York, NY 10036",
+    precision: "manual_exact_manhattan",
+    lat: 40.7564611,
+    lon: -73.9831996,
+  },
+  {
+    pattern: /\b620\s+(?:8th|Eighth)\s+Ave\b/i,
+    query: "620 8th Ave, New York, NY 10018",
+    precision: "manual_exact_manhattan",
+    lat: 40.756326,
+    lon: -73.990245,
+  },
+  {
+    pattern: /\b(?:Pho Dragon|47 W 14th St)\b/i,
+    query: "47 W 14th St, New York, NY 10011",
+    precision: "manual_exact_manhattan",
+    lat: 40.737108,
+    lon: -73.9958546,
+  },
+  {
+    pattern: /\b(?:Delancey St Essex|Lower East Side)\b/i,
+    query: "Delancey St Essex St, New York, NY",
+    precision: "manual_neighborhood",
+    lat: 40.7186182,
+    lon: -73.9881357,
+  },
+  {
+    pattern: /\bBryant Park\b|\bMidtown\b/i,
+    query: "Bryant Park, New York, NY",
+    precision: "manual_neighborhood",
+    lat: 40.7537509,
+    lon: -73.9835428,
+  },
+  {
+    pattern: /\bSpring St(?:reet)? and Broadway\b|\bSoHo\b/i,
+    query: "Spring St and Broadway, New York, NY",
+    precision: "manual_neighborhood",
+    lat: 40.724329,
+    lon: -73.997702,
+  },
+  {
+    pattern: /\b23rd Street and 8th Avenue\b|\bChelsea\b/i,
+    query: "23rd Street and 8th Avenue, New York, NY",
+    precision: "manual_neighborhood",
+    lat: 40.744081,
+    lon: -73.999562,
+  },
+  {
+    pattern: /\b28th Street and Broadway\b|\bNomad\b/i,
+    query: "28th Street and Broadway, New York, NY",
+    precision: "manual_neighborhood",
+    lat: 40.7458,
+    lon: -73.9888,
+  },
+  {
+    pattern: /\bAstor Place\b|\bEast Village\b/i,
+    query: "Astor Place, New York, NY",
+    precision: "manual_neighborhood",
+    lat: 40.7298497,
+    lon: -73.9913897,
+  },
+  {
+    pattern: /\b(?:Union Square|201 Park Ave S)\b/i,
+    query: "Union Square, Manhattan, New York, NY",
+    precision: "manual_neighborhood",
+    lat: 40.735736,
+    lon: -73.990568,
+  },
+  {
+    pattern: /\bBarclays Center\b|\bBrooklyn\b/i,
+    query: "Barclays Center, Brooklyn, NY",
+    precision: "manual_neighborhood",
+    lat: 40.682511,
+    lon: -73.975252,
+  },
+] as const;
 const PRODUCT_PLAYBOOK_FILES = [
   { label: "Repository README", url: new URL("README.md", TEXT_REWARDS_REPO), maxChars: 32_000 },
   {
@@ -135,6 +244,11 @@ const PRODUCT_PLAYBOOK_FILES = [
 ] as const;
 const ROUTE_RUNBOOK_FILES = [
   {
+    label: "Agenda preference profile prompt",
+    url: new URL("./prompts/agenda-preferences.md", import.meta.url),
+    maxChars: 12_000,
+  },
+  {
     label: "Tech Week agenda",
     url: new URL("../docs/agenda/TECHWEEK_AGENDA.md", import.meta.url),
     maxChars: 28_000,
@@ -189,7 +303,7 @@ let modelContextCache:
 
 type CsvRow = Record<string, string>;
 
-type ScheduleEntry = {
+export type ScheduleEntry = {
   calendar: string;
   techweekId: string;
   calendarBlockId: string;
@@ -274,10 +388,32 @@ type AppState = {
   eventNotes: Record<string, EventNote>;
   leads: Lead[];
   dismissedBlocks: string[];
+  activeAgendaRunId: string;
+  partifulAutoSync: PartifulAutoSyncState;
+};
+
+type PartifulAutoSyncState = {
+  status: "idle" | "running" | "completed" | "failed";
+  lastStartedAt: string;
+  lastCompletedAt: string;
+  lastRunId: string;
+  lastAgendaRunId: string;
+  lastError: string;
+  nextAllowedAt: string;
 };
 
 type StoredPartifulEvent = {
   syncedAt: string;
+  normalizedEvent: NormalizedPartifulEvent;
+  mergedEvent: PartifulMergedEvent<Record<string, unknown>>;
+  statusChanged: boolean;
+  matchedBy: string;
+};
+
+type StoredPartifulEventRecord = {
+  cacheId: string;
+  syncedAt: string;
+  updatedAt: string;
   normalizedEvent: NormalizedPartifulEvent;
   mergedEvent: PartifulMergedEvent<Record<string, unknown>>;
   statusChanged: boolean;
@@ -576,6 +712,7 @@ export function parseCsv(input: string): CsvRow[] {
 function json(data: unknown, init: ResponseInit = {}): Response {
   const headers = new Headers(init.headers);
   headers.set("content-type", "application/json; charset=utf-8");
+  headers.set("cache-control", "no-store");
   return new Response(JSON.stringify(data, null, 2), { ...init, headers });
 }
 
@@ -700,6 +837,24 @@ function stripStatusPrefix(title: string): { displayTitle: string; statusLabel: 
   return { displayTitle: match[2], statusLabel: match[1] };
 }
 
+export function statusLabelForScheduleStatus(status: string, fallback = ""): string {
+  const normalized = status.trim().toLowerCase();
+  if (!normalized) return fallback;
+  if (
+    normalized === "registered" || normalized === "going" || normalized === "approved" ||
+    normalized === "accepted"
+  ) {
+    return "REG";
+  }
+  if (
+    normalized === "applied" || normalized.includes("pending") || normalized.includes("applied")
+  ) {
+    return "PENDING";
+  }
+  if (normalized === "waitlisted" || normalized.includes("waitlist")) return "WAITLIST";
+  return fallback || normalized.toUpperCase();
+}
+
 function normalizeBlockType(entryType: string): ScheduleEntry["blockType"] {
   if (entryType === "event") return "event";
   if (entryType === "travel") return "travel";
@@ -772,6 +927,150 @@ async function readScheduleEntries(): Promise<ScheduleEntry[]> {
   return parseCsv(csv).map(toEntry).sort((a, b) => a.startEpochMs - b.startEpochMs);
 }
 
+async function readAgendaCandidateEntries(): Promise<ScheduleEntry[]> {
+  const [entries, partifulEvents] = await Promise.all([
+    readScheduleEntries(),
+    readStoredPartifulEvents(),
+  ]);
+  return mergeDiscoveredPartifulEntries(entries, partifulEvents);
+}
+
+function mergeDiscoveredPartifulEntries(
+  entries: ScheduleEntry[],
+  partifulEvents: StoredPartifulEventRecord[],
+): ScheduleEntry[] {
+  const existingIds = new Set(entries.map((entry) => entry.partifulId).filter(Boolean));
+  const discovered = partifulEvents.flatMap((record) => {
+    const event = record.normalizedEvent;
+    if (!event.partifulId || existingIds.has(event.partifulId)) return [];
+    const entry = scheduleEntryFromDiscoveredPartifulEvent(event);
+    return entry ? [entry] : [];
+  });
+  return [...entries, ...discovered].sort((a, b) => a.startEpochMs - b.startEpochMs);
+}
+
+function scheduleEntryFromDiscoveredPartifulEvent(
+  event: NormalizedPartifulEvent,
+): ScheduleEntry | null {
+  const start = localDateTimeFromIso(event.startAt);
+  const end = localDateTimeFromIso(event.endAt) || fallbackEndTime(start);
+  if (!start || !isConferenceWindow(start, event.title)) return null;
+  const dayKey = start.slice(0, 10);
+  const venue = event.venue;
+  const title = stripHashTechWeek(event.title || `Partiful ${event.partifulId}`);
+  const workFit = discoveredPartifulWorkFit(event);
+  const opportunityScore = String(Math.max(0, Math.min(100, 45 + workFit)));
+  return {
+    calendar: "reference",
+    techweekId: "",
+    calendarBlockId: `PF-${event.partifulId}-REFERENCE`,
+    partifulId: event.partifulId,
+    rerankId: "",
+    entryType: "event",
+    blockType: "event",
+    status: event.status,
+    category: "discovered",
+    start,
+    end,
+    actualStart: start,
+    actualEnd: end,
+    startEpochMs: parseLocalDateTime(start),
+    endEpochMs: parseLocalDateTime(end),
+    actualStartEpochMs: parseLocalDateTime(start),
+    actualEndEpochMs: parseLocalDateTime(end),
+    dayKey,
+    weekday: formatWeekday(dayKey),
+    timeRange: formatTimeRange(start, end),
+    title,
+    displayTitle: title,
+    statusLabel: statusLabelForScheduleStatus(event.status),
+    location: venue?.address || venue?.label || "New York, NY",
+    venueQuery: venue?.address || venue?.label || "New York, NY",
+    venuePrecision: venue?.precision || "unknown",
+    routeMode: "",
+    travelMinutes: "",
+    routeDetails: "",
+    transitRisk: "",
+    note: [
+      "Discovered from live Partiful account sync.",
+      event.description ? `Description: ${event.description}` : "",
+    ].filter(Boolean).join(" "),
+    salesCoaching: discoveredPartifulSalesCoaching(event, workFit),
+    rank: "999",
+    tier: workFit >= 45 ? "B" : "C",
+    opportunityScore,
+    eventUrl: event.eventUrl,
+    googleMapsUrl: venue?.googleMapsUrl || "",
+  };
+}
+
+function discoveredPartifulSalesCoaching(
+  event: NormalizedPartifulEvent,
+  workFit: number,
+): string {
+  const quality = workFit >= 45 ? "high-fit discovered Partiful event" : "low-confidence discovery";
+  return [
+    `Partiful discovery: ${quality}.`,
+    "Evaluate the room for engineering leaders, founders, DevEx/platform teams, AI builders, and operators before redirecting the agenda.",
+    event.description ? `Host description: ${event.description}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+function discoveredPartifulWorkFit(event: NormalizedPartifulEvent): number {
+  const text = `${event.title} ${event.description}`.toLowerCase();
+  const positives = [
+    /engineering|developer|devex|platform|infrastructure|infra/,
+    /cto|tech leader|vp engineering|head of engineering/,
+    /open[ -]?source|github|maintainer|codebase/,
+    /\bai\b|agent|mcp|llm|coding/,
+    /enterprise|b2b|founder|operator|startup/,
+    /api|workflow|automation|security|data/,
+  ];
+  const negatives = [
+    /birthday|graduation|housewarming|wedding/,
+    /fashion|beauty|dating|consumer social/,
+    /wellness|fitness|yoga|run club/,
+  ];
+  const positive = positives.reduce((sum, pattern) => sum + (pattern.test(text) ? 12 : 0), 0);
+  const negative = negatives.reduce((sum, pattern) => sum + (pattern.test(text) ? 30 : 0), 0);
+  return Math.max(-45, Math.min(55, positive - negative));
+}
+
+function isConferenceWindow(localStart: string, title: string): boolean {
+  const day = localStart.slice(0, 10);
+  return (day >= "2026-06-01" && day <= "2026-06-07") || /#?nytechweek/i.test(title);
+}
+
+function localDateTimeFromIso(value: string): string {
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return "";
+  return formatLocalDateTimeForSchedule(parsed);
+}
+
+function fallbackEndTime(start: string): string {
+  const parsed = parseLocalDateTime(start);
+  if (!Number.isFinite(parsed)) return "";
+  return formatLocalDateTimeForSchedule(parsed + 90 * 60 * 1000);
+}
+
+function formatLocalDateTimeForSchedule(epochMs: number): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(epochMs));
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}`;
+}
+
+function stripHashTechWeek(value: string): string {
+  return value.replace(/\s*[-–—]?\s*#NYTechWeek\b/gi, "").trim();
+}
+
 function emptyState(): AppState {
   return {
     version: 1,
@@ -779,6 +1078,20 @@ function emptyState(): AppState {
     eventNotes: {},
     leads: [],
     dismissedBlocks: [],
+    activeAgendaRunId: "",
+    partifulAutoSync: emptyPartifulAutoSyncState(),
+  };
+}
+
+function emptyPartifulAutoSyncState(): PartifulAutoSyncState {
+  return {
+    status: "idle",
+    lastStartedAt: "",
+    lastCompletedAt: "",
+    lastRunId: "",
+    lastAgendaRunId: "",
+    lastError: "",
+    nextAllowedAt: "",
   };
 }
 
@@ -835,6 +1148,11 @@ function normalizeLeads(value: unknown): Lead[] {
 
 function textField(value: unknown, maxLength = 1200): string {
   return String(value ?? "").trim().slice(0, maxLength);
+}
+
+function positiveIntegerField(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
 }
 
 export function extractEmailAddress(value: string): string {
@@ -1110,7 +1428,8 @@ export async function sendResendTestEmail(to: string): Promise<LeadFollowUpEmail
 }
 
 async function readState(): Promise<AppState> {
-  const parsed = await readStateValue<Partial<AppState>>("app_state_v1");
+  const parsed = await readStateValue<Partial<AppState>>("app_state_v1") ??
+    await readLocalAppState();
   if (!parsed) return emptyState();
   return {
     version: 1,
@@ -1118,13 +1437,51 @@ async function readState(): Promise<AppState> {
     eventNotes: parsed.eventNotes ?? {},
     leads: normalizeLeads(parsed.leads),
     dismissedBlocks: parsed.dismissedBlocks ?? [],
+    activeAgendaRunId: String(parsed.activeAgendaRunId ?? ""),
+    partifulAutoSync: normalizePartifulAutoSync(parsed.partifulAutoSync),
   };
 }
 
 async function writeState(state: AppState): Promise<AppState> {
   state.updatedAt = new Date().toISOString();
   await writeStateValue("app_state_v1", state);
+  await writeLocalAppState(state);
   return state;
+}
+
+async function readLocalAppState(): Promise<Partial<AppState> | null> {
+  return await readJsonFile<Partial<AppState>>(APP_STATE_JSON);
+}
+
+async function writeLocalAppState(state: AppState): Promise<void> {
+  await Deno.mkdir(new URL(".", APP_STATE_JSON), { recursive: true });
+  await Deno.writeTextFile(APP_STATE_JSON, `${JSON.stringify(state, null, 2)}\n`);
+}
+
+async function readJsonFile<T>(url: URL): Promise<T | null> {
+  try {
+    const parsed = JSON.parse(await Deno.readTextFile(url));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as T : null;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return null;
+    throw error;
+  }
+}
+
+function normalizePartifulAutoSync(value: unknown): PartifulAutoSyncState {
+  const raw = recordValue(value);
+  const state = emptyPartifulAutoSyncState();
+  if (!raw) return state;
+  const status = textField(raw.status, 40);
+  return {
+    status: status === "running" || status === "completed" || status === "failed" ? status : "idle",
+    lastStartedAt: textField(raw.lastStartedAt, 80),
+    lastCompletedAt: textField(raw.lastCompletedAt, 80),
+    lastRunId: textField(raw.lastRunId, 120),
+    lastAgendaRunId: textField(raw.lastAgendaRunId, 120),
+    lastError: textField(raw.lastError, 500),
+    nextAllowedAt: textField(raw.nextAllowedAt, 80),
+  };
 }
 
 function currentSchedulePointer(entries: ScheduleEntry[]): ScheduleEntry | null {
@@ -1139,16 +1496,31 @@ function currentSchedulePointer(entries: ScheduleEntry[]): ScheduleEntry | null 
     null;
 }
 
-function buildSchedulePayload(entries: ScheduleEntry[], state: AppState) {
-  const schedule = entries.filter((entry) => entry.calendar === "schedule");
-  const reference = entries.filter((entry) => entry.calendar === "reference");
+function buildSchedulePayload(
+  entries: ScheduleEntry[],
+  state: AppState,
+  activeAgenda: AgendaRecalculateResult | null = null,
+) {
+  const schedule = activeAgenda
+    ? activeAgenda.selectedBlocks.map((block) => agendaBlockToScheduleEntry(block, entries))
+    : entries.filter((entry) => entry.calendar === "schedule");
+  const reference = activeAgenda
+    ? referenceEntriesForAgenda(entries, activeAgenda)
+    : entries.filter((entry) => entry.calendar === "reference");
   const scheduleEvents = schedule.filter((entry) => entry.blockType === "event");
   const referenceEvents = reference.filter((entry) => entry.blockType === "event");
 
   return {
     generatedAt: new Date().toISOString(),
     timeZone: TIME_ZONE,
-    source: relativePath(SCHEDULE_CSV),
+    source: activeAgenda ? `agenda:${activeAgenda.agendaRunId}` : relativePath(SCHEDULE_CSV),
+    activeAgenda: activeAgenda
+      ? {
+        agendaRunId: activeAgenda.agendaRunId,
+        generatedAt: activeAgenda.generatedAt,
+        summary: activeAgenda.summary,
+      }
+      : null,
     next: currentSchedulePointer(schedule),
     counts: {
       scheduleBlocks: schedule.length,
@@ -1169,9 +1541,161 @@ function buildSchedulePayload(entries: ScheduleEntry[], state: AppState) {
         mode: "ics_export",
         operationalIcs: "/api/ics/operational",
       },
+      partifulAuto: state.partifulAutoSync,
     },
     email: emailPublicStatus(),
   };
+}
+
+type AgendaSelectedBlock = AgendaRecalculateResult["selectedBlocks"][number];
+
+function referenceEntriesForAgenda(
+  entries: ScheduleEntry[],
+  agenda: AgendaRecalculateResult,
+): ScheduleEntry[] {
+  const selectedIds = new Set(
+    agenda.selectedEvents.flatMap((block) =>
+      [block.techweekId, block.partifulId, block.rerankId].filter(Boolean)
+    ),
+  );
+  const statusById = agendaStatusById(agenda);
+  return entries
+    .filter((entry) => entry.blockType === "event" && !entryMatchesAnyAgendaId(entry, selectedIds))
+    .map((entry) => referenceEntryFromEventEntry(entryWithAgendaStatus(entry, statusById)))
+    .sort((a, b) => a.startEpochMs - b.startEpochMs);
+}
+
+function agendaBlockToScheduleEntry(
+  block: AgendaSelectedBlock,
+  originalEntries: ScheduleEntry[],
+): ScheduleEntry {
+  const original = findOriginalEntryForAgendaBlock(block, originalEntries);
+  const { displayTitle, statusLabel } = stripStatusPrefix(block.title || original?.title || "");
+  const status = block.status || original?.status || "";
+  const start = block.start || original?.start || "";
+  const end = block.end || original?.end || "";
+  const actualStart = block.actualStart || start;
+  const actualEnd = block.actualEnd || end;
+  const dayKey = block.dayKey || start.slice(0, 10);
+  return {
+    calendar: "schedule",
+    techweekId: block.techweekId || original?.techweekId || "",
+    calendarBlockId: block.calendarBlockId || original?.calendarBlockId || block.agendaBlockId,
+    partifulId: block.partifulId || original?.partifulId || "",
+    rerankId: block.rerankId || original?.rerankId || "",
+    entryType: block.entryType || original?.entryType || "",
+    blockType: block.blockType || original?.blockType || "other",
+    status,
+    category: block.category || original?.category || "",
+    start,
+    end,
+    actualStart,
+    actualEnd,
+    startEpochMs: block.startEpochMs || parseLocalDateTime(start),
+    endEpochMs: block.endEpochMs || parseLocalDateTime(end),
+    actualStartEpochMs: block.actualStartEpochMs || parseLocalDateTime(actualStart),
+    actualEndEpochMs: block.actualEndEpochMs || parseLocalDateTime(actualEnd),
+    dayKey,
+    weekday: formatWeekday(dayKey),
+    timeRange: formatTimeRange(start, end),
+    title: block.title || original?.title || "",
+    displayTitle: block.displayTitle || displayTitle || original?.displayTitle || "",
+    statusLabel: statusLabelForScheduleStatus(status, statusLabel || original?.statusLabel || ""),
+    location: block.location || original?.location || "",
+    venueQuery: block.venueQuery || original?.venueQuery || "",
+    venuePrecision: block.venuePrecision || original?.venuePrecision || "",
+    routeMode: block.routeMode || original?.routeMode || "",
+    travelMinutes: block.travelMinutes === null || block.travelMinutes === undefined
+      ? original?.travelMinutes ?? ""
+      : String(block.travelMinutes),
+    routeDetails: block.routeDetails || original?.routeDetails || "",
+    transitRisk: block.transitRisk || original?.transitRisk || "",
+    note: block.note || original?.note || block.generatedReason || "",
+    salesCoaching: original?.salesCoaching || "",
+    rank: block.rank || original?.rank || "",
+    tier: block.tier || original?.tier || "",
+    opportunityScore: block.opportunityScore || original?.opportunityScore || "",
+    eventUrl: block.eventUrl || original?.eventUrl || "",
+    googleMapsUrl: block.googleMapsUrl || original?.googleMapsUrl || "",
+  };
+}
+
+function agendaStatusById(agenda: AgendaRecalculateResult): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const block of agenda.selectedEvents) {
+    addAgendaStatusKeys(map, [
+      block.techweekId,
+      block.calendarBlockId,
+      block.partifulId,
+      block.rerankId,
+    ], block.status);
+  }
+  for (const drop of agenda.droppedEvents) {
+    addAgendaStatusKeys(map, [
+      drop.event.techweekId,
+      drop.event.calendarBlockId,
+      drop.event.partifulId,
+      drop.event.rerankId,
+      ...drop.event.identifiers,
+    ], drop.event.status);
+  }
+  return map;
+}
+
+function addAgendaStatusKeys(
+  map: Map<string, string>,
+  ids: readonly string[],
+  status: string,
+): void {
+  if (!status) return;
+  for (const id of ids) {
+    if (!id) continue;
+    map.set(id, status);
+    if (id.startsWith("TW-")) map.set(id.slice(3), status);
+    else if (/^\d+$/.test(id)) map.set(`TW-${id}`, status);
+  }
+}
+
+function entryWithAgendaStatus(
+  entry: ScheduleEntry,
+  statusById: Map<string, string>,
+): ScheduleEntry {
+  const ids = [
+    entry.techweekId,
+    entry.calendarBlockId,
+    entry.partifulId,
+    entry.rerankId,
+  ].filter(Boolean);
+  const status = ids.map((id) => statusById.get(id)).find(Boolean);
+  if (!status) return entry;
+  return {
+    ...entry,
+    status,
+    statusLabel: statusLabelForScheduleStatus(status, entry.statusLabel),
+  };
+}
+
+function findOriginalEntryForAgendaBlock(
+  block: AgendaSelectedBlock,
+  entries: ScheduleEntry[],
+): ScheduleEntry | null {
+  const ids = new Set([block.techweekId, block.partifulId, block.rerankId].filter(Boolean));
+  return entries.find((entry) => entry.calendarBlockId === block.calendarBlockId) ??
+    entries.find((entry) => entryMatchesAnyAgendaId(entry, ids)) ??
+    null;
+}
+
+function referenceEntryFromEventEntry(entry: ScheduleEntry): ScheduleEntry {
+  const techweekId = entry.techweekId || (entry.rerankId ? `TW-${entry.rerankId}` : "");
+  return {
+    ...entry,
+    calendar: "reference",
+    calendarBlockId: techweekId ? `${techweekId}-REFERENCE` : entry.calendarBlockId,
+  };
+}
+
+function entryMatchesAnyAgendaId(entry: ScheduleEntry, ids: Set<string>): boolean {
+  return ids.has(entry.techweekId) || ids.has(entry.partifulId) || ids.has(entry.rerankId);
 }
 
 function relativePath(url: URL): string {
@@ -1179,8 +1703,11 @@ function relativePath(url: URL): string {
 }
 
 async function handleSchedule(): Promise<Response> {
-  const [entries, state] = await Promise.all([readScheduleEntries(), readState()]);
-  return json(buildSchedulePayload(entries, state));
+  const [entries, state] = await Promise.all([readAgendaCandidateEntries(), readState()]);
+  const activeAgenda = state.activeAgendaRunId
+    ? await readAgendaRun(state.activeAgendaRunId)
+    : null;
+  return json(buildSchedulePayload(entries, state, activeAgenda));
 }
 
 async function handleHealth(): Promise<Response> {
@@ -1292,9 +1819,17 @@ async function handleAgendaRecalculate(request: Request): Promise<Response> {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return badRequest("Expected a JSON object body.");
   }
-  const result = await recalculateAgendaFromBody(body as Record<string, unknown>);
+  const raw = body as Record<string, unknown>;
+  const result = await recalculateAgendaFromBody(raw);
   await storeAgendaRun(result);
-  return json({ agenda: result });
+  const responseBody: Record<string, unknown> = { agenda: result };
+  if (raw.activate === true) {
+    const [entries, state] = await Promise.all([readAgendaCandidateEntries(), readState()]);
+    state.activeAgendaRunId = result.agendaRunId;
+    const updatedState = await writeState(state);
+    responseBody.schedule = buildSchedulePayload(entries, updatedState, result);
+  }
+  return json(responseBody);
 }
 
 async function handleAgendaRun(id: string): Promise<Response> {
@@ -1314,17 +1849,39 @@ async function storeAgendaRun(result: AgendaRecalculateResult): Promise<void> {
     ttlMs: AGENDA_RUN_CACHE_TTL_MS,
     metadata: metadata as unknown as Record<string, unknown>,
   });
+  await writeLocalAgendaRun(result);
 }
 
 async function readAgendaRun(id: string): Promise<AgendaRecalculateResult | null> {
-  return await readCacheValue<AgendaRecalculateResult>("agendaRun", agendaRunCacheId(id));
+  return await readCacheValue<AgendaRecalculateResult>("agendaRun", agendaRunCacheId(id)) ??
+    await readLocalAgendaRun(id);
+}
+
+async function writeLocalAgendaRun(result: AgendaRecalculateResult): Promise<void> {
+  await Deno.mkdir(AGENDA_RUNS_DIR, { recursive: true });
+  await Deno.writeTextFile(
+    agendaRunFile(result.agendaRunId),
+    `${JSON.stringify(result, null, 2)}\n`,
+  );
+}
+
+async function readLocalAgendaRun(id: string): Promise<AgendaRecalculateResult | null> {
+  return await readJsonFile<AgendaRecalculateResult>(agendaRunFile(id));
+}
+
+function agendaRunFile(id: string): URL {
+  return new URL(`${safeFileSegment(id)}.json`, AGENDA_RUNS_DIR);
+}
+
+function safeFileSegment(value: string): string {
+  return value.replaceAll(/[^A-Za-z0-9_.-]/g, "_").slice(0, 180);
 }
 
 async function recalculateAgendaFromBody(
   body: Record<string, unknown>,
 ): Promise<AgendaRecalculateResult> {
   const [entries, state, storedStatusUpdates] = await Promise.all([
-    readScheduleEntries(),
+    readAgendaCandidateEntries(),
     readState(),
     readStoredPartifulStatusUpdates(),
   ]);
@@ -1335,6 +1892,7 @@ async function recalculateAgendaFromBody(
     ? body.acceptedEventIds.map(String)
     : [];
   const overrides = recordValue(body.overrides) ?? undefined;
+  const preferences = recordValue(body.preferences) ?? undefined;
   const liveRouting = body.liveRouting !== false;
 
   return await recalculateAgenda({
@@ -1343,6 +1901,7 @@ async function recalculateAgendaFromBody(
       excludedBlockIds: state.dismissedBlocks,
     },
     overrides,
+    preferences,
     statusUpdates: [...storedStatusUpdates, ...directStatusUpdates],
     acceptedEventIds,
     routeEstimator: liveRouting ? estimateAgendaRoute : undefined,
@@ -1351,16 +1910,29 @@ async function recalculateAgendaFromBody(
 }
 
 async function readStoredPartifulStatusUpdates(): Promise<AgendaStatusUpdate[]> {
-  const entries = await listCacheValues<StoredPartifulEvent>("partifulEvent", 1000);
+  const entries = await readStoredPartifulEvents();
   return entries.map((entry) => {
-    const event = entry.value.normalizedEvent;
+    const event = entry.normalizedEvent;
     return {
       partifulId: event.partifulId,
       status: event.status,
       reason: `Partiful sync status ${event.rawStatus || event.status}`,
-      updatedAt: entry.value.syncedAt,
+      updatedAt: entry.syncedAt,
     };
   }).filter((item) => item.partifulId && item.status);
+}
+
+async function readStoredPartifulEvents(limit = 1000): Promise<StoredPartifulEventRecord[]> {
+  const entries = await listCacheValues<StoredPartifulEvent>("partifulEvent", limit);
+  return entries.map((entry) => ({
+    cacheId: entry.cacheId,
+    syncedAt: entry.value.syncedAt,
+    updatedAt: entry.updatedAt,
+    normalizedEvent: entry.value.normalizedEvent,
+    mergedEvent: entry.value.mergedEvent,
+    statusChanged: entry.value.statusChanged,
+    matchedBy: entry.value.matchedBy,
+  }));
 }
 
 async function estimateAgendaRoute(
@@ -1400,6 +1972,8 @@ async function routePointFromAgendaPoint(point: {
 }): Promise<RoutePoint> {
   const query = point.venueQuery || point.location || point.name || "New York, NY";
   if (isHomeAnchor(point, query)) return HOME_POINT;
+  const manual = manualAgendaRoutePoint(point, query);
+  if (manual) return manual;
   if (Number.isFinite(point.latitude) && Number.isFinite(point.longitude)) {
     return {
       id: point.id,
@@ -1427,6 +2001,29 @@ async function routePointFromAgendaPoint(point: {
   };
 }
 
+function manualAgendaRoutePoint(
+  point: {
+    id?: string;
+    name?: string;
+    location?: string;
+    venuePrecision?: string;
+  },
+  query: string,
+): RoutePoint | null {
+  const haystack = `${query} ${point.location ?? ""} ${point.name ?? ""}`;
+  const match = MANUAL_AGENDA_ROUTE_POINTS.find((item) => item.pattern.test(haystack));
+  if (!match) return null;
+  return {
+    id: point.id,
+    name: point.name || match.query,
+    location: point.location,
+    venueQuery: match.query,
+    addressPrecision: point.venuePrecision || match.precision,
+    lat: match.lat,
+    lon: match.lon,
+  };
+}
+
 function isHomeAnchor(point: { id?: string; name?: string }, query: string): boolean {
   const text = `${point.id ?? ""} ${point.name ?? ""} ${query}`.toLowerCase();
   return text.includes("fidi home") || text.includes("wall st, new york");
@@ -1436,22 +2033,39 @@ async function handlePartifulSync(request: Request): Promise<Response> {
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") return badRequest("Expected a JSON body.");
   const raw = body as Record<string, unknown>;
-  const snapshots = partifulSnapshotsFromBody(raw);
+  const extracted = extractPartifulSnapshotPayloads(raw);
+  const snapshots = extracted.snapshots;
   if (snapshots.length === 0) {
-    return badRequest("Provide snapshots, payloads, snapshot, or payload in the request body.");
+    return badRequest(
+      "Provide Partiful snapshots through snapshots, payloads, responses, targets, snapshot, payload, nextData, or __NEXT_DATA__.",
+    );
   }
 
-  const entries = await readScheduleEntries();
+  const entries = await readAgendaCandidateEntries();
   const currentEvents = entries
     .filter((entry) => entry.blockType === "event")
     .map(partifulEventLikeFromEntry);
-  const sync = computePartifulSync(currentEvents, snapshots, {
+  const computedSync = computePartifulSync(currentEvents, snapshots, {
     includeRawPayload: raw.includeRawPayload === true,
     source: textField(raw.source, 120) || "api_supplied_snapshot",
   });
+  const sync = {
+    ...computedSync,
+    warnings: [...extracted.warnings, ...computedSync.warnings],
+  };
 
-  await persistPartifulSync(sync.updatedEvents, sync.unmatchedSnapshots, sync.syncedAt);
-  const responseBody: Record<string, unknown> = { sync };
+  await persistPartifulSync(
+    [...sync.updatedEvents, ...sync.unchangedEvents],
+    sync.unmatchedSnapshots,
+    sync.syncedAt,
+  );
+  const responseBody: Record<string, unknown> = {
+    ingestion: {
+      snapshotCount: snapshots.length,
+      source: textField(raw.source, 120) || "api_supplied_snapshot",
+    },
+    sync,
+  };
   if (raw.recalculate === true) {
     const agenda = await recalculateAgendaFromBody({
       ...raw,
@@ -1464,16 +2078,321 @@ async function handlePartifulSync(request: Request): Promise<Response> {
     });
     await storeAgendaRun(agenda);
     responseBody.agenda = agenda;
+    if (raw.activate === true) {
+      const state = await readState();
+      state.activeAgendaRunId = agenda.agendaRunId;
+      const updatedState = await writeState(state);
+      responseBody.schedule = buildSchedulePayload(
+        await readAgendaCandidateEntries(),
+        updatedState,
+        agenda,
+      );
+    }
   }
   return json(responseBody);
 }
 
-function partifulSnapshotsFromBody(body: Record<string, unknown>): unknown[] {
-  if (Array.isArray(body.snapshots)) return body.snapshots;
-  if (Array.isArray(body.payloads)) return body.payloads;
-  if (body.snapshot !== undefined) return [body.snapshot];
-  if (body.payload !== undefined) return [body.payload];
-  return [];
+async function handlePartifulHeadlessSync(request: Request): Promise<Response> {
+  const body = await request.json().catch(() => ({}));
+  const raw = body && typeof body === "object" && !Array.isArray(body)
+    ? body as Record<string, unknown>
+    : {};
+  const authFile = textField(raw.authFile, 1000) || await defaultPartifulLocalAuthFile();
+  const auth = await ensureFreshPartifulAuth(await readStoredPartifulAuth(authFile), authFile);
+  const entries = await readAgendaCandidateEntries();
+  const targets = mergePartifulTargets(
+    partifulTargetsFromEntries(entries),
+    await readUpcomingPartifulTargets(auth),
+  );
+  const limit = positiveIntegerField(raw.limit, 0);
+  const selectedTargets = limit > 0 ? targets.slice(0, limit) : targets;
+  const snapshots = [];
+  const failures = [];
+
+  for (const target of selectedTargets) {
+    try {
+      const getEventInfo = await callPartifulFunction(auth, "getEventInfo", {
+        params: { eventId: target.partifulId },
+      });
+      let getGuests: unknown;
+      try {
+        getGuests = await callPartifulFunction(auth, "getGuests", {
+          params: { eventId: target.partifulId },
+        });
+      } catch (error) {
+        failures.push(partifulHeadlessFailure(target, "getGuests", error));
+      }
+      snapshots.push(buildCallableSnapshot(target, getEventInfo, getGuests, auth.userId));
+    } catch (error) {
+      failures.push(partifulHeadlessFailure(target, "getEventInfo", error));
+    }
+  }
+
+  const syncResponse = await handlePartifulSync(
+    new Request("http://localhost/api/sync/partiful", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        source: "partiful_headless_local",
+        recalculate: raw.recalculate !== false,
+        activate: raw.activate !== false,
+        liveRouting: raw.liveRouting !== false,
+        responses: snapshots,
+      }),
+    }),
+  );
+  const responseBody = await syncResponse.json().catch(() => ({}));
+  return json({
+    ...responseBody,
+    headless: {
+      authFile,
+      targetCount: selectedTargets.length,
+      snapshotCount: snapshots.length,
+      failureCount: failures.length,
+      failures,
+    },
+  }, { status: syncResponse.status });
+}
+
+async function handlePartifulAutoSync(): Promise<Response> {
+  const state = await readState();
+  const nowMs = Date.now();
+  const decision = partifulAutoSyncDecision(state.partifulAutoSync, nowMs);
+
+  if (decision.action === "already_running") {
+    return json({
+      action: "already_running",
+      reason: decision.reason,
+      partifulAutoSync: state.partifulAutoSync,
+    }, { status: 202 });
+  }
+
+  if (decision.action === "skip_recent") {
+    if (decision.staleRunning) {
+      state.partifulAutoSync = {
+        ...state.partifulAutoSync,
+        status: "failed",
+        lastCompletedAt: new Date(nowMs).toISOString(),
+        lastError: "Previous automatic Partiful sync did not finish before its lock expired.",
+      };
+      await writeState(state);
+    }
+    return json({
+      action: "skipped",
+      reason: decision.reason,
+      partifulAutoSync: state.partifulAutoSync,
+    });
+  }
+
+  const runId = `partiful-auto-${new Date(nowMs).toISOString().replaceAll(/[:.]/g, "-")}`;
+  state.partifulAutoSync = {
+    ...state.partifulAutoSync,
+    status: "running",
+    lastStartedAt: new Date(nowMs).toISOString(),
+    lastRunId: runId,
+    lastError: "",
+    nextAllowedAt: new Date(nowMs + PARTIFUL_AUTO_SYNC_INTERVAL_MS).toISOString(),
+  };
+  await writeState(state);
+  queuePartifulAutoSync(runId);
+  return json({
+    action: "started",
+    partifulAutoSync: state.partifulAutoSync,
+  }, { status: 202 });
+}
+
+type PartifulAutoSyncDecision =
+  | {
+    action: "start";
+    reason: string;
+    staleRunning: false;
+  }
+  | {
+    action: "already_running" | "skip_recent";
+    reason: string;
+    staleRunning: boolean;
+  };
+
+function partifulAutoSyncDecision(
+  sync: PartifulAutoSyncState,
+  nowMs: number,
+): PartifulAutoSyncDecision {
+  const lastStartedMs = Date.parse(sync.lastStartedAt);
+  const hasStarted = Number.isFinite(lastStartedMs);
+  const ageMs = hasStarted ? nowMs - lastStartedMs : Number.POSITIVE_INFINITY;
+  const isRecent = ageMs >= 0 && ageMs < PARTIFUL_AUTO_SYNC_INTERVAL_MS;
+  const isFreshRunning = sync.status === "running" && ageMs >= 0 &&
+    ageMs < PARTIFUL_AUTO_SYNC_LOCK_TTL_MS;
+  const staleRunning = sync.status === "running" && hasStarted && !isFreshRunning;
+
+  if (isFreshRunning) {
+    return {
+      action: "already_running",
+      reason: "An automatic Partiful sync is already running.",
+      staleRunning: false,
+    };
+  }
+
+  if (isRecent) {
+    return {
+      action: "skip_recent",
+      reason: "Automatic Partiful sync already started within the last 15 minutes.",
+      staleRunning,
+    };
+  }
+
+  return {
+    action: "start",
+    reason: "Automatic Partiful sync is due.",
+    staleRunning: false,
+  };
+}
+
+function queuePartifulAutoSync(runId: string): void {
+  globalThis.setTimeout(() => {
+    void runPartifulAutoSync(runId);
+  }, 0);
+}
+
+async function runPartifulAutoSync(runId: string): Promise<void> {
+  try {
+    const syncResponse = await handlePartifulHeadlessSync(
+      new Request("http://localhost/api/sync/partiful/headless", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ liveRouting: false, recalculate: true, activate: true }),
+      }),
+    );
+    const syncBody = await syncResponse.json().catch(() => ({}));
+    if (!syncResponse.ok) {
+      throw new Error(partifulAutoSyncErrorMessage(syncBody, "Automatic Partiful sync failed."));
+    }
+
+    const liveAgenda = await recalculateAgendaFromBody({ liveRouting: true });
+    await storeAgendaRun(liveAgenda);
+    const state = await readState();
+    if (state.partifulAutoSync.lastRunId !== runId) return;
+    state.activeAgendaRunId = liveAgenda.agendaRunId;
+    state.partifulAutoSync = {
+      ...state.partifulAutoSync,
+      status: "completed",
+      lastCompletedAt: new Date().toISOString(),
+      lastAgendaRunId: liveAgenda.agendaRunId,
+      lastError: "",
+    };
+    await writeState(state);
+  } catch (error) {
+    const state = await readState();
+    if (state.partifulAutoSync.lastRunId !== runId) return;
+    state.partifulAutoSync = {
+      ...state.partifulAutoSync,
+      status: "failed",
+      lastCompletedAt: new Date().toISOString(),
+      lastError: error instanceof Error ? error.message : String(error),
+    };
+    await writeState(state);
+  }
+}
+
+function partifulAutoSyncErrorMessage(body: unknown, fallback: string): string {
+  const record = recordValue(body);
+  const error = recordValue(record?.error);
+  return textField(error?.message, 500) || fallback;
+}
+
+async function defaultPartifulLocalAuthFile(): Promise<string> {
+  const home = Deno.env.get("HOME") || "/Users/nv";
+  const twilioAuthFile = `${home}/.codex/secrets/techweek-partiful-auth-twilio.json`;
+  try {
+    await Deno.stat(twilioAuthFile);
+    return twilioAuthFile;
+  } catch {
+    return defaultAuthFilePath();
+  }
+}
+
+function partifulTargetsFromEntries(entries: ScheduleEntry[]): PartifulTarget[] {
+  return entries.flatMap((entry) => {
+    if (entry.blockType !== "event" || !entry.eventUrl.includes("partiful.com")) return [];
+    const partifulId = entry.partifulId || partifulIdFromUrl(entry.eventUrl);
+    if (!partifulId) return [];
+    return [{
+      eventUrl: entry.eventUrl || `https://partiful.com/e/${partifulId}`,
+      partifulId,
+      title: entry.displayTitle || entry.title || `Partiful ${partifulId}`,
+    }];
+  });
+}
+
+async function readUpcomingPartifulTargets(auth: StoredPartifulAuth): Promise<PartifulTarget[]> {
+  const response = await callPartifulFunction(auth, "getMyUpcomingEventsForHomePage", {});
+  const data = callableResult(response);
+  const dataRecord = recordValue(data);
+  const events = Array.isArray(dataRecord?.upcomingEvents)
+    ? dataRecord.upcomingEvents as unknown[]
+    : [];
+  return events.flatMap((event) => {
+    const record = recordValue(event);
+    if (!record) return [];
+    const partifulId = textField(record.id, 120) ||
+      partifulIdFromUrl(textField(record.publicShortUrl, 300));
+    if (!partifulId) return [];
+    const title = textField(record.title, 300) || `Partiful ${partifulId}`;
+    if (!isConferenceIsoDate(textField(record.startDate, 80), title)) return [];
+    return [{
+      eventUrl: `https://partiful.com/e/${partifulId}`,
+      partifulId,
+      title,
+    }];
+  });
+}
+
+function mergePartifulTargets(...groups: PartifulTarget[][]): PartifulTarget[] {
+  const targets: PartifulTarget[] = [];
+  const seen = new Set<string>();
+  for (const target of groups.flat()) {
+    const key = target.partifulId || target.eventUrl;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    targets.push(target);
+  }
+  return targets;
+}
+
+function isConferenceIsoDate(value: string, title: string): boolean {
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return /#?nytechweek/i.test(title);
+  const day = formatLocalDateTimeForSchedule(parsed).slice(0, 10);
+  return (day >= "2026-06-01" && day <= "2026-06-07") || /#?nytechweek/i.test(title);
+}
+
+function partifulHeadlessFailure(
+  target: PartifulTarget,
+  stage: string,
+  error: unknown,
+): Record<string, string> {
+  return {
+    partifulId: target.partifulId,
+    eventUrl: target.eventUrl,
+    title: target.title,
+    stage,
+    message: error instanceof Error ? error.message : String(error),
+  };
+}
+
+async function handlePartifulSyncRead(): Promise<Response> {
+  const events = await readStoredPartifulEvents();
+  const statusCounts: Record<string, number> = {};
+  for (const event of events) {
+    const status = event.normalizedEvent.status || "unknown";
+    statusCounts[status] = (statusCounts[status] ?? 0) + 1;
+  }
+  return json({
+    generatedAt: new Date().toISOString(),
+    count: events.length,
+    statusCounts,
+    events,
+  });
 }
 
 function partifulEventLikeFromEntry(entry: ScheduleEntry): Record<string, unknown> {
@@ -2003,7 +2922,94 @@ function coachingSummary(value: string): string {
     .slice(0, 420);
 }
 
-function fallbackAgentAnswer(prompt: string, entries: ScheduleEntry[]): string {
+function normalizePromptMatchText(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function findPromptEvent(prompt: string, entries: ScheduleEntry[]): ScheduleEntry | null {
+  const events = entries.filter((entry) => entry.blockType === "event");
+  const promptNeedle = normalizePromptMatchText(prompt);
+  const quoted = [...prompt.matchAll(/"([^"]{3,})"/g)]
+    .map((match) => normalizePromptMatchText(match[1]))
+    .filter(Boolean);
+
+  for (const quotedTitle of quoted) {
+    const exact = events.find((entry) =>
+      normalizePromptMatchText(entry.displayTitle) === quotedTitle
+    );
+    if (exact) return exact;
+  }
+
+  return events.find((entry) => {
+    const techweekId = normalizePromptMatchText(entry.techweekId);
+    const title = normalizePromptMatchText(entry.displayTitle);
+    return techweekId && promptNeedle.includes(techweekId) ||
+      title.length >= 8 && promptNeedle.includes(title.slice(0, 18));
+  }) ?? null;
+}
+
+function coachingFields(value: string): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const line of value.split(/\r?\n/)) {
+    const match = line.trim().match(/^([^:]{2,32}):\s*(.+)$/);
+    if (!match) continue;
+    fields[match[1].trim().toLowerCase()] = match[2].trim();
+  }
+  return fields;
+}
+
+function eventCoachingFallback(prompt: string, entries: ScheduleEntry[]): string | null {
+  if (!/coaching|room read|opening line|who to meet|follow-up|questions/i.test(prompt)) {
+    return null;
+  }
+
+  const event = findPromptEvent(prompt, entries);
+  if (!event) return null;
+
+  const fields = coachingFields(event.salesCoaching);
+  const pitch = fields.pitch ||
+    "Use the source-linked contribution evidence angle: credit beyond commits, with reviewable GitHub artifacts.";
+  const roomRead = fields.open || fields["listen for"] ||
+    "Look for engineering leaders, maintainers, DevRel, DevEx, and open-source operators who care about invisible contribution work.";
+  const question = fields.ask ||
+    "How do you credit review, triage, specs, and maintainer work that never becomes a commit?";
+  const whoToMeet = fields["listen for"] ||
+    "Maintainers, DevRel leads, OSPO owners, engineering leaders, and teams running contributor or bounty programs.";
+  const followUp = fields["follow-up"] ||
+    "Ask whether they would react to a five-minute sample manager packet or introduce the person who owns contributor recognition.";
+
+  return [
+    "The AI gateway returned an upstream error, so here is the local event coaching.",
+    "",
+    `**${event.displayTitle}**`,
+    `- **When:** ${event.weekday} ${event.timeRange}.`,
+    event.location || event.venueQuery
+      ? `- **Location:** ${event.venueQuery || event.location}.`
+      : "",
+    event.status ? `- **Status:** ${event.status}.` : "",
+    "",
+    "**Room Read**",
+    roomRead,
+    "",
+    "**Opening Line**",
+    pitch,
+    "",
+    "**Questions**",
+    `- ${question}`,
+    "- Who owns contributor recognition, maintainer programs, or engineering evidence on your team?",
+    "",
+    "**Who To Meet**",
+    whoToMeet,
+    "",
+    "**Follow-Up**",
+    followUp,
+  ].filter(Boolean).join("\n");
+}
+
+export function fallbackAgentAnswer(prompt: string, entries: ScheduleEntry[]): string {
+  const eventFallback = eventCoachingFallback(prompt, entries);
+  if (eventFallback) return eventFallback;
+
   const upcoming = entries.filter((entry) =>
     entry.calendar === "schedule" &&
     ["event", "travel", "eating"].includes(entry.blockType) &&
@@ -3851,6 +4857,15 @@ export async function router(request: Request): Promise<Response> {
     }
     if (request.method === "POST" && url.pathname === "/api/sync/partiful") {
       return await handlePartifulSync(request);
+    }
+    if (request.method === "POST" && url.pathname === "/api/sync/partiful/auto") {
+      return await handlePartifulAutoSync();
+    }
+    if (request.method === "POST" && url.pathname === "/api/sync/partiful/headless") {
+      return await handlePartifulHeadlessSync(request);
+    }
+    if (request.method === "GET" && url.pathname === "/api/sync/partiful") {
+      return await handlePartifulSyncRead();
     }
     if (url.pathname === "/api/sync/google") return handleGoogleSyncStatus();
     if (url.pathname.startsWith("/api/")) return notFound();

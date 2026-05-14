@@ -23,19 +23,19 @@ RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
 END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
-UID:71d8135c-eabf-5370-8dde-83b0ed8766c0@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
-DTSTART;TZID=America/New_York:20260601T132200
+UID:7d877e4a-793b-5090-98ff-4171ff29a890@techweek-2026-event-picker
+DTSTAMP:20260514T041154Z
+DTSTART;TZID=America/New_York:20260601T132100
 DTEND;TZID=America/New_York:20260601T140000
 SUMMARY:Travel: Travel to Beyond the Spec Masterclass: Engineering in the Age of Agents
 LOCATION:IBM One Madison Avenue\, 1 Madison Ave\,\, New York\, NY 10010
-DESCRIPTION:\nWalk 0 min to Wall St (2/3)\; subway 31 min\; walk 2 min from 23 St-Baruch College (4/6)\; includes 5 min buffer.\nVenue: IBM One Madison Avenue\, 1 Madison Ave\,\, New York\, NY 10010 (exact_from_partiful_maps)\nRank/tier/score: 24 / S / 74\nURL: https://partiful.com/e/FHiuNwzr13e3YBI4ssUX
+DESCRIPTION:\nWalk 3 min to Fulton St (2/3)\; subway 29 min\; walk 2 min from 23 St-Baruch College (4/6)\; includes 5 min buffer.\nVenue: IBM One Madison Avenue\, 1 Madison Ave\,\, New York\, NY 10010 (exact_from_partiful_maps)\nRank/tier/score: 24 / S / 74\nURL: https://partiful.com/e/FHiuNwzr13e3YBI4ssUX
 URL:https://partiful.com/e/FHiuNwzr13e3YBI4ssUX
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:22901043-8c89-5f2d-a018-b908b52588c6@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260601T140000
 DTEND;TZID=America/New_York:20260601T150000
 SUMMARY:Tech Week: Beyond the Spec Masterclass: Engineering in the Age of Agents
@@ -46,7 +46,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:896c39ad-62de-5d5a-ba05-60b3d3d68c7c@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260601T155000
 DTEND;TZID=America/New_York:20260601T160000
 SUMMARY:Travel: Travel to From Vibe Coding to AI-Driven Development
@@ -57,7 +57,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:ab745ef6-8cbd-54df-b752-865a65ab6118@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260601T160000
 DTEND;TZID=America/New_York:20260601T170000
 SUMMARY:Tech Week: From Vibe Coding to AI-Driven Development
@@ -68,7 +68,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:24f8b5f0-0ea7-5956-a995-c7d3a0177ebb@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260601T172800
 DTEND;TZID=America/New_York:20260601T180000
 SUMMARY:Travel: Travel to Open Source Must Win
@@ -79,7 +79,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:f58a786c-b7bf-508b-9335-ae45d5f2a7df@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260601T180000
 DTEND;TZID=America/New_York:20260601T210000
 SUMMARY:Tech Week: Open Source Must Win
@@ -89,30 +89,30 @@ URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
-UID:4b4fb3a0-a06b-53fb-9580-3e7e21939f24@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+UID:1a51795c-54a8-5eca-b8ce-c2c897d7d103@techweek-2026-event-picker
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260601T210000
-DTEND;TZID=America/New_York:20260601T213500
-SUMMARY:Travel: Travel back to FiDi
-LOCATION:Wall St\, New York\, NY
-DESCRIPTION:\nWalk approx 35 min / 2751 m using OSM-geocoded points.\nVenue: Wall St\, New York\, NY (approx_fidi_anchor)\nRank/tier/score:  /  / \nURL: 
+DTEND;TZID=America/New_York:20260601T213000
+SUMMARY:Travel: Travel home
+LOCATION:15 Cliff Street\, New York\, NY 10038
+DESCRIPTION:\nWalk approx 30 min / 2327 m using OSM-geocoded points.\nVenue: 15 Cliff Street\, New York\, NY 10038 (exact_home_base)\nRank/tier/score:  /  / \nURL: 
 URL:
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
-UID:fdb87c88-5492-5118-acf2-d0c8b27851f8@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
-DTSTART;TZID=America/New_York:20260602T111300
+UID:961685d6-381b-5ad4-9958-74d76e8a887c@techweek-2026-event-picker
+DTSTAMP:20260514T041154Z
+DTSTART;TZID=America/New_York:20260602T111200
 DTEND;TZID=America/New_York:20260602T120000
 SUMMARY:Travel: Travel to How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing
 LOCATION:Bryant Park\, New York\, NY
-DESCRIPTION:\nWalk 0 min to Wall St (2/3)\; subway 40 min\; walk 2 min from 42 St-Bryant Pk (B/D/F/M)\; includes 5 min buffer.\nVenue: Bryant Park\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 33 / A / 68\nURL: https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
+DESCRIPTION:\nWalk 3 min to Fulton St (2/3)\; subway 38 min\; walk 2 min from 42 St-Bryant Pk (B/D/F/M)\; includes 5 min buffer.\nVenue: Bryant Park\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 33 / A / 68\nURL: https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
 URL:https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:1070a92d-0887-5dda-affb-d2026050bff0@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260602T120000
 DTEND;TZID=America/New_York:20260602T134500
 SUMMARY:Tech Week: How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing
@@ -123,7 +123,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:7f97d835-9829-5493-a1fa-9e9df7ccfe04@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260602T160000
 DTEND;TZID=America/New_York:20260602T173000
 SUMMARY:Tech Week: From Copilot to Control Plane - Visdom
@@ -134,7 +134,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:990bfda9-08e9-5bb2-a6df-b22c57744bbe@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260602T173600
 DTEND;TZID=America/New_York:20260602T180000
 SUMMARY:Travel: Travel to Future of DevEx
@@ -145,7 +145,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:70150eb4-389d-54a2-951b-204354e8598d@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260602T180000
 DTEND;TZID=America/New_York:20260602T210000
 SUMMARY:Tech Week: Future of DevEx
@@ -155,30 +155,30 @@ URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
-UID:2d8be929-8586-50a5-8973-cd511b4d1d4e@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+UID:710cbd71-c4ba-519e-a994-4e71a2306915@techweek-2026-event-picker
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260602T210000
-DTEND;TZID=America/New_York:20260602T212000
-SUMMARY:Travel: Travel back to FiDi
-LOCATION:Wall St\, New York\, NY
-DESCRIPTION:\nWalk 0 min to Prince St (N/Q/R/W)\; subway 15 min\; walk 0 min from Wall St (2/3)\; includes 5 min buffer.\nVenue: Wall St\, New York\, NY (approx_fidi_anchor)\nRank/tier/score:  /  / \nURL: 
+DTEND;TZID=America/New_York:20260602T212100
+SUMMARY:Travel: Travel home
+LOCATION:15 Cliff Street\, New York\, NY 10038
+DESCRIPTION:\nWalk 0 min to Prince St (N/Q/R/W)\; subway 13 min\; walk 3 min from Fulton St (2/3)\; includes 5 min buffer.\nVenue: 15 Cliff Street\, New York\, NY 10038 (exact_home_base)\nRank/tier/score:  /  / \nURL: 
 URL:
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
-UID:c477ac7f-090a-5bed-b005-f6df7b7d48b2@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
-DTSTART;TZID=America/New_York:20260603T112900
+UID:76817dbe-3716-57a6-98ec-afb1c8ba339d@techweek-2026-event-picker
+DTSTAMP:20260514T041154Z
+DTSTART;TZID=America/New_York:20260603T112800
 DTEND;TZID=America/New_York:20260603T120000
 SUMMARY:Travel: Travel to Building secure AI for your data: DeepFellow Demo + Q&A
 LOCATION:23rd Street and 8th Avenue\, New York\, NY
-DESCRIPTION:\nWalk 0 min to Wall St (2/3)\; subway 22 min\; walk 4 min from 23 St (A/C/E)\; includes 5 min buffer.\nVenue: 23rd Street and 8th Avenue\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 16 / S / 80\nURL: https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
+DESCRIPTION:\nWalk 3 min to Fulton St (2/3)\; subway 20 min\; walk 4 min from 23 St (A/C/E)\; includes 5 min buffer.\nVenue: 23rd Street and 8th Avenue\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 16 / S / 80\nURL: https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
 URL:https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:c89aea97-dbe1-5263-b390-7c6d37391301@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260603T120000
 DTEND;TZID=America/New_York:20260603T131500
 SUMMARY:Tech Week: Building secure AI for your data: DeepFellow Demo + Q&A
@@ -189,7 +189,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:f566fa38-5de5-53ff-b4d0-6fc892834017@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260603T133500
 DTEND;TZID=America/New_York:20260603T140000
 SUMMARY:Travel: Travel to The Future of Coding Agents and IDE
@@ -200,7 +200,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:17cbefc7-987a-5127-9eeb-4c503da48084@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260603T140000
 DTEND;TZID=America/New_York:20260603T150000
 SUMMARY:Tech Week: The Future of Coding Agents and IDE
@@ -211,7 +211,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:2a1e2f6d-ffe2-5b84-8ac5-0c30c1c8a258@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260603T154000
 DTEND;TZID=America/New_York:20260603T160000
 SUMMARY:Travel: Travel to Fireside chat - When coding agents are the user?
@@ -222,7 +222,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:ea60ccaa-77ab-578c-b388-5409124a53a0@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260603T160000
 DTEND;TZID=America/New_York:20260603T171500
 SUMMARY:Tech Week: Fireside chat - When coding agents are the user?
@@ -233,7 +233,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:a9b3e733-8e1a-5518-89fc-ddce737e3d4b@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260603T174000
 DTEND;TZID=America/New_York:20260603T180000
 SUMMARY:Travel: Travel to MCP in the Wild: Panel & Night of Networking
@@ -244,7 +244,7 @@ STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:cdace8d5-5a35-5a20-bc05-b46730fc8d1f@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260603T180000
 DTEND;TZID=America/New_York:20260603T203000
 SUMMARY:Tech Week: MCP in the Wild: Panel & Night of Networking
@@ -254,30 +254,30 @@ URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
-UID:0f6fe890-285d-5529-8859-b59981ce82d7@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+UID:57d79e8f-aee3-56e7-8812-8127773bade9@techweek-2026-event-picker
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260603T203000
-DTEND;TZID=America/New_York:20260603T205000
-SUMMARY:Travel: Travel back to FiDi
-LOCATION:Wall St\, New York\, NY
-DESCRIPTION:\nWalk 1 min to Astor Pl (4/6)\; subway 14 min\; walk 0 min from Wall St (2/3)\; includes 5 min buffer.\nVenue: Wall St\, New York\, NY (approx_fidi_anchor)\nRank/tier/score:  /  / \nURL: 
+DTEND;TZID=America/New_York:20260603T205100
+SUMMARY:Travel: Travel home
+LOCATION:15 Cliff Street\, New York\, NY 10038
+DESCRIPTION:\nWalk 1 min to Astor Pl (4/6)\; subway 12 min\; walk 3 min from Fulton St (2/3)\; includes 5 min buffer.\nVenue: 15 Cliff Street\, New York\, NY 10038 (exact_home_base)\nRank/tier/score:  /  / \nURL: 
 URL:
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
-UID:d721de12-4f5b-55b9-aaca-0d4ec0cb7187@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
-DTSTART;TZID=America/New_York:20260604T153600
+UID:fcf2781b-32cc-531a-ba4a-97286bc3a770@techweek-2026-event-picker
+DTSTAMP:20260514T041154Z
+DTSTART;TZID=America/New_York:20260604T153500
 DTEND;TZID=America/New_York:20260604T160000
 SUMMARY:Travel: Travel to Shipping Faster with AI Coding Agents: What's Working and What's Not
 LOCATION:Spring St and Broadway\, New York\, NY
-DESCRIPTION:\nWalk 0 min to Wall St (2/3)\; subway 19 min\; walk 0 min from Prince St (N/Q/R/W)\; includes 5 min buffer.\nVenue: Spring St and Broadway\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 4 / S / 100\nURL: https://partiful.com/e/5K5c4eODrGPKME7or20H
+DESCRIPTION:\nWalk 3 min to Fulton St (2/3)\; subway 17 min\; walk 0 min from Prince St (N/Q/R/W)\; includes 5 min buffer.\nVenue: Spring St and Broadway\, New York\, NY (approx_neighborhood_hidden)\nRank/tier/score: 4 / S / 100\nURL: https://partiful.com/e/5K5c4eODrGPKME7or20H
 URL:https://partiful.com/e/5K5c4eODrGPKME7or20H
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:f7218275-ccc1-5127-a1e3-d3cf3ebaa698@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260604T160000
 DTEND;TZID=America/New_York:20260604T190000
 SUMMARY:Tech Week: Shipping Faster with AI Coding Agents: What's Working and What's Not
@@ -287,30 +287,30 @@ URL:https://partiful.com/e/5K5c4eODrGPKME7or20H
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
-UID:07d5e260-fa94-550f-9beb-dade6d118fcb@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+UID:3fd73cfb-af33-544f-bf61-541a98396597@techweek-2026-event-picker
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260604T190000
-DTEND;TZID=America/New_York:20260604T192000
-SUMMARY:Travel: Travel back to FiDi
-LOCATION:Wall St\, New York\, NY
-DESCRIPTION:\nWalk 0 min to Prince St (N/Q/R/W)\; subway 15 min\; walk 0 min from Wall St (2/3)\; includes 5 min buffer.\nVenue: Wall St\, New York\, NY (approx_fidi_anchor)\nRank/tier/score:  /  / \nURL: 
+DTEND;TZID=America/New_York:20260604T192100
+SUMMARY:Travel: Travel home
+LOCATION:15 Cliff Street\, New York\, NY 10038
+DESCRIPTION:\nWalk 0 min to Prince St (N/Q/R/W)\; subway 13 min\; walk 3 min from Fulton St (2/3)\; includes 5 min buffer.\nVenue: 15 Cliff Street\, New York\, NY 10038 (exact_home_base)\nRank/tier/score:  /  / \nURL: 
 URL:
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
-UID:c01dd279-a224-53bb-be97-285680773856@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
-DTSTART;TZID=America/New_York:20260605T162200
+UID:f5dfa267-c382-5e37-ac06-f0615043420c@techweek-2026-event-picker
+DTSTAMP:20260514T041154Z
+DTSTART;TZID=America/New_York:20260605T162100
 DTEND;TZID=America/New_York:20260605T170000
 SUMMARY:Travel: Travel to Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration
 LOCATION:Union Square Park\, 201 Park Ave S\, New York\, NY 10003
-DESCRIPTION:\nWalk 0 min to Wall St (2/3)\; subway 29 min\; walk 4 min from 14 St-Union Sq (N/Q/R/W)\; includes 5 min buffer.\nVenue: Union Square Park\, 201 Park Ave S\, New York\, NY 10003 (exact_from_partiful_maps)\nRank/tier/score: 45 / A / 64\nURL: https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
+DESCRIPTION:\nWalk 3 min to Fulton St (2/3)\; subway 27 min\; walk 4 min from 14 St-Union Sq (N/Q/R/W)\; includes 5 min buffer.\nVenue: Union Square Park\, 201 Park Ave S\, New York\, NY 10003 (exact_from_partiful_maps)\nRank/tier/score: 45 / A / 64\nURL: https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
 URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
 UID:3de56174-1b5d-50f9-925d-3320dbbe3cf2@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260605T170000
 DTEND;TZID=America/New_York:20260605T200000
 SUMMARY:Tech Week: Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration
@@ -320,13 +320,13 @@ URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
 STATUS:CONFIRMED
 END:VEVENT
 BEGIN:VEVENT
-UID:a3048ba6-1c85-5a3a-8f96-fdda7360cb24@techweek-2026-event-picker
-DTSTAMP:20260511T213432Z
+UID:facd3057-ecde-5b66-84fb-656b1d9c9935@techweek-2026-event-picker
+DTSTAMP:20260514T041154Z
 DTSTART;TZID=America/New_York:20260605T200000
-DTEND;TZID=America/New_York:20260605T202200
-SUMMARY:Travel: Travel back to FiDi
-LOCATION:Wall St\, New York\, NY
-DESCRIPTION:\nWalk 4 min to 14 St-Union Sq (N/Q/R/W)\; subway 13 min\; walk 0 min from Wall St (2/3)\; includes 5 min buffer.\nVenue: Wall St\, New York\, NY (approx_fidi_anchor)\nRank/tier/score:  /  / \nURL: 
+DTEND;TZID=America/New_York:20260605T202300
+SUMMARY:Travel: Travel home
+LOCATION:15 Cliff Street\, New York\, NY 10038
+DESCRIPTION:\nWalk 4 min to 14 St-Union Sq (N/Q/R/W)\; subway 11 min\; walk 3 min from Fulton St (2/3)\; includes 5 min buffer.\nVenue: 15 Cliff Street\, New York\, NY 10038 (exact_home_base)\nRank/tier/score:  /  / \nURL: 
 URL:
 STATUS:CONFIRMED
 END:VEVENT

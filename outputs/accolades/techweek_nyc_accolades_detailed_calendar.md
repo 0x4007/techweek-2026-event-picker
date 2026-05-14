@@ -1,6 +1,6 @@
 # NYC Tech Week Accolades Transit-Aware Calendar
 
-Home anchor: FiDi / Wall St station. Routing uses the event page address when available. If Partiful only reveals a neighborhood, the route uses a neighborhood centroid and marks the venue as approximate.
+Home anchor: 15 Cliff Street, New York, NY 10038. Routing uses the event page address when available. If Partiful only reveals a neighborhood, the route uses a neighborhood centroid and marks the venue as approximate.
 
 Routing sources: Nominatim/OpenStreetMap for exact venue geocoding, fixed neighborhood centroids for hidden Partiful venues, local walking estimates from OSM coordinates, and SubwayInfo.nyc for subway station-to-station estimates. SubwayInfo estimates are current-route estimates, not guaranteed June 2026 service schedules.
 
@@ -8,8 +8,8 @@ Routing sources: Nominatim/OpenStreetMap for exact venue geocoding, fixed neighb
 
 ### Monday, 2026-06-01
 
-- 13:22-14:00 | Travel | subway+walk | Travel to Beyond the Spec Masterclass: Engineering in the Age of Agents
-  - 38 min: Walk 0 min to Wall St (2/3); subway 31 min; walk 2 min from 23 St-Baruch College (4/6); includes 5 min buffer.
+- 13:21-14:00 | Travel | subway+walk | Travel to Beyond the Spec Masterclass: Engineering in the Age of Agents
+  - 39 min: Walk 3 min to Fulton St (2/3); subway 29 min; walk 2 min from 23 St-Baruch College (4/6); includes 5 min buffer.
 - 14:00-15:00 | Flatiron | [Beyond the Spec Masterclass: Engineering in the Age of Agents](https://partiful.com/e/FHiuNwzr13e3YBI4ssUX)
   - Direct AI engineering-practice session near downtown.
   - Venue: IBM One Madison Avenue, 1 Madison Ave,, New York, NY 10010 (exact_from_partiful_maps)
@@ -26,13 +26,13 @@ Routing sources: Nominatim/OpenStreetMap for exact venue geocoding, fixed neighb
   - Best Monday evening fit for open-source founders, maintainers, and builders.
   - Venue: Delancey St Essex St, New York, NY (approx_neighborhood_hidden)
   - Rank 37, tier A, score 64; product: open source fit; topic: infra/platform, AI; signal: builders/operators, founders
-- 21:00-21:35 | Travel | walk | Travel back to FiDi
-  - 35 min: Walk approx 35 min / 2751 m using OSM-geocoded points.
+- 21:00-21:30 | Travel | walk | Travel home
+  - 30 min: Walk approx 30 min / 2327 m using OSM-geocoded points.
 
 ### Tuesday, 2026-06-02
 
-- 11:13-12:00 | Travel | subway+walk | Travel to How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing
-  - 47 min: Walk 0 min to Wall St (2/3); subway 40 min; walk 2 min from 42 St-Bryant Pk (B/D/F/M); includes 5 min buffer.
+- 11:12-12:00 | Travel | subway+walk | Travel to How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing
+  - 48 min: Walk 3 min to Fulton St (2/3); subway 38 min; walk 2 min from 42 St-Bryant Pk (B/D/F/M); includes 5 min buffer.
 - 12:00-13:45 | Midtown | [How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing](https://partiful.com/e/M7pXmV8sOXT11yHb9pKw)
   - Enterprise SDLC context before the stronger Tuesday afternoon/evening block.
   - Venue: Bryant Park, New York, NY (approx_neighborhood_hidden)
@@ -47,13 +47,13 @@ Routing sources: Nominatim/OpenStreetMap for exact venue geocoding, fixed neighb
   - Anchor event for engineers, technical leads, and founders discussing how teams write, review, ship, and maintain code.
   - Venue: Spring St and Broadway, New York, NY (approx_neighborhood_hidden)
   - Rank 3, tier S, score 100; buyer: DevEx, technical leads, technical founders; product: software work practices; topic: AI; signal: builders/operators, founders
-- 21:00-21:20 | Travel | subway+walk | Travel back to FiDi
-  - 20 min: Walk 0 min to Prince St (N/Q/R/W); subway 15 min; walk 0 min from Wall St (2/3); includes 5 min buffer.
+- 21:00-21:21 | Travel | subway+walk | Travel home
+  - 21 min: Walk 0 min to Prince St (N/Q/R/W); subway 13 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.
 
 ### Wednesday, 2026-06-03
 
-- 11:29-12:00 | Travel | subway+walk | Travel to Building secure AI for your data: DeepFellow Demo + Q&A
-  - 31 min: Walk 0 min to Wall St (2/3); subway 22 min; walk 4 min from 23 St (A/C/E); includes 5 min buffer.
+- 11:28-12:00 | Travel | subway+walk | Travel to Building secure AI for your data: DeepFellow Demo + Q&A
+  - 32 min: Walk 3 min to Fulton St (2/3); subway 20 min; walk 4 min from 23 St (A/C/E); includes 5 min buffer.
 - 12:00-13:15 | Chelsea | [Building secure AI for your data: DeepFellow Demo + Q&A](https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN)
   - Technical builder session; useful but skippable if you need a slower Wednesday start.
   - Venue: 23rd Street and 8th Avenue, New York, NY (approx_neighborhood_hidden)
@@ -76,30 +76,30 @@ Routing sources: Nominatim/OpenStreetMap for exact venue geocoding, fixed neighb
   - Convenient NoHo/East Village follow-on with MCP ecosystem leaders.
   - Venue: Astor Place, New York, NY (approx_neighborhood_hidden)
   - Rank 58, tier A, score 63; product: AI coding workflows; topic: AI; signal: builders/operators, founders
-- 20:30-20:50 | Travel | subway+walk | Travel back to FiDi
-  - 20 min: Walk 1 min to Astor Pl (4/6); subway 14 min; walk 0 min from Wall St (2/3); includes 5 min buffer.
+- 20:30-20:51 | Travel | subway+walk | Travel home
+  - 21 min: Walk 1 min to Astor Pl (4/6); subway 12 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.
 
 ### Thursday, 2026-06-04
 
-- 15:36-16:00 | Travel | subway+walk | Travel to Shipping Faster with AI Coding Agents: What's Working and What's Not
-  - 24 min: Walk 0 min to Wall St (2/3); subway 19 min; walk 0 min from Prince St (N/Q/R/W); includes 5 min buffer.
+- 15:35-16:00 | Travel | subway+walk | Travel to Shipping Faster with AI Coding Agents: What's Working and What's Not
+  - 25 min: Walk 3 min to Fulton St (2/3); subway 17 min; walk 0 min from Prince St (N/Q/R/W); includes 5 min buffer.
 - 16:00-19:00 | SoHo | [Shipping Faster with AI Coding Agents: What's Working and What's Not](https://partiful.com/e/5K5c4eODrGPKME7or20H)
   - Must-attend: engineering leaders and operators discussing agentic development process.
   - Venue: Spring St and Broadway, New York, NY (approx_neighborhood_hidden)
   - Rank 4, tier S, score 100; buyer: CTO audience, engineering leaders; product: engineering productivity, engineering workflows, AI coding workflows; topic: AI; signal: builders/operators, founders
-- 19:00-19:20 | Travel | subway+walk | Travel back to FiDi
-  - 20 min: Walk 0 min to Prince St (N/Q/R/W); subway 15 min; walk 0 min from Wall St (2/3); includes 5 min buffer.
+- 19:00-19:21 | Travel | subway+walk | Travel home
+  - 21 min: Walk 0 min to Prince St (N/Q/R/W); subway 13 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.
 
 ### Friday, 2026-06-05
 
-- 16:22-17:00 | Travel | subway+walk | Travel to Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration
-  - 38 min: Walk 0 min to Wall St (2/3); subway 29 min; walk 4 min from 14 St-Union Sq (N/Q/R/W); includes 5 min buffer.
+- 16:21-17:00 | Travel | subway+walk | Travel to Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration
+  - 39 min: Walk 3 min to Fulton St (2/3); subway 27 min; walk 4 min from 14 St-Union Sq (N/Q/R/W); includes 5 min buffer.
 - 17:00-20:00 | Union Square | [Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration](https://partiful.com/e/jkjGahQgmH9PLIxjfTFt)
   - One Friday event only: autonomous systems and agent orchestration in Union Square.
   - Venue: Union Square Park, 201 Park Ave S, New York, NY 10003 (exact_from_partiful_maps)
   - Rank 45, tier A, score 64; product: open source fit; topic: devtools, infra/platform, AI; signal: builders/operators, networking format
-- 20:00-20:22 | Travel | subway+walk | Travel back to FiDi
-  - 22 min: Walk 4 min to 14 St-Union Sq (N/Q/R/W); subway 13 min; walk 0 min from Wall St (2/3); includes 5 min buffer.
+- 20:00-20:23 | Travel | subway+walk | Travel home
+  - 23 min: Walk 4 min to 14 St-Union Sq (N/Q/R/W); subway 11 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.
 
 ## Apply / Curated Targets
 

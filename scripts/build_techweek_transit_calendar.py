@@ -45,13 +45,13 @@ TZID = "America/New_York"
 USER_AGENT = "techweek-2026-event-picker/1.0 (local planning script)"
 
 HOME = {
-    "id": "home_fidi",
-    "name": "FiDi home base",
-    "location": "Financial District",
-    "venue_query": "Wall St, New York, NY",
-    "address_precision": "approx_fidi_anchor",
-    "lat": 40.706821,
-    "lon": -74.009100,
+    "id": "home_15_cliff_street",
+    "name": "15 Cliff Street, New York, NY 10038",
+    "location": "15 Cliff Street, New York, NY 10038",
+    "venue_query": "15 Cliff Street, New York, NY 10038",
+    "address_precision": "exact_home_base",
+    "lat": 40.7084297,
+    "lon": -74.0056635,
 }
 
 
@@ -568,8 +568,8 @@ def build_primary_with_travel(events: list[dict], points: dict[str, Point]) -> l
                 "bucket": "primary",
                 "start_dt": travel_start,
                 "end_dt": travel_end,
-                "title": "Travel back to FiDi",
-                "location": f"{previous_point.name} -> FiDi home base",
+                "title": "Travel home",
+                "location": f"{previous_point.name} -> {HOME['name']}",
                 "event_id": "",
                 "event_url": "",
                 "route_mode": route["mode"],
@@ -578,7 +578,7 @@ def build_primary_with_travel(events: list[dict], points: dict[str, Point]) -> l
                 "subway_segments": route["subway_segments"],
                 "transit_risk": route["risk"],
                 "note": "",
-                "venue_precision": "approx_fidi_anchor",
+                "venue_precision": HOME["address_precision"],
                 "venue_query": HOME["venue_query"],
                 "rank": "",
                 "tier": "",
@@ -686,7 +686,7 @@ def write_markdown(rows: list[dict]) -> None:
     contents = [
         "# NYC Tech Week Accolades Transit-Aware Calendar",
         "",
-        "Home anchor: FiDi / Wall St station. Routing uses the event page address when available. If Partiful only reveals a neighborhood, the route uses a neighborhood centroid and marks the venue as approximate.",
+        f"Home anchor: {HOME['name']}. Routing uses the event page address when available. If Partiful only reveals a neighborhood, the route uses a neighborhood centroid and marks the venue as approximate.",
         "",
         "Routing sources: Nominatim/OpenStreetMap for exact venue geocoding, fixed neighborhood centroids for hidden Partiful venues, local walking estimates from OSM coordinates, and SubwayInfo.nyc for subway station-to-station estimates. SubwayInfo estimates are current-route estimates, not guaranteed June 2026 service schedules.",
         "",

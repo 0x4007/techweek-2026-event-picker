@@ -1,4 +1,54 @@
 {
+  "229->634": {
+    "estimatedMinutes": 29,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Fulton St to 28 St",
+      "4 28 St to 23 St-Baruch College"
+    ],
+    "totalStops": 12
+  },
+  "229->A30": {
+    "estimatedMinutes": 20,
+    "numTransfers": 0,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Fulton St to 23 St"
+    ],
+    "totalStops": 10
+  },
+  "229->D16": {
+    "estimatedMinutes": 38,
+    "numTransfers": 2,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Fulton St to Times Sq-42 St",
+      "R Times Sq-42 St to 46 St",
+      "F 46 St to 42 St-Bryant Pk"
+    ],
+    "totalStops": 14
+  },
+  "229->R20": {
+    "estimatedMinutes": 27,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Fulton St to 23 St",
+      "N 23 St to 14 St-Union Sq"
+    ],
+    "totalStops": 11
+  },
+  "229->R22": {
+    "estimatedMinutes": 17,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Fulton St to Canal St",
+      "Q Canal St to Prince St"
+    ],
+    "totalStops": 6
+  },
   "230->634": {
     "estimatedMinutes": 31,
     "numTransfers": 1,
@@ -78,6 +128,15 @@
     ],
     "totalStops": 2
   },
+  "636->229": {
+    "estimatedMinutes": 12,
+    "numTransfers": 0,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "4 Astor Pl to Fulton St"
+    ],
+    "totalStops": 6
+  },
   "636->230": {
     "estimatedMinutes": 14,
     "numTransfers": 0,
@@ -149,6 +208,16 @@
     ],
     "totalStops": 6
   },
+  "F15->229": {
+    "estimatedMinutes": 29,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "F Delancey St-Essex St to Bergen St",
+      "G Bergen St to Fulton St"
+    ],
+    "totalStops": 12
+  },
   "F15->230": {
     "estimatedMinutes": 36,
     "numTransfers": 2,
@@ -170,6 +239,16 @@
     ],
     "totalStops": 4
   },
+  "R20->229": {
+    "estimatedMinutes": 11,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "N 14 St-Union Sq to 14 St-Union Sq",
+      "5 14 St-Union Sq to Fulton St"
+    ],
+    "totalStops": 3
+  },
   "R20->230": {
     "estimatedMinutes": 13,
     "numTransfers": 1,
@@ -177,6 +256,16 @@
     "segments": [
       "N 14 St-Union Sq to 14 St-Union Sq",
       "5 14 St-Union Sq to Wall St"
+    ],
+    "totalStops": 4
+  },
+  "R22->229": {
+    "estimatedMinutes": 13,
+    "numTransfers": 1,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "N Prince St to Canal St",
+      "4 Canal St to Fulton St"
     ],
     "totalStops": 4
   },

@@ -183,7 +183,7 @@ Shorter version:
 
 ## Venue / Travel Caveats
 
-- Home base is FiDi / Wall St.
+- Home base is 15 Cliff Street, New York, NY 10038.
 - Downtown and near-downtown are preferred.
 - Midtown is acceptable only for strong buyer fit.
 - Several Partiful events hide the exact venue until RSVP. In the detailed calendar, those are marked as `approx_neighborhood_hidden`.
@@ -201,4 +201,3 @@ Shorter version:
   - Account used
   - Any venue revealed
   - Any required next step
-

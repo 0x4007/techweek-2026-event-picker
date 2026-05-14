@@ -1,8 +1,17 @@
+import {
+  type AgendaUserPreferences,
+  type AgendaUserPreferencesInput,
+  mergeAgendaUserPreferences,
+} from "./agenda_preferences.ts";
+
 const DEFAULT_TIME_ZONE = "America/New_York";
 const DEFAULT_UTC_OFFSET = "-04:00";
 const DEFAULT_TRAVEL_MINUTES = 30;
 const DEFAULT_MAX_CANDIDATES_PER_DAY = 60;
 const MINUTE_MS = 60_000;
+const DEFAULT_HOME_BASE_LOCATION = "15 Cliff Street, New York, NY 10038";
+const DEFAULT_HOME_BASE_LATITUDE = 40.7084297;
+const DEFAULT_HOME_BASE_LONGITUDE = -74.0056635;
 
 export type AgendaBlockType = "event" | "travel" | "eating" | "sleeping" | "other";
 
@@ -143,6 +152,7 @@ export type AgendaRecalculateOverrides = {
   lockedBlockIds?: string[];
   hardFixedBlockIds?: string[];
   preserveFixedBlocks?: boolean;
+  generateLogisticsBlocks?: boolean;
   includeReturnHome?: boolean;
   maxCandidatesPerDay?: number;
   travelMinutePenalty?: number;
@@ -168,6 +178,7 @@ export type AgendaRecalculateInput = {
   acceptedEventIds?: string[];
   routeEstimator?: AgendaRouteEstimator;
   homeAnchor?: Partial<AgendaRoutePoint>;
+  preferences?: AgendaUserPreferencesInput;
   generatedAt?: string | Date;
   timeZone?: string;
   routeVersion?: string;
@@ -175,7 +186,11 @@ export type AgendaRecalculateInput = {
 
 export type AgendaScoreBreakdown = Record<string, number>;
 
-export type AgendaBlockSource = "selected_event" | "generated_travel" | "fixed_schedule";
+export type AgendaBlockSource =
+  | "selected_event"
+  | "generated_travel"
+  | "generated_logistics"
+  | "fixed_schedule";
 
 export type AgendaBlock = {
   agendaBlockId: string;
@@ -276,6 +291,9 @@ export type AgendaSummary = {
   selectedBlocks: number;
   selectedEvents: number;
   travelBlocks: number;
+  eatingBlocks: number;
+  sleepingBlocks: number;
+  generatedLogisticsBlocks: number;
   fixedBlocks: number;
   droppedEvents: number;
   conflictEvents: number;
@@ -318,6 +336,7 @@ export type AgendaNormalizedStatus =
 
 type RecalculateOptions = {
   preserveFixedBlocks: boolean;
+  generateLogisticsBlocks: boolean;
   includeReturnHome: boolean;
   maxCandidatesPerDay: number;
   travelMinutePenalty: number;
@@ -377,12 +396,21 @@ type PlanningContext = {
   timeZone: string;
   routeVersion: string;
   options: RecalculateOptions;
+  preferences: AgendaUserPreferences;
   home: AgendaRoutePoint;
   warnings: AgendaWarning[];
   routeCache: Map<string, Promise<AgendaRouteEstimate>>;
+  storedRoutes: StoredRouteEstimate[];
   routeEstimateCount: number;
   fallbackRouteEstimateCount: number;
   missingRouteEstimatorWarned: boolean;
+};
+
+type StoredRouteEstimate = {
+  relatedIds: Set<string>;
+  returnHome: boolean;
+  searchableText: string;
+  route: AgendaRouteEstimate;
 };
 
 type DuplicateChoice = {
@@ -397,6 +425,7 @@ export async function recalculateAgenda(
   const timeZone = input.timeZone || DEFAULT_TIME_ZONE;
   const routeVersion = input.routeVersion || "agenda-recalculate-v1";
   const options = mergeOptions(input);
+  const preferences = mergeAgendaUserPreferences(input.preferences);
   const home = normalizeHomeAnchor(input.homeAnchor);
   const context: PlanningContext = {
     input,
@@ -404,9 +433,11 @@ export async function recalculateAgenda(
     timeZone,
     routeVersion,
     options,
+    preferences,
     home,
     warnings: [],
     routeCache: new Map(),
+    storedRoutes: buildStoredRouteEstimates(input.scheduleEntries),
     routeEstimateCount: 0,
     fallbackRouteEstimateCount: 0,
     missingRouteEstimatorWarned: false,
@@ -414,7 +445,13 @@ export async function recalculateAgenda(
 
   const statusUpdates = buildStatusUpdateMap(input);
   const drops: AgendaDroppedEvent[] = [];
-  const normalizedEvents = normalizeEvents(input.scheduleEntries, statusUpdates, options, timeZone);
+  const normalizedEvents = normalizeEvents(
+    input.scheduleEntries,
+    statusUpdates,
+    options,
+    preferences,
+    timeZone,
+  );
   const eventCount = normalizedEvents.length;
   const deduped = dedupeEvents(normalizedEvents);
   for (const dropped of deduped.flatMap((choice) => choice.dropped)) {
@@ -432,7 +469,12 @@ export async function recalculateAgenda(
   const eligibleCandidates: NormalizedEvent[] = [];
 
   for (const { winner } of deduped) {
-    const preliminaryDrop = preliminaryDropReason(winner, options, hardFixedBlocks);
+    const preliminaryDrop = preliminaryDropReason(
+      winner,
+      options,
+      preferences,
+      hardFixedBlocks,
+    );
     if (preliminaryDrop) {
       drops.push(preliminaryDrop);
       continue;
@@ -468,6 +510,11 @@ export async function recalculateAgenda(
       dayBlocks.push(...retainFixedBlocks(context, fixedByDay.get(dayKey) ?? [], dayBlocks));
     }
     selectedBlocks.push(...dayBlocks);
+  }
+
+  if (options.generateLogisticsBlocks) {
+    selectedBlocks.push(...generateLogisticsBlocks(context, selectedBlocks, allDayKeys));
+    shiftReturnHomeBlocksAfterFinalMeals(context, selectedBlocks);
   }
 
   const selectedEvents = selectedBlocks.filter((block) => block.blockType === "event");
@@ -524,7 +571,8 @@ function mergeOptions(input: AgendaRecalculateInput): RecalculateOptions {
   const merged: AgendaRecalculateOverrides = { ...stateOverrides, ...direct };
 
   return {
-    preserveFixedBlocks: merged.preserveFixedBlocks ?? true,
+    preserveFixedBlocks: merged.preserveFixedBlocks ?? false,
+    generateLogisticsBlocks: merged.generateLogisticsBlocks ?? true,
     includeReturnHome: merged.includeReturnHome ?? true,
     maxCandidatesPerDay: positiveInteger(
       merged.maxCandidatesPerDay,
@@ -561,12 +609,12 @@ function mergeOptions(input: AgendaRecalculateInput): RecalculateOptions {
 function normalizeHomeAnchor(homeAnchor: Partial<AgendaRoutePoint> | undefined): AgendaRoutePoint {
   return {
     id: homeAnchor?.id || "home",
-    name: homeAnchor?.name || "FiDi home base",
-    location: homeAnchor?.location || "FiDi home base",
-    venueQuery: homeAnchor?.venueQuery || homeAnchor?.location || "Wall St, New York, NY",
-    venuePrecision: homeAnchor?.venuePrecision || "home_anchor",
-    latitude: homeAnchor?.latitude,
-    longitude: homeAnchor?.longitude,
+    name: homeAnchor?.name || DEFAULT_HOME_BASE_LOCATION,
+    location: homeAnchor?.location || DEFAULT_HOME_BASE_LOCATION,
+    venueQuery: homeAnchor?.venueQuery || homeAnchor?.location || DEFAULT_HOME_BASE_LOCATION,
+    venuePrecision: homeAnchor?.venuePrecision || "exact_home_base",
+    latitude: homeAnchor?.latitude ?? DEFAULT_HOME_BASE_LATITUDE,
+    longitude: homeAnchor?.longitude ?? DEFAULT_HOME_BASE_LONGITUDE,
   };
 }
 
@@ -632,6 +680,7 @@ function normalizeEvents(
   entries: AgendaScheduleEntry[],
   statusUpdates: Map<string, string>,
   options: RecalculateOptions,
+  preferences: AgendaUserPreferences,
   timeZone: string,
 ): NormalizedEvent[] {
   const events: NormalizedEvent[] = [];
@@ -666,6 +715,7 @@ function normalizeEvents(
       identifiers,
       currentSchedule,
       options,
+      preferences,
     });
     const score = scoreFromBreakdown(scoreBreakdown);
     const dayKey = stringField(entry, "dayKey", "day_key") || start.slice(0, 10) ||
@@ -742,6 +792,7 @@ function dedupeEvents(events: NormalizedEvent[]): DuplicateChoice[] {
 function preliminaryDropReason(
   event: NormalizedEvent,
   options: RecalculateOptions,
+  preferences: AgendaUserPreferences,
   hardFixedBlocks: FixedBlock[],
 ): AgendaDroppedEvent | null {
   if (!event.id) {
@@ -756,6 +807,20 @@ function preliminaryDropReason(
   }
   if (event.endEpochMs <= event.startEpochMs) {
     return dropEvent(event, "missing_time", "Event end time is not after start time.");
+  }
+  const startMinutes = localTimeMinutes(event.start);
+  const earliestUnpinnedMinutes = timeStringMinutes(
+    preferences.planning.excludeUnpinnedEventsBefore,
+  );
+  if (
+    startMinutes !== null && startMinutes < earliestUnpinnedMinutes &&
+    !matchesAnyIdentifier(event, options.pinnedEventIds)
+  ) {
+    return dropEvent(
+      event,
+      "status_excluded",
+      "Event starts before the usable conference day and is only planned when pinned.",
+    );
   }
   if (matchesAnyIdentifier(event, options.excludedEventIds)) {
     return dropEvent(event, "status_excluded", "Event was excluded by agenda override.");
@@ -969,6 +1034,8 @@ function travelBlockForPlannedEvent(
   if (route.minutes <= 0) return null;
   const event = planned.candidate;
   const startEpochMs = event.startEpochMs - route.minutes * MINUTE_MS;
+  const originLocation = displayLocationForRoutePoint(planned.incomingOrigin);
+  const eventLocation = displayLocationForEvent(event);
   return {
     agendaBlockId: `${event.id}-travel-in`,
     calendar: "schedule",
@@ -992,7 +1059,7 @@ function travelBlockForPlannedEvent(
     dayKey,
     title: `Travel: ${planned.incomingOrigin.name} -> ${event.title}`,
     displayTitle: `Travel: ${planned.incomingOrigin.name} -> ${event.title}`,
-    location: `${planned.incomingOrigin.location} -> ${event.location}`,
+    location: `${originLocation} -> ${eventLocation}`,
     venueQuery: `${planned.incomingOrigin.venueQuery} -> ${event.venueQuery}`,
     venuePrecision: "",
     routeMode: route.mode,
@@ -1022,6 +1089,7 @@ function returnHomeBlock(
   if (route.minutes <= 0) return null;
   const startEpochMs = lastEvent.endEpochMs;
   const endEpochMs = startEpochMs + route.minutes * MINUTE_MS;
+  const lastEventLocation = displayLocationForEvent(lastEvent);
   return {
     agendaBlockId: `${dayKey}-travel-home`,
     calendar: "schedule",
@@ -1043,9 +1111,9 @@ function returnHomeBlock(
     actualStartEpochMs: startEpochMs,
     actualEndEpochMs: endEpochMs,
     dayKey,
-    title: `Travel: ${lastEvent.location} -> ${context.home.name}`,
-    displayTitle: `Travel: ${lastEvent.location} -> ${context.home.name}`,
-    location: `${lastEvent.location} -> ${context.home.location}`,
+    title: `Travel: ${lastEventLocation} -> ${context.home.name}`,
+    displayTitle: `Travel: ${lastEventLocation} -> ${context.home.name}`,
+    location: `${lastEventLocation} -> ${context.home.location}`,
     venueQuery: `${lastEvent.venueQuery} -> ${context.home.venueQuery}`,
     venuePrecision: "",
     routeMode: route.mode,
@@ -1138,6 +1206,961 @@ function retainFixedBlocks(
   return retained;
 }
 
+function generateLogisticsBlocks(
+  context: PlanningContext,
+  selectedBlocks: AgendaBlock[],
+  dayKeys: string[],
+): AgendaBlock[] {
+  const logistics: AgendaBlock[] = [];
+  const routeBlocks = selectedBlocks
+    .filter((block) => block.blockType === "event" || block.blockType === "travel")
+    .sort(compareBlocks);
+  const selectedDayKeys = [
+    ...new Set([
+      ...dayKeys,
+      ...routeBlocks.map((block) => block.dayKey),
+    ].filter(Boolean)),
+  ].sort();
+
+  const previousMealStartById = new Map<string, number>();
+  for (const dayKey of selectedDayKeys) {
+    const dayRouteBlocks = routeBlocks.filter((block) => block.dayKey === dayKey);
+    if (dayRouteBlocks.length === 0) continue;
+    const morningBlocks = morningBlocksForDay(context, dayKey, dayRouteBlocks);
+    logistics.push(...morningBlocks);
+    const dayMeals = mealBlocksForDay(
+      context,
+      dayKey,
+      [...dayRouteBlocks, ...morningBlocks],
+      previousMealStartById,
+    );
+    logistics.push(...dayMeals);
+    logistics.push(...bufferBlocksForDay(context, dayKey, dayRouteBlocks, [
+      ...morningBlocks,
+      ...dayMeals,
+    ]));
+  }
+
+  const withMeals = [...routeBlocks, ...logistics].sort(compareBlocks);
+  let previousBedtimeRelativeMinutes: number | null = null;
+  for (const dayKey of selectedDayKeys) {
+    const sleep = sleepBlockForDay(
+      context,
+      dayKey,
+      withMeals,
+      previousBedtimeRelativeMinutes,
+    );
+    if (sleep) {
+      logistics.push(sleep);
+      previousBedtimeRelativeMinutes = relativeMinutesForDay(
+        sleep.startEpochMs,
+        dayKey,
+        context.timeZone,
+      );
+    }
+  }
+  ensureMorningBlocksTrailSleep(context, selectedDayKeys, logistics);
+
+  return logistics.sort(compareBlocks);
+}
+
+function morningBlocksForDay(
+  context: PlanningContext,
+  dayKey: string,
+  routeBlocks: AgendaBlock[],
+): AgendaBlock[] {
+  const morningPreferences = context.preferences.logistics.morning;
+  if (!morningPreferences.enabled) return [];
+  const firstRouteBlock = routeBlocks
+    .filter((block) => block.dayKey === dayKey)
+    .sort(compareBlocks)[0];
+  if (!firstRouteBlock) return [];
+
+  const breakfastMinutes = Math.max(1, Math.round(morningPreferences.breakfastMinutes));
+  const getReadyMinutes = Math.max(1, Math.round(morningPreferences.getReadyMinutes));
+  const breakfastEndMs = firstRouteBlock.startEpochMs;
+  const breakfastStartMs = breakfastEndMs - breakfastMinutes * MINUTE_MS;
+  const morningStartMs = breakfastStartMs - getReadyMinutes * MINUTE_MS;
+  const homeLocation = homeLogisticsLocation(context);
+
+  return [
+    morningBlock({
+      context,
+      dayKey,
+      startEpochMs: morningStartMs,
+      endEpochMs: breakfastStartMs,
+      location: homeLocation,
+    }),
+    logisticsBlock({
+      context,
+      dayKey,
+      id: "BREAKFAST",
+      blockType: "eating",
+      category: "breakfast",
+      title: "Breakfast",
+      startEpochMs: breakfastStartMs,
+      endEpochMs: breakfastEndMs,
+      location: homeLocation,
+      generatedReason: "Inserted immediately after the morning routine before the first departure.",
+    }),
+  ];
+}
+
+function mealBlocksForDay(
+  context: PlanningContext,
+  dayKey: string,
+  busyBlocks: AgendaBlock[],
+  previousMealStartById: Map<string, number>,
+): AgendaBlock[] {
+  const meals: AgendaBlock[] = [];
+  const mealPreferences = context.preferences.logistics.meals;
+  if (!mealPreferences.dailyFoodRequired) return meals;
+  const specs = mealPreferences.windows;
+  const busy = busyBlocks
+    .filter((block) => !isReturnHomeTravelBlock(block))
+    .map((block) => ({
+      start: block.startEpochMs,
+      end: block.endEpochMs,
+    }));
+  const breakfastEndMs = Math.max(
+    Number.NEGATIVE_INFINITY,
+    ...busyBlocks
+      .filter((block) => block.dayKey === dayKey && block.category === "breakfast")
+      .map((block) => block.endEpochMs),
+  );
+  const earliestRegularMealStartMs = Number.isFinite(breakfastEndMs)
+    ? breakfastEndMs
+    : Number.NEGATIVE_INFINITY;
+
+  for (const spec of specs) {
+    const windowStart = Math.max(
+      localDateTimeMs(dayKey, spec.start, context.timeZone),
+      earliestRegularMealStartMs,
+    );
+    const windowEnd = localDateTimeMs(dayKey, spec.end, context.timeZone);
+    const durations = mealDurationOptions(spec.preferredMinutes, spec.minimumMinutes);
+    const previousMealStartMs = previousMealStartById.get(spec.id);
+    let slotStart = Number.NaN;
+    let slotMinutes = durations[0] ?? spec.preferredMinutes;
+    let consistentTiming = false;
+    for (const duration of durations) {
+      const consistentCandidateStart = firstConsistentMealSlot(
+        context,
+        dayKey,
+        windowStart,
+        windowEnd,
+        busy,
+        duration,
+        previousMealStartMs,
+      );
+      if (Number.isFinite(consistentCandidateStart)) {
+        slotStart = consistentCandidateStart;
+        slotMinutes = duration;
+        consistentTiming = true;
+        break;
+      }
+    }
+    if (!Number.isFinite(slotStart)) {
+      for (const duration of durations) {
+        const candidateStart = firstFreeSlot(windowStart, windowEnd, busy, duration);
+        if (Number.isFinite(candidateStart)) {
+          slotStart = candidateStart;
+          slotMinutes = duration;
+          break;
+        }
+      }
+    }
+    if (!Number.isFinite(slotStart)) {
+      context.warnings.push({
+        code: "meal_slot_missing",
+        message:
+          `Could not place ${spec.label.toLowerCase()} without overlapping selected route blocks.`,
+        dayKey,
+      });
+      continue;
+    }
+    if (
+      previousMealStartMs !== undefined && !consistentTiming &&
+      mealStartShiftMinutes(context, dayKey, slotStart, previousMealStartMs) >
+        context.preferences.logistics.meals.maximumDailyShiftMinutes
+    ) {
+      context.warnings.push({
+        code: "meal_variance_exceeded",
+        message:
+          `${spec.label} moved more than the preferred daily meal timing variance because the selected route was too tight.`,
+        dayKey,
+      });
+    }
+    const slotEnd = slotStart + slotMinutes * MINUTE_MS;
+    const block = logisticsBlock({
+      context,
+      dayKey,
+      id: spec.id,
+      blockType: "eating",
+      category: "meal",
+      title: spec.label,
+      startEpochMs: slotStart,
+      endEpochMs: slotEnd,
+      location: mealLocationForSlot(context, dayKey, busyBlocks, slotStart, slotEnd),
+      generatedReason: consistentTiming
+        ? "Inserted near the previous day's meal time to keep food timing consistent."
+        : slotMinutes < spec.preferredMinutes
+        ? "Inserted as a compressed food/reset block on a hectic route day."
+        : "Inserted into the best available food/reset window around selected events.",
+    });
+    meals.push(block);
+    previousMealStartById.set(spec.id, slotStart);
+    busy.push({ start: slotStart, end: slotEnd });
+    busy.sort((a, b) => a.start - b.start);
+  }
+
+  return meals;
+}
+
+function firstConsistentMealSlot(
+  context: PlanningContext,
+  dayKey: string,
+  windowStartMs: number,
+  windowEndMs: number,
+  busy: Array<{ start: number; end: number }>,
+  durationMinutes: number,
+  previousMealStartMs: number | undefined,
+): number {
+  if (previousMealStartMs === undefined) return Number.NaN;
+  const previousMinute = localMinuteOfDay(previousMealStartMs, context.timeZone);
+  const preferredStartMs = epochMsForMinuteOfDay(dayKey, previousMinute, context.timeZone);
+  const allowedShiftMs = context.preferences.logistics.meals.maximumDailyShiftMinutes * MINUTE_MS;
+  const durationMs = durationMinutes * MINUTE_MS;
+  const consistentWindowStartMs = Math.max(windowStartMs, preferredStartMs - allowedShiftMs);
+  const consistentWindowEndMs = Math.min(
+    windowEndMs,
+    preferredStartMs + allowedShiftMs + durationMs,
+  );
+  return firstFreeSlot(consistentWindowStartMs, consistentWindowEndMs, busy, durationMinutes);
+}
+
+function mealStartShiftMinutes(
+  context: PlanningContext,
+  dayKey: string,
+  startMs: number,
+  previousStartMs: number,
+): number {
+  const previousMinute = localMinuteOfDay(previousStartMs, context.timeZone);
+  const preferredStartMs = epochMsForMinuteOfDay(dayKey, previousMinute, context.timeZone);
+  return Math.abs(Math.round((startMs - preferredStartMs) / MINUTE_MS));
+}
+
+function bufferBlocksForDay(
+  context: PlanningContext,
+  dayKey: string,
+  routeBlocks: AgendaBlock[],
+  busyBlocks: AgendaBlock[] = [],
+): AgendaBlock[] {
+  const blocks = routeBlocks
+    .filter((block) => block.dayKey === dayKey)
+    .sort(compareBlocks);
+  const busy = busyBlocks
+    .filter((block) => block.dayKey === dayKey && block.blockType !== "sleeping")
+    .map((block) => ({ start: block.startEpochMs, end: block.endEpochMs }))
+    .sort((a, b) => a.start - b.start);
+  const buffers: AgendaBlock[] = [];
+  for (let index = 0; index < blocks.length - 1; index += 1) {
+    const current = blocks[index];
+    const next = blocks[index + 1];
+    if (current.blockType !== "event" || next.blockType !== "travel") continue;
+    if (isReturnHomeTravelBlock(next)) continue;
+    for (const gap of freeIntervals(current.endEpochMs, next.startEpochMs, busy)) {
+      const gapMinutes = Math.floor((gap.end - gap.start) / MINUTE_MS);
+      if (gapMinutes < 20) continue;
+      buffers.push(bufferBlock({
+        context,
+        dayKey,
+        previous: current,
+        next,
+        startEpochMs: gap.start,
+        endEpochMs: gap.end,
+        index: buffers.length + 1,
+      }));
+    }
+  }
+  return buffers;
+}
+
+function morningBlock(input: {
+  context: PlanningContext;
+  dayKey: string;
+  startEpochMs: number;
+  endEpochMs: number;
+  location: LogisticsLocation;
+}): AgendaBlock {
+  const calendarBlockId = `TW-${input.dayKey.replaceAll("-", "")}-MORNING`;
+  const generatedReason = "Inserted as the one-hour get-ready block before breakfast.";
+  return {
+    agendaBlockId: calendarBlockId.toLowerCase(),
+    calendar: "schedule",
+    techweekId: "",
+    calendarBlockId,
+    partifulId: "",
+    rerankId: "",
+    entryType: "morning",
+    blockType: "other",
+    source: "generated_logistics",
+    status: "planned",
+    category: "morning",
+    start: formatLocalDateTime(input.startEpochMs, input.context.timeZone),
+    end: formatLocalDateTime(input.endEpochMs, input.context.timeZone),
+    actualStart: formatLocalDateTime(input.startEpochMs, input.context.timeZone),
+    actualEnd: formatLocalDateTime(input.endEpochMs, input.context.timeZone),
+    startEpochMs: input.startEpochMs,
+    endEpochMs: input.endEpochMs,
+    actualStartEpochMs: input.startEpochMs,
+    actualEndEpochMs: input.endEpochMs,
+    dayKey: input.dayKey,
+    title: "Morning routine",
+    displayTitle: "Morning routine",
+    location: input.location.location,
+    venueQuery: input.location.venueQuery,
+    venuePrecision: input.location.venuePrecision,
+    routeMode: "",
+    travelMinutes: null,
+    routeDetails: "",
+    subwaySegments: "",
+    transitRisk: "",
+    note: generatedReason,
+    rank: "",
+    tier: "",
+    opportunityScore: "",
+    eventUrl: "",
+    googleMapsUrl: input.location.googleMapsUrl,
+    generatedReason,
+  };
+}
+
+function ensureMorningBlocksTrailSleep(
+  context: PlanningContext,
+  dayKeys: string[],
+  logistics: AgendaBlock[],
+): void {
+  for (const dayKey of dayKeys) {
+    const morning = logistics.find((block) =>
+      block.dayKey === dayKey && isMorningRoutineBlock(block)
+    );
+    const breakfast = logistics.find((block) =>
+      block.dayKey === dayKey && block.category === "breakfast"
+    );
+    if (!morning || !breakfast) continue;
+
+    let wakeSleep = logistics
+      .filter((block) => block.dayKey === dayKey && block.blockType === "sleeping")
+      .sort((a, b) => b.endEpochMs - a.endEpochMs)[0];
+    if (!wakeSleep) {
+      wakeSleep = sleepBlockBeforeMorning(context, dayKey, morning, logistics);
+      logistics.push(wakeSleep);
+    }
+    if (wakeSleep.endEpochMs === morning.startEpochMs) continue;
+
+    const morningDurationMs = morning.endEpochMs - morning.startEpochMs;
+    shiftBlockTime(morning, wakeSleep.endEpochMs, context.timeZone);
+    shiftBlockTime(breakfast, wakeSleep.endEpochMs + morningDurationMs, context.timeZone);
+    morning.generatedReason =
+      "Inserted immediately after generated sleep as the get-ready block before breakfast.";
+    morning.note = morning.generatedReason;
+    breakfast.generatedReason =
+      "Inserted immediately after the morning routine as the first food block of the day.";
+    breakfast.note = breakfast.generatedReason;
+  }
+}
+
+function sleepBlockBeforeMorning(
+  context: PlanningContext,
+  dayKey: string,
+  morning: AgendaBlock,
+  logistics: AgendaBlock[],
+): AgendaBlock {
+  const targetSleepMinutes = context.preferences.logistics.sleep.targetMinutes;
+  const targetSleepMs = targetSleepMinutes * MINUTE_MS;
+  const nextSleep = logistics
+    .filter((block) => block.blockType === "sleeping" && block.startEpochMs > morning.startEpochMs)
+    .sort(compareBlocks)[0];
+  let startEpochMs = morning.startEpochMs - targetSleepMs;
+  if (nextSleep) {
+    const nextBedtimeRelativeMinutes = relativeMinutesForDay(
+      nextSleep.startEpochMs,
+      nextSleep.dayKey,
+      context.timeZone,
+    );
+    const alignedStartMs = epochMsForRelativeMinutes(
+      dayKey,
+      nextBedtimeRelativeMinutes,
+      context.timeZone,
+    );
+    if (alignedStartMs + targetSleepMs <= morning.startEpochMs) {
+      startEpochMs = alignedStartMs;
+    } else {
+      context.warnings.push({
+        code: "sleep_variance_exceeded",
+        message:
+          "First-day route constraints prevented the pre-day sleep block from matching the next planned bedtime.",
+        dayKey,
+      });
+    }
+  }
+
+  return logisticsBlock({
+    context,
+    dayKey,
+    id: "SLEEP",
+    blockType: "sleeping",
+    category: "sleep",
+    title: "Sleep",
+    startEpochMs,
+    endEpochMs: startEpochMs + targetSleepMs,
+    generatedReason:
+      "Inserted before the first morning routine and aligned to the nearest planned bedtime.",
+  });
+}
+
+function bufferBlock(input: {
+  context: PlanningContext;
+  dayKey: string;
+  previous: AgendaBlock;
+  next: AgendaBlock;
+  startEpochMs: number;
+  endEpochMs: number;
+  index: number;
+}): AgendaBlock {
+  const calendarBlockId = `${
+    safeIdentifier(input.previous.calendarBlockId || input.previous.agendaBlockId)
+  }-BUFFER-${input.index}`;
+  const location = logisticsLocationFromEvent(input.previous);
+  const departAt = formatClockTime(input.next.startEpochMs, input.context.timeZone);
+  return {
+    agendaBlockId: calendarBlockId.toLowerCase(),
+    calendar: "schedule",
+    techweekId: input.previous.techweekId,
+    calendarBlockId,
+    partifulId: input.previous.partifulId,
+    rerankId: input.previous.rerankId,
+    entryType: "buffer",
+    blockType: "other",
+    source: "generated_logistics",
+    status: "planned",
+    category: "buffer",
+    start: formatLocalDateTime(input.startEpochMs, input.context.timeZone),
+    end: formatLocalDateTime(input.endEpochMs, input.context.timeZone),
+    actualStart: formatLocalDateTime(input.startEpochMs, input.context.timeZone),
+    actualEnd: formatLocalDateTime(input.endEpochMs, input.context.timeZone),
+    startEpochMs: input.startEpochMs,
+    endEpochMs: input.endEpochMs,
+    actualStartEpochMs: input.startEpochMs,
+    actualEndEpochMs: input.endEpochMs,
+    dayKey: input.dayKey,
+    title: "Buffer / reset",
+    displayTitle: "Buffer / reset",
+    location: location.location,
+    venueQuery: location.venueQuery,
+    venuePrecision: location.venuePrecision,
+    routeMode: "",
+    travelMinutes: null,
+    routeDetails: "",
+    subwaySegments: "",
+    transitRisk: "",
+    note: `Free buffer near the previous venue. Depart for the next event at ${departAt}.`,
+    rank: "",
+    tier: "",
+    opportunityScore: "",
+    eventUrl: input.previous.eventUrl,
+    googleMapsUrl: location.googleMapsUrl,
+    generatedReason: "Inserted to make latest-departure travel gaps explicit.",
+  };
+}
+
+function formatClockTime(epochMs: number, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(epochMs));
+}
+
+function mealLocationForSlot(
+  context: PlanningContext,
+  dayKey: string,
+  busyBlocks: AgendaBlock[],
+  slotStartMs: number,
+  slotEndMs: number,
+): LogisticsLocation {
+  const events = busyBlocks
+    .filter((block) => block.dayKey === dayKey && block.blockType === "event")
+    .sort(compareBlocks);
+  const previousEvent = [...events].reverse().find((block) => block.endEpochMs <= slotStartMs);
+  const nextEvent = events.find((block) => block.startEpochMs >= slotEndMs);
+  if (!previousEvent) return homeLogisticsLocation(context);
+  if (!nextEvent || slotStartMs >= previousEvent.endEpochMs) {
+    return logisticsLocationFromEvent(previousEvent);
+  }
+  return homeLogisticsLocation(context);
+}
+
+type LogisticsLocation = {
+  location: string;
+  venueQuery: string;
+  venuePrecision: string;
+  googleMapsUrl: string;
+};
+
+function homeLogisticsLocation(context: PlanningContext): LogisticsLocation {
+  return {
+    location: context.home.location,
+    venueQuery: context.home.venueQuery,
+    venuePrecision: context.home.venuePrecision ?? "",
+    googleMapsUrl: "",
+  };
+}
+
+function logisticsLocationFromEvent(event: AgendaBlock): LogisticsLocation {
+  const venueQuery = event.venueQuery || event.location;
+  const location = isGenericNewYorkLocation(event.location) && venueQuery
+    ? venueQuery
+    : event.location || venueQuery;
+  return {
+    location,
+    venueQuery,
+    venuePrecision: event.venuePrecision || "route_context",
+    googleMapsUrl: event.googleMapsUrl,
+  };
+}
+
+function displayLocationForEvent(event: NormalizedEvent): string {
+  return isGenericNewYorkLocation(event.location) && event.venueQuery
+    ? event.venueQuery
+    : event.location || event.venueQuery || event.title;
+}
+
+function displayLocationForRoutePoint(point: AgendaRoutePoint): string {
+  return isGenericNewYorkLocation(point.location) && point.venueQuery
+    ? point.venueQuery
+    : point.location || point.venueQuery || point.name;
+}
+
+function isGenericNewYorkLocation(value: string): boolean {
+  return ["new york, ny", "new york ny", "new york", "tbd", "tbc"].includes(
+    value.trim().toLowerCase(),
+  );
+}
+
+function isReturnHomeTravelBlock(block: AgendaBlock): boolean {
+  return block.blockType === "travel" && block.calendarBlockId.endsWith("-TRAVEL-HOME");
+}
+
+function shiftReturnHomeBlocksAfterFinalMeals(
+  context: PlanningContext,
+  selectedBlocks: AgendaBlock[],
+): void {
+  const dayKeys = [...new Set(selectedBlocks.map((block) => block.dayKey).filter(Boolean))];
+  for (const dayKey of dayKeys) {
+    const dayBlocks = selectedBlocks.filter((block) => block.dayKey === dayKey);
+    const returnHome = dayBlocks.find(isReturnHomeTravelBlock);
+    if (!returnHome) continue;
+    const lastEvent = dayBlocks
+      .filter((block) => block.blockType === "event" && block.endEpochMs <= returnHome.startEpochMs)
+      .sort((a, b) => b.endEpochMs - a.endEpochMs)[0];
+    if (!lastEvent) continue;
+    const finalMeal = dayBlocks
+      .filter((block) =>
+        block.blockType === "eating" &&
+        block.startEpochMs >= lastEvent.endEpochMs &&
+        block.endEpochMs > returnHome.startEpochMs &&
+        !samePlace(
+          {
+            id: "",
+            name: block.displayTitle,
+            location: block.location,
+            venueQuery: block.venueQuery,
+            venuePrecision: block.venuePrecision,
+          },
+          context.home,
+        )
+      )
+      .sort((a, b) => b.endEpochMs - a.endEpochMs)[0];
+    if (!finalMeal) continue;
+    shiftBlockTime(returnHome, finalMeal.endEpochMs, context.timeZone);
+    returnHome.note = "Generated return-home travel after final meal/reset.";
+    returnHome.generatedReason = "Inserted after the last selected event and final meal/reset.";
+  }
+}
+
+function shiftBlockTime(block: AgendaBlock, startEpochMs: number, timeZone: string): void {
+  const durationMs = Math.max(MINUTE_MS, block.endEpochMs - block.startEpochMs);
+  const endEpochMs = startEpochMs + durationMs;
+  block.startEpochMs = startEpochMs;
+  block.endEpochMs = endEpochMs;
+  block.actualStartEpochMs = startEpochMs;
+  block.actualEndEpochMs = endEpochMs;
+  block.start = formatLocalDateTime(startEpochMs, timeZone);
+  block.end = formatLocalDateTime(endEpochMs, timeZone);
+  block.actualStart = block.start;
+  block.actualEnd = block.end;
+}
+
+function sleepBlockForDay(
+  context: PlanningContext,
+  dayKey: string,
+  busyBlocks: AgendaBlock[],
+  previousBedtimeRelativeMinutes: number | null,
+): AgendaBlock | null {
+  const dayBlocks = busyBlocks.filter((block) =>
+    block.dayKey === dayKey && (block.blockType === "event" || block.blockType === "travel")
+  );
+  if (dayBlocks.length === 0) return null;
+
+  const sleepPreferences = context.preferences.logistics.sleep;
+  const targetSleepMinutes = sleepPreferences.targetMinutes;
+  const minimumSleepMinutes = Math.min(sleepPreferences.minimumMinutes, targetSleepMinutes);
+  const latestEndMs = Math.max(...dayBlocks.map((block) => block.endEpochMs));
+  const nextDayKey = addDays(dayKey, 1);
+  const nextFirstBlock = busyBlocks
+    .filter((block) => block.dayKey === nextDayKey && block.blockType !== "sleeping")
+    .sort(compareBlocks)[0];
+  const nextFirstMs = nextFirstBlock?.startEpochMs ?? Number.POSITIVE_INFINITY;
+
+  const normalEarliestStartMs = latestEndMs +
+    sleepPreferences.windDownAfterLastEventMinutes * MINUTE_MS;
+  const minimumEarliestStartMs = latestEndMs +
+    sleepPreferences.minimumWindDownAfterLastEventMinutes * MINUTE_MS;
+  const preferredLatestStartMs = preferredBedtimeMs(
+    dayKey,
+    sleepPreferences.preferredLatestBedtime,
+    context.timeZone,
+  );
+  const nextPrepMinutes = nextFirstBlock && isMorningRoutineBlock(nextFirstBlock)
+    ? 0
+    : sleepPreferences.nextMorningPrepMinutes;
+  const latestWakeMs = Number.isFinite(nextFirstMs)
+    ? nextFirstMs - nextPrepMinutes * MINUTE_MS
+    : Number.POSITIVE_INFINITY;
+
+  const latestTargetStartMs = Number.isFinite(latestWakeMs)
+    ? Math.min(preferredLatestStartMs, latestWakeMs - targetSleepMinutes * MINUTE_MS)
+    : preferredLatestStartMs;
+  let startEpochMs = Math.max(normalEarliestStartMs, latestTargetStartMs);
+
+  if (previousBedtimeRelativeMinutes !== null) {
+    const targetRelativeMinutes = relativeMinutesForDay(startEpochMs, dayKey, context.timeZone);
+    const variance = sleepPreferences.maximumNightlyVarianceMinutes;
+    const boundedRelativeMinutes = clamp(
+      targetRelativeMinutes,
+      previousBedtimeRelativeMinutes - variance,
+      previousBedtimeRelativeMinutes + variance,
+    );
+    startEpochMs = Math.max(
+      normalEarliestStartMs,
+      epochMsForRelativeMinutes(dayKey, boundedRelativeMinutes, context.timeZone),
+    );
+  }
+
+  if (
+    Number.isFinite(latestWakeMs) &&
+    startEpochMs + targetSleepMinutes * MINUTE_MS > latestWakeMs
+  ) {
+    const targetFitStartMs = latestWakeMs - targetSleepMinutes * MINUTE_MS;
+    startEpochMs = Math.max(minimumEarliestStartMs, targetFitStartMs);
+  }
+
+  let endEpochMs = startEpochMs + targetSleepMinutes * MINUTE_MS;
+  if (Number.isFinite(nextFirstMs)) {
+    if (
+      latestWakeMs > startEpochMs + minimumSleepMinutes * MINUTE_MS && endEpochMs > latestWakeMs
+    ) {
+      endEpochMs = latestWakeMs;
+    }
+  }
+
+  if (previousBedtimeRelativeMinutes !== null) {
+    const bedtimeRelativeMinutes = relativeMinutesForDay(startEpochMs, dayKey, context.timeZone);
+    const variance = Math.abs(bedtimeRelativeMinutes - previousBedtimeRelativeMinutes);
+    if (variance > sleepPreferences.maximumNightlyVarianceMinutes) {
+      context.warnings.push({
+        code: "sleep_variance_exceeded",
+        message:
+          "Selected route constraints forced bedtime variance beyond the preferred nightly limit.",
+        dayKey,
+      });
+    }
+  }
+
+  if (endEpochMs - startEpochMs < minimumSleepMinutes * MINUTE_MS) {
+    context.warnings.push({
+      code: "short_sleep_window",
+      message: "Selected events leave less than the preferred minimum sleep window.",
+      dayKey,
+    });
+  }
+
+  return logisticsBlock({
+    context,
+    dayKey: formatLocalDate(endEpochMs, context.timeZone),
+    id: "SLEEP",
+    blockType: "sleeping",
+    category: "sleep",
+    title: "Sleep",
+    startEpochMs,
+    endEpochMs,
+    generatedReason:
+      "Inserted after the selected day route with wake-up protection for the next day.",
+  });
+}
+
+function isMorningRoutineBlock(block: AgendaBlock): boolean {
+  return block.entryType === "morning" || block.category === "morning";
+}
+
+function logisticsBlock(input: {
+  context: PlanningContext;
+  dayKey: string;
+  id: string;
+  blockType: "eating" | "sleeping";
+  category: string;
+  title: string;
+  startEpochMs: number;
+  endEpochMs: number;
+  location?: LogisticsLocation;
+  generatedReason: string;
+}): AgendaBlock {
+  const calendarBlockId = `TW-${input.dayKey.replaceAll("-", "")}-${input.id}`;
+  const location = input.location ?? homeLogisticsLocation(input.context);
+  return {
+    agendaBlockId: calendarBlockId.toLowerCase(),
+    calendar: "schedule",
+    techweekId: "",
+    calendarBlockId,
+    partifulId: "",
+    rerankId: "",
+    entryType: input.blockType === "eating" ? "meal" : "sleep",
+    blockType: input.blockType,
+    source: "generated_logistics",
+    status: "planned",
+    category: input.category,
+    start: formatLocalDateTime(input.startEpochMs, input.context.timeZone),
+    end: formatLocalDateTime(input.endEpochMs, input.context.timeZone),
+    actualStart: formatLocalDateTime(input.startEpochMs, input.context.timeZone),
+    actualEnd: formatLocalDateTime(input.endEpochMs, input.context.timeZone),
+    startEpochMs: input.startEpochMs,
+    endEpochMs: input.endEpochMs,
+    actualStartEpochMs: input.startEpochMs,
+    actualEndEpochMs: input.endEpochMs,
+    dayKey: input.dayKey,
+    title: input.title,
+    displayTitle: input.title,
+    location: location.location,
+    venueQuery: location.venueQuery,
+    venuePrecision: location.venuePrecision,
+    routeMode: "",
+    travelMinutes: null,
+    routeDetails: "",
+    subwaySegments: "",
+    transitRisk: "",
+    note: input.generatedReason,
+    rank: "",
+    tier: "",
+    opportunityScore: "",
+    eventUrl: "",
+    googleMapsUrl: location.googleMapsUrl,
+    generatedReason: input.generatedReason,
+  };
+}
+
+function firstFreeSlot(
+  windowStartMs: number,
+  windowEndMs: number,
+  busy: Array<{ start: number; end: number }>,
+  durationMinutes: number,
+): number {
+  if (!Number.isFinite(windowStartMs) || !Number.isFinite(windowEndMs)) return Number.NaN;
+  const durationMs = durationMinutes * MINUTE_MS;
+  let cursor = windowStartMs;
+  for (const interval of busy.sort((a, b) => a.start - b.start)) {
+    if (interval.end <= cursor || interval.start >= windowEndMs) continue;
+    if (cursor + durationMs <= Math.min(interval.start, windowEndMs)) return cursor;
+    cursor = Math.max(cursor, interval.end);
+    if (cursor >= windowEndMs) break;
+  }
+  return cursor + durationMs <= windowEndMs ? cursor : Number.NaN;
+}
+
+function freeIntervals(
+  startMs: number,
+  endMs: number,
+  busy: Array<{ start: number; end: number }>,
+): Array<{ start: number; end: number }> {
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs >= endMs) return [];
+  const free: Array<{ start: number; end: number }> = [];
+  let cursor = startMs;
+  for (const interval of busy.sort((a, b) => a.start - b.start)) {
+    if (interval.end <= cursor || interval.start >= endMs) continue;
+    const freeEnd = Math.min(interval.start, endMs);
+    if (cursor < freeEnd) free.push({ start: cursor, end: freeEnd });
+    cursor = Math.max(cursor, interval.end);
+    if (cursor >= endMs) return free;
+  }
+  if (cursor < endMs) free.push({ start: cursor, end: endMs });
+  return free;
+}
+
+function mealDurationOptions(preferredMinutes: number, minimumMinutes: number): number[] {
+  const preferred = Math.max(1, Math.round(preferredMinutes));
+  const minimum = Math.max(1, Math.min(preferred, Math.round(minimumMinutes)));
+  return preferred === minimum ? [preferred] : [preferred, minimum];
+}
+
+function localDateTimeMs(dayKey: string, time: string, timeZone: string): number {
+  return parseLocalDateTime(`${dayKey} ${time}`, timeZone);
+}
+
+function localMinuteOfDay(epochMs: number, timeZone: string): number {
+  return timeStringMinutes(formatLocalDateTime(epochMs, timeZone).slice(11, 16)) ?? 0;
+}
+
+function epochMsForMinuteOfDay(dayKey: string, minute: number, timeZone: string): number {
+  const normalizedMinute = ((Math.round(minute) % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hour = Math.floor(normalizedMinute / 60);
+  const minuteOfHour = normalizedMinute % 60;
+  const time = `${String(hour).padStart(2, "0")}:${String(minuteOfHour).padStart(2, "0")}`;
+  return localDateTimeMs(dayKey, time, timeZone);
+}
+
+function preferredBedtimeMs(dayKey: string, time: string, timeZone: string): number {
+  const minutes = timeStringMinutes(time);
+  const sleepDayKey = minutes < 12 * 60 ? addDays(dayKey, 1) : dayKey;
+  return localDateTimeMs(sleepDayKey, time, timeZone);
+}
+
+function relativeMinutesForDay(epochMs: number, dayKey: string, timeZone: string): number {
+  const dayStartMs = localDateTimeMs(dayKey, "00:00", timeZone);
+  return Math.round((epochMs - dayStartMs) / MINUTE_MS);
+}
+
+function epochMsForRelativeMinutes(
+  dayKey: string,
+  relativeMinutes: number,
+  timeZone: string,
+): number {
+  return localDateTimeMs(dayKey, "00:00", timeZone) + relativeMinutes * MINUTE_MS;
+}
+
+function addDays(dayKey: string, days: number): string {
+  const start = Date.parse(`${dayKey}T12:00:00${DEFAULT_UTC_OFFSET}`);
+  return formatLocalDate(start + days * 24 * 60 * MINUTE_MS, DEFAULT_TIME_ZONE);
+}
+
+function buildStoredRouteEstimates(entries: AgendaScheduleEntry[]): StoredRouteEstimate[] {
+  return entries.flatMap((entry) => {
+    if (normalizeBlockType(entry) !== "travel") return [];
+    const minutes = nullableNumberField(entry, "travelMinutes", "travel_minutes");
+    if (!minutes || minutes <= 0) return [];
+    const calendarBlockId = stringField(entry, "calendarBlockId", "calendar_block_id");
+    const relatedIds = new Set(entryIdentifiers(entry));
+    const canonical = canonicalFromCalendarBlock(calendarBlockId);
+    if (canonical) addIdentifierVariants(relatedIds, canonical);
+    const routeMode = stringField(entry, "routeMode", "route_mode") || "estimated";
+    const routeDetails = stringField(entry, "routeDetails", "route_details") ||
+      "Stored route estimate from the previous operational schedule.";
+    return [{
+      relatedIds,
+      returnHome: calendarBlockId.endsWith("-TRAVEL-HOME"),
+      searchableText: normalizeRouteText([
+        stringField(entry, "title"),
+        stringField(entry, "displayTitle", "display_title"),
+        stringField(entry, "location"),
+        stringField(entry, "venueQuery", "venue_query"),
+      ].join(" ")),
+      route: {
+        mode: routeMode,
+        minutes,
+        details: routeDetails,
+        subwaySegments: stringField(entry, "subwaySegments", "subway_segments"),
+        transitRisk: stringField(entry, "transitRisk", "transit_risk"),
+        googleMapsUrl: stringField(entry, "googleMapsUrl", "google_maps_url"),
+        source: "stored_schedule_route",
+      },
+    }];
+  });
+}
+
+function storedRouteEstimate(
+  context: PlanningContext,
+  request: {
+    origin: AgendaRoutePoint;
+    destination: AgendaRoutePoint;
+    destinationEventId?: string;
+  },
+): AgendaRouteEstimate | null {
+  const returnHome = samePlace(request.destination, context.home);
+  const relatedIds = returnHome
+    ? identifierVariants(request.origin.sourceEventId ?? request.origin.id ?? "")
+    : identifierVariants(
+      request.destinationEventId ?? request.destination.sourceEventId ?? request.destination.id ??
+        "",
+    );
+  if (relatedIds.size === 0) return null;
+
+  const originText = routePointTextCandidates(request.origin);
+  const destinationText = routePointTextCandidates(request.destination);
+
+  return context.storedRoutes.find((stored) =>
+    stored.returnHome === returnHome &&
+    setsOverlap(stored.relatedIds, relatedIds) &&
+    storedRouteTextMatches(stored.searchableText, originText, destinationText, returnHome)
+  )?.route ?? null;
+}
+
+function storedRouteTextMatches(
+  storedText: string,
+  originText: string[],
+  destinationText: string[],
+  returnHome: boolean,
+): boolean {
+  if (!storedText) return false;
+  const originMatches = routeTextHasAny(storedText, originText);
+  if (returnHome) return originMatches;
+  return originMatches && routeTextHasAny(storedText, destinationText);
+}
+
+function routeTextHasAny(haystack: string, needles: string[]): boolean {
+  return needles.some((needle) => haystack.includes(needle));
+}
+
+function routePointTextCandidates(point: AgendaRoutePoint): string[] {
+  return [point.name, point.location, point.venueQuery]
+    .map(normalizeRouteText)
+    .filter((item) => item.length >= 6 && !isGenericNewYorkLocation(item));
+}
+
+function normalizeRouteText(value: string): string {
+  return value.toLowerCase().replaceAll(/[^a-z0-9]+/g, " ").replaceAll(/\s+/g, " ").trim();
+}
+
+function identifierVariants(value: string): Set<string> {
+  const ids = new Set<string>();
+  addIdentifierVariants(ids, value);
+  return ids;
+}
+
+function addIdentifierVariants(ids: Set<string>, value: string): void {
+  const clean = value.trim();
+  if (!clean) return;
+  ids.add(clean);
+  if (clean.startsWith("TW-")) ids.add(clean.slice(3));
+  else if (/^\d+$/.test(clean)) ids.add(`TW-${clean}`);
+}
+
+function setsOverlap(left: Set<string>, right: Set<string>): boolean {
+  for (const value of left) {
+    if (right.has(value)) return true;
+  }
+  return false;
+}
+
 async function estimateRoute(
   context: PlanningContext,
   request: {
@@ -1176,6 +2199,9 @@ async function estimateRouteUncached(
       source: "same_place",
     };
   }
+  const stored = storedRouteEstimate(context, request);
+  if (stored) return stored;
+
   if (!context.input.routeEstimator) {
     if (!context.missingRouteEstimatorWarned) {
       context.warnings.push({
@@ -1318,7 +2344,7 @@ function normalizeFixedBlocks(
       eventUrl: stringField(entry, "eventUrl", "event_url"),
       googleMapsUrl: stringField(entry, "googleMapsUrl", "google_maps_url"),
       generatedReason: "Preserved fixed non-travel schedule block.",
-      hardConstraint: blockType === "sleeping" || options.hardFixedBlockIds.has(calendarBlockId),
+      hardConstraint: options.hardFixedBlockIds.has(calendarBlockId),
     });
   }
   return blocks.sort(compareBlocks);
@@ -1330,8 +2356,9 @@ function scoreBreakdownForEvent(input: {
   identifiers: string[];
   currentSchedule: boolean;
   options: RecalculateOptions;
+  preferences: AgendaUserPreferences;
 }): AgendaScoreBreakdown {
-  const { entry, normalizedStatus, identifiers, currentSchedule, options } = input;
+  const { entry, normalizedStatus, identifiers, currentSchedule, options, preferences } = input;
   const breakdown: AgendaScoreBreakdown = {};
   const statusScore: Record<AgendaNormalizedStatus, number> = {
     registered: 1_000,
@@ -1361,11 +2388,72 @@ function scoreBreakdownForEvent(input: {
   if (tier.includes("top") || tier === "1" || tier === "a") breakdown.tier = 35;
   else if (tier === "2" || tier === "b") breakdown.tier = 20;
 
+  const workFit = workFitScore(entry, preferences);
+  if (workFit !== 0) breakdown.workFit = workFit;
+  if (category === "discovered" && workFit < preferences.planning.discoveredMinimumWorkFit) {
+    breakdown.discoveredFitGate = preferences.planning.discoveredLowFitPenalty;
+  }
+
+  const startMinutes = localTimeMinutes(stringField(entry, "actualStart", "actual_start", "start"));
+  if (
+    startMinutes !== null &&
+    startMinutes < timeStringMinutes(preferences.planning.offHoursHardBefore)
+  ) {
+    breakdown.offHours = preferences.planning.offHoursHardPenalty;
+  } else if (
+    startMinutes !== null &&
+    startMinutes < timeStringMinutes(preferences.planning.offHoursSoftBefore)
+  ) {
+    breakdown.offHours = preferences.planning.offHoursSoftPenalty;
+  }
+
   return breakdown;
 }
 
 function scoreFromBreakdown(breakdown: AgendaScoreBreakdown): number {
   return Object.values(breakdown).reduce((sum, value) => sum + value, 0);
+}
+
+function workFitScore(entry: AgendaScheduleEntry, preferences: AgendaUserPreferences): number {
+  const text = [
+    stringField(entry, "title"),
+    stringField(entry, "displayTitle", "display_title"),
+    stringField(entry, "note"),
+    stringField(entry, "salesCoaching", "sales_coaching"),
+    stringField(entry, "location"),
+  ].join(" ").toLowerCase();
+  if (!text.trim()) return 0;
+
+  const positiveScore = preferences.planning.workFitPositiveSignals.reduce(
+    (score, signal) => score + signalScore(signal.pattern, text, signal.score),
+    0,
+  );
+  const negativeScore = preferences.planning.workFitNegativeSignals.reduce(
+    (score, signal) => score + signalScore(signal.pattern, text, signal.score),
+    0,
+  );
+  return clamp(positiveScore + negativeScore, -120, 120);
+}
+
+function signalScore(pattern: string, text: string, score: number): number {
+  try {
+    return new RegExp(pattern, "i").test(text) ? score : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function localTimeMinutes(value: string): number | null {
+  const match = value.match(/\b(\d{2}):(\d{2})\b/);
+  if (!match?.[1] || !match?.[2]) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return hour * 60 + minute;
+}
+
+function timeStringMinutes(value: string): number {
+  return localTimeMinutes(value) ?? 0;
 }
 
 function classifyUnselectedCandidate(
@@ -1462,6 +2550,11 @@ function buildSummary(input: {
 }): AgendaSummary {
   const selectedEvents = input.selectedBlocks.filter((block) => block.blockType === "event");
   const travelBlocks = input.selectedBlocks.filter((block) => block.blockType === "travel");
+  const eatingBlocks = input.selectedBlocks.filter((block) => block.blockType === "eating");
+  const sleepingBlocks = input.selectedBlocks.filter((block) => block.blockType === "sleeping");
+  const generatedLogisticsBlocks = input.selectedBlocks.filter((block) =>
+    block.source === "generated_logistics"
+  );
   const fixedBlocks = input.selectedBlocks.filter((block) => block.source === "fixed_schedule");
   const byStatus: Record<string, number> = {};
   for (const candidate of input.candidates) {
@@ -1511,6 +2604,9 @@ function buildSummary(input: {
     selectedBlocks: input.selectedBlocks.length,
     selectedEvents: selectedEvents.length,
     travelBlocks: travelBlocks.length,
+    eatingBlocks: eatingBlocks.length,
+    sleepingBlocks: sleepingBlocks.length,
+    generatedLogisticsBlocks: generatedLogisticsBlocks.length,
     fixedBlocks: fixedBlocks.length,
     droppedEvents: input.droppedEvents.length,
     conflictEvents: conflictEvents.length,

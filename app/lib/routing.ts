@@ -204,15 +204,16 @@ export const DEFAULT_USER_AGENT = "techweek-2026-event-picker/1.0";
 export const DEFAULT_WALKING_STRETCH_FACTOR = 1.25;
 export const DEFAULT_WALKING_METERS_PER_MINUTE = 80;
 export const DEFAULT_SUBWAY_BUFFER_MINUTES = 5;
+export const HOME_BASE_LOCATION = "15 Cliff Street, New York, NY 10038";
 
 export const HOME_POINT: RoutePoint = {
-  id: "home_fidi",
-  name: "FiDi home base",
-  location: "Financial District",
-  venueQuery: "Wall St, New York, NY",
-  addressPrecision: "approx_fidi_anchor",
-  lat: 40.706821,
-  lon: -74.0091,
+  id: "home_15_cliff_street",
+  name: HOME_BASE_LOCATION,
+  location: HOME_BASE_LOCATION,
+  venueQuery: HOME_BASE_LOCATION,
+  addressPrecision: "exact_home_base",
+  lat: 40.7084297,
+  lon: -74.0056635,
 };
 
 export const DEFAULT_OPERATIONAL_ROUTE_IDS = [
@@ -237,7 +238,7 @@ export const DEFAULT_MEAL_BLOCKS: readonly BufferBlockInput[] = [
     start: "12:15",
     end: "13:15",
     title: "Meal: Lunch / reset",
-    location: "FiDi home base",
+    location: HOME_BASE_LOCATION,
     note: "One-hour food buffer before leaving for the first event.",
   },
   {
@@ -269,7 +270,7 @@ export const DEFAULT_MEAL_BLOCKS: readonly BufferBlockInput[] = [
     start: "10:45",
     end: "11:15",
     title: "Meal: Quick breakfast / lunch before dense Wednesday",
-    location: "FiDi home base",
+    location: HOME_BASE_LOCATION,
     note: "Hectic-day 30-minute food buffer before the midday run starts.",
   },
   {
@@ -293,7 +294,7 @@ export const DEFAULT_MEAL_BLOCKS: readonly BufferBlockInput[] = [
     start: "14:30",
     end: "15:30",
     title: "Meal: Late lunch / reset",
-    location: "FiDi home base",
+    location: HOME_BASE_LOCATION,
     note: "One-hour meal buffer before leaving for the Thursday route.",
   },
   {
@@ -309,7 +310,7 @@ export const DEFAULT_MEAL_BLOCKS: readonly BufferBlockInput[] = [
     start: "15:10",
     end: "16:10",
     title: "Meal: Early dinner before Bare Metal",
-    location: "FiDi home base",
+    location: HOME_BASE_LOCATION,
     note: "One-hour food buffer before the Friday evening event.",
   },
 ];
@@ -320,7 +321,7 @@ export const DEFAULT_SLEEP_BLOCKS: readonly BufferBlockInput[] = [
     start: "03:13",
     end: "11:13",
     title: "Sleep: 8 hours",
-    location: "FiDi home base",
+    location: HOME_BASE_LOCATION,
     note: "Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.",
   },
   {
@@ -328,7 +329,7 @@ export const DEFAULT_SLEEP_BLOCKS: readonly BufferBlockInput[] = [
     start: "02:43",
     end: "10:43",
     title: "Sleep: 8 hours",
-    location: "FiDi home base",
+    location: HOME_BASE_LOCATION,
     note: "Staggered late sleep block; wake leaves 30 minutes before the first travel block.",
   },
   {
@@ -336,7 +337,7 @@ export const DEFAULT_SLEEP_BLOCKS: readonly BufferBlockInput[] = [
     start: "02:45",
     end: "10:45",
     title: "Sleep: 8 hours",
-    location: "FiDi home base",
+    location: HOME_BASE_LOCATION,
     note: "Staggered late sleep block; wake lands on the quick breakfast/lunch block.",
   },
   {
@@ -344,7 +345,7 @@ export const DEFAULT_SLEEP_BLOCKS: readonly BufferBlockInput[] = [
     start: "03:15",
     end: "11:15",
     title: "Sleep: 8 hours",
-    location: "FiDi home base",
+    location: HOME_BASE_LOCATION,
     note: "Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.",
   },
   {
@@ -352,7 +353,7 @@ export const DEFAULT_SLEEP_BLOCKS: readonly BufferBlockInput[] = [
     start: "03:45",
     end: "11:45",
     title: "Sleep: 8 hours",
-    location: "FiDi home base",
+    location: HOME_BASE_LOCATION,
     note: "Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.",
   },
   {
@@ -360,7 +361,7 @@ export const DEFAULT_SLEEP_BLOCKS: readonly BufferBlockInput[] = [
     start: "04:15",
     end: "12:15",
     title: "Sleep: 8 hours",
-    location: "FiDi home base",
+    location: HOME_BASE_LOCATION,
     note: "Staggered late sleep block after the final Tech Week route day.",
   },
 ];
@@ -619,6 +620,18 @@ export async function routeBetween(
   destination: RoutePoint,
   options: RouteBetweenOptions = {},
 ): Promise<RouteEstimate> {
+  const directWalk = await walkingEstimate(origin, destination, {
+    cache: options.cache,
+    fetcher: options.fetcher,
+    metersPerMinute: options.walkingMetersPerMinute,
+    routingVersion: options.routingVersion,
+    stretchFactor: options.walkingStretchFactor,
+    userAgent: options.userAgent,
+  });
+  if (directWalk.minutes <= 25) {
+    return walkingRoute(directWalk);
+  }
+
   const stations = options.stations ??
     await loadStations({
       cache: options.cache,
@@ -628,14 +641,6 @@ export async function routeBetween(
       routingVersion: options.routingVersion,
       userAgent: options.userAgent,
     });
-  const directWalk = await walkingEstimate(origin, destination, {
-    cache: options.cache,
-    fetcher: options.fetcher,
-    metersPerMinute: options.walkingMetersPerMinute,
-    routingVersion: options.routingVersion,
-    stretchFactor: options.walkingStretchFactor,
-    userAgent: options.userAgent,
-  });
   const originPoint = normalizePoint(origin);
   const destinationPoint = normalizePoint(destination);
   const originStation = nearestStation(originPoint, stations);
@@ -660,13 +665,18 @@ export async function routeBetween(
       userAgent: options.userAgent,
     },
   );
-  const subway = await subwayTrip(originStation, destinationStation, {
-    cache: options.cache,
-    endpoint: options.subwayTripEndpoint,
-    fetcher: options.fetcher,
-    routingVersion: options.routingVersion,
-    userAgent: options.userAgent,
-  });
+  let subway: SubwayTripEstimate;
+  try {
+    subway = await subwayTrip(originStation, destinationStation, {
+      cache: options.cache,
+      endpoint: options.subwayTripEndpoint,
+      fetcher: options.fetcher,
+      routingVersion: options.routingVersion,
+      userAgent: options.userAgent,
+    });
+  } catch (error) {
+    return transitUnavailableRoute(directWalk, error);
+  }
   const subwayBufferMinutes = options.subwayBufferMinutes ?? DEFAULT_SUBWAY_BUFFER_MINUTES;
   const subwayTotal = walkToStation.minutes + subway.estimatedMinutes + walkFromStation.minutes +
     subwayBufferMinutes;
@@ -676,15 +686,7 @@ export async function routeBetween(
     (directWalk.minutes <= 25 && directWalk.minutes <= subwayTotal + 8)
   ) {
     return {
-      mode: "walk",
-      minutes: directWalk.minutes,
-      details:
-        `Walk approx ${directWalk.minutes} min / ${directWalk.meters} m using OSM-geocoded points.`,
-      fromStation: "",
-      toStation: "",
-      subwaySegments: "",
-      risk: "",
-      directWalk,
+      ...walkingRoute(directWalk),
       originStation,
       destinationStation,
       walkToStation,
@@ -710,6 +712,41 @@ export async function routeBetween(
     walkToStation,
     walkFromStation,
     subwayTrip: subway,
+  };
+}
+
+function walkingRoute(directWalk: WalkingEstimate): RouteEstimate {
+  return {
+    mode: "walk",
+    minutes: directWalk.minutes,
+    details:
+      `Walk approx ${directWalk.minutes} min / ${directWalk.meters} m using OSM-geocoded points.`,
+    fromStation: "",
+    toStation: "",
+    subwaySegments: "",
+    risk: "",
+    directWalk,
+  };
+}
+
+function transitUnavailableRoute(directWalk: WalkingEstimate, error: unknown): RouteEstimate {
+  const reserveMinutes = Math.max(
+    30,
+    Math.min(directWalk.minutes, Math.ceil(directWalk.minutes * 0.65)),
+  );
+  const source = error instanceof Error && /\b429\b|too many requests/i.test(error.message)
+    ? "the transit API is rate-limited"
+    : "the transit API is unavailable";
+  return {
+    mode: "subway+walk",
+    minutes: reserveMinutes,
+    details:
+      `Reserve approx ${reserveMinutes} min because ${source}; estimate is based on ${directWalk.minutes} min walking distance.`,
+    fromStation: "",
+    toStation: "",
+    subwaySegments: "",
+    risk: "transit_estimated",
+    directWalk,
   };
 }
 
@@ -815,8 +852,8 @@ export async function buildOperationalRoute(
       dayRows.push(travelRow({
         start: travelHomeStart,
         end: addMinutes(travelHomeStart, route.minutes),
-        title: `${previousPoint.name} -> FiDi home base`,
-        location: `${previousPoint.name} -> FiDi home base`,
+        title: `${previousPoint.name} -> ${homePoint.name}`,
+        location: `${previousPoint.name} -> ${homePoint.location ?? homePoint.name}`,
         route,
         note: "",
         calendarBlockId: `TW-${localDateStamp(previousEventEntry.start)}-TRAVEL-HOME`,

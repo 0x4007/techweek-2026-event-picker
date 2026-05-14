@@ -8,12 +8,12 @@
     "status": "registered",
     "category": "sleep",
     "title": "Sleep: 8 hours",
-    "location": "FiDi home base",
+    "location": "15 Cliff Street, New York, NY 10038",
     "start": "2026-06-01 03:13",
     "end": "2026-06-01 11:13",
-    "notes": "TechWeekID: \nCalendarBlockID: TW-20260601-SLEEP\nRerankID: \nPartifulID: \nStaggered late sleep block; night-to-night bedtime shift stays within 30 minutes.\nRSVP status: registered\nCategory: sleep\nVenue basis: FiDi home base (sleep_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: ",
+    "notes": "TechWeekID: \nCalendarBlockID: TW-20260601-SLEEP\nRerankID: \nPartifulID: \nStaggered late sleep block; night-to-night bedtime shift stays within 30 minutes.\nRSVP status: registered\nCategory: sleep\nVenue basis: 15 Cliff Street, New York, NY 10038 (sleep_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/score:  /  / \nURL: ",
     "url": "",
-    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY"
+    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038"
   },
   {
     "calendar_block_id": "TW-20260601-MEAL-LUNCH",
@@ -24,12 +24,12 @@
     "status": "registered",
     "category": "meal",
     "title": "Meal: Lunch / reset",
-    "location": "FiDi home base",
+    "location": "15 Cliff Street, New York, NY 10038",
     "start": "2026-06-01 12:15",
     "end": "2026-06-01 13:15",
-    "notes": "TechWeekID: \nCalendarBlockID: TW-20260601-MEAL-LUNCH\nRerankID: \nPartifulID: \nOne-hour food buffer before leaving for the first event.\nRSVP status: registered\nCategory: meal\nVenue basis: FiDi home base (meal_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: ",
+    "notes": "TechWeekID: \nCalendarBlockID: TW-20260601-MEAL-LUNCH\nRerankID: \nPartifulID: \nOne-hour food buffer before leaving for the first event.\nRSVP status: registered\nCategory: meal\nVenue basis: 15 Cliff Street, New York, NY 10038 (meal_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/score:  /  / \nURL: ",
     "url": "",
-    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY"
+    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038"
   },
   {
     "calendar_block_id": "TW-6408-TRAVEL-IN",
@@ -39,13 +39,13 @@
     "entry_type": "travel",
     "status": "registered",
     "category": "travel",
-    "title": "Travel: FiDi home base -> Beyond the Spec Masterclass: Engineering in the Age of Agents",
-    "location": "FiDi home base -> Flatiron",
-    "start": "2026-06-01 13:22",
+    "title": "Travel: 15 Cliff Street, New York, NY 10038 -> Beyond the Spec Masterclass: Engineering in the Age of Agents",
+    "location": "15 Cliff Street, New York, NY 10038 -> Flatiron",
+    "start": "2026-06-01 13:21",
     "end": "2026-06-01 14:00",
-    "notes": "TechWeekID: TW-6408\nCalendarBlockID: TW-6408-TRAVEL-IN\nRerankID: \nPartifulID: FHiuNwzr13e3YBI4ssUX\nWalk 0 min to Wall St (2/3); subway 31 min; walk 2 min from 23 St-Baruch College (4/6); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: FiDi home base -> Flatiron ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.7408301%2C-73.9868072\nRank/tier/score:  /  / \nURL: https://partiful.com/e/FHiuNwzr13e3YBI4ssUX",
+    "notes": "TechWeekID: TW-6408\nCalendarBlockID: TW-6408-TRAVEL-IN\nRerankID: \nPartifulID: FHiuNwzr13e3YBI4ssUX\nWalk 3 min to Fulton St (2/3); subway 29 min; walk 2 min from 23 St-Baruch College (4/6); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: 15 Cliff Street, New York, NY 10038 -> Flatiron ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7408301%2C-73.9868072\nRank/tier/score:  /  / \nURL: https://partiful.com/e/FHiuNwzr13e3YBI4ssUX",
     "url": "https://partiful.com/e/FHiuNwzr13e3YBI4ssUX",
-    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.7408301%2C-73.9868072"
+    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7408301%2C-73.9868072"
   },
   {
     "calendar_block_id": "TW-6408-SCHEDULE",
@@ -151,13 +151,13 @@
     "entry_type": "travel",
     "status": "registered",
     "category": "travel",
-    "title": "Travel: Open Source Must Win -> FiDi home base",
-    "location": "Open Source Must Win -> FiDi home base",
+    "title": "Travel: Open Source Must Win -> 15 Cliff Street, New York, NY 10038",
+    "location": "Open Source Must Win -> 15 Cliff Street, New York, NY 10038",
     "start": "2026-06-01 22:00",
-    "end": "2026-06-01 22:35",
-    "notes": "TechWeekID: TW-5978\nCalendarBlockID: TW-20260601-TRAVEL-HOME\nRerankID: \nPartifulID: OF1vP5L8dtXKRtInyWKs\nWalk approx 35 min / 2751 m using OSM-geocoded points.\nRSVP status: registered\nCategory: travel\nVenue basis: Open Source Must Win -> FiDi home base ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.718618%2C-73.988136&destination=40.706821%2C-74.0091&travelmode=walking\nRank/tier/score:  /  / \nURL: https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds",
+    "end": "2026-06-01 22:30",
+    "notes": "TechWeekID: TW-5978\nCalendarBlockID: TW-20260601-TRAVEL-HOME\nRerankID: \nPartifulID: OF1vP5L8dtXKRtInyWKs\nWalk approx 30 min / 2327 m using OSM-geocoded points.\nRSVP status: registered\nCategory: travel\nVenue basis: Open Source Must Win -> 15 Cliff Street, New York, NY 10038 ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.718618%2C-73.988136&destination=40.7084297%2C-74.0056635&travelmode=walking\nRank/tier/score:  /  / \nURL: https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds",
     "url": "https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds",
-    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.718618%2C-73.988136&destination=40.706821%2C-74.0091&travelmode=walking"
+    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.718618%2C-73.988136&destination=40.7084297%2C-74.0056635&travelmode=walking"
   },
   {
     "calendar_block_id": "TW-20260602-SLEEP",
@@ -168,12 +168,12 @@
     "status": "registered",
     "category": "sleep",
     "title": "Sleep: 8 hours",
-    "location": "FiDi home base",
+    "location": "15 Cliff Street, New York, NY 10038",
     "start": "2026-06-02 02:43",
     "end": "2026-06-02 10:43",
-    "notes": "TechWeekID: \nCalendarBlockID: TW-20260602-SLEEP\nRerankID: \nPartifulID: \nStaggered late sleep block; wake leaves 30 minutes before the first travel block.\nRSVP status: registered\nCategory: sleep\nVenue basis: FiDi home base (sleep_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: ",
+    "notes": "TechWeekID: \nCalendarBlockID: TW-20260602-SLEEP\nRerankID: \nPartifulID: \nStaggered late sleep block; wake leaves 30 minutes before the first travel block.\nRSVP status: registered\nCategory: sleep\nVenue basis: 15 Cliff Street, New York, NY 10038 (sleep_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/score:  /  / \nURL: ",
     "url": "",
-    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY"
+    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038"
   },
   {
     "calendar_block_id": "TW-4551-TRAVEL-IN",
@@ -183,13 +183,13 @@
     "entry_type": "travel",
     "status": "registered",
     "category": "travel",
-    "title": "Travel: FiDi home base -> How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing",
-    "location": "FiDi home base -> New York, NY",
-    "start": "2026-06-02 11:13",
+    "title": "Travel: 15 Cliff Street, New York, NY 10038 -> How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing",
+    "location": "15 Cliff Street, New York, NY 10038 -> New York, NY",
+    "start": "2026-06-02 11:12",
     "end": "2026-06-02 12:00",
-    "notes": "TechWeekID: TW-4551\nCalendarBlockID: TW-4551-TRAVEL-IN\nRerankID: \nPartifulID: M7pXmV8sOXT11yHb9pKw\nWalk 0 min to Wall St (2/3); subway 40 min; walk 2 min from 42 St-Bryant Pk (B/D/F/M); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: FiDi home base -> New York, NY ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.753751%2C-73.983543\nRank/tier/score:  /  / \nURL: https://partiful.com/e/M7pXmV8sOXT11yHb9pKw",
+    "notes": "TechWeekID: TW-4551\nCalendarBlockID: TW-4551-TRAVEL-IN\nRerankID: \nPartifulID: M7pXmV8sOXT11yHb9pKw\nWalk 3 min to Fulton St (2/3); subway 38 min; walk 2 min from 42 St-Bryant Pk (B/D/F/M); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: 15 Cliff Street, New York, NY 10038 -> New York, NY ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.753751%2C-73.983543\nRank/tier/score:  /  / \nURL: https://partiful.com/e/M7pXmV8sOXT11yHb9pKw",
     "url": "https://partiful.com/e/M7pXmV8sOXT11yHb9pKw",
-    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.753751%2C-73.983543"
+    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.753751%2C-73.983543"
   },
   {
     "calendar_block_id": "TW-4551-SCHEDULE",
@@ -295,13 +295,13 @@
     "entry_type": "travel",
     "status": "registered",
     "category": "travel",
-    "title": "Travel: Future of DevEx -> FiDi home base",
-    "location": "Future of DevEx -> FiDi home base",
+    "title": "Travel: Future of DevEx -> 15 Cliff Street, New York, NY 10038",
+    "location": "Future of DevEx -> 15 Cliff Street, New York, NY 10038",
     "start": "2026-06-02 22:00",
-    "end": "2026-06-02 22:20",
-    "notes": "TechWeekID: TW-4161\nCalendarBlockID: TW-20260602-TRAVEL-HOME\nRerankID: \nPartifulID: 7DYGSiY1WUuRSvEnD5gp\nWalk 0 min to Prince St (N/Q/R/W); subway 15 min; walk 0 min from Wall St (2/3); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Future of DevEx -> FiDi home base ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.724329%2C-73.997702&destination=40.706821%2C-74.0091\nRank/tier/score:  /  / \nURL: https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9",
+    "end": "2026-06-02 22:21",
+    "notes": "TechWeekID: TW-4161\nCalendarBlockID: TW-20260602-TRAVEL-HOME\nRerankID: \nPartifulID: 7DYGSiY1WUuRSvEnD5gp\nWalk 0 min to Prince St (N/Q/R/W); subway 13 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Future of DevEx -> 15 Cliff Street, New York, NY 10038 ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.724329%2C-73.997702&destination=40.7084297%2C-74.0056635\nRank/tier/score:  /  / \nURL: https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9",
     "url": "https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9",
-    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.724329%2C-73.997702&destination=40.706821%2C-74.0091"
+    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.724329%2C-73.997702&destination=40.7084297%2C-74.0056635"
   },
   {
     "calendar_block_id": "TW-20260603-SLEEP",
@@ -312,12 +312,12 @@
     "status": "registered",
     "category": "sleep",
     "title": "Sleep: 8 hours",
-    "location": "FiDi home base",
+    "location": "15 Cliff Street, New York, NY 10038",
     "start": "2026-06-03 02:45",
     "end": "2026-06-03 10:45",
-    "notes": "TechWeekID: \nCalendarBlockID: TW-20260603-SLEEP\nRerankID: \nPartifulID: \nStaggered late sleep block; wake lands on the quick breakfast/lunch block.\nRSVP status: registered\nCategory: sleep\nVenue basis: FiDi home base (sleep_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: ",
+    "notes": "TechWeekID: \nCalendarBlockID: TW-20260603-SLEEP\nRerankID: \nPartifulID: \nStaggered late sleep block; wake lands on the quick breakfast/lunch block.\nRSVP status: registered\nCategory: sleep\nVenue basis: 15 Cliff Street, New York, NY 10038 (sleep_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/score:  /  / \nURL: ",
     "url": "",
-    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY"
+    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038"
   },
   {
     "calendar_block_id": "TW-20260603-MEAL-LUNCH",
@@ -328,12 +328,12 @@
     "status": "registered",
     "category": "meal",
     "title": "Meal: Quick breakfast / lunch before dense Wednesday",
-    "location": "FiDi home base",
+    "location": "15 Cliff Street, New York, NY 10038",
     "start": "2026-06-03 10:45",
     "end": "2026-06-03 11:15",
-    "notes": "TechWeekID: \nCalendarBlockID: TW-20260603-MEAL-LUNCH\nRerankID: \nPartifulID: \nHectic-day 30-minute food buffer before the midday run starts.\nRSVP status: registered\nCategory: meal\nVenue basis: FiDi home base (meal_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: ",
+    "notes": "TechWeekID: \nCalendarBlockID: TW-20260603-MEAL-LUNCH\nRerankID: \nPartifulID: \nHectic-day 30-minute food buffer before the midday run starts.\nRSVP status: registered\nCategory: meal\nVenue basis: 15 Cliff Street, New York, NY 10038 (meal_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/score:  /  / \nURL: ",
     "url": "",
-    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY"
+    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038"
   },
   {
     "calendar_block_id": "TW-5889-TRAVEL-IN",
@@ -343,13 +343,13 @@
     "entry_type": "travel",
     "status": "registered",
     "category": "travel",
-    "title": "Travel: FiDi home base -> Building secure AI for your data: DeepFellow Demo + Q&A",
-    "location": "FiDi home base -> Chelsea",
-    "start": "2026-06-03 11:29",
+    "title": "Travel: 15 Cliff Street, New York, NY 10038 -> Building secure AI for your data: DeepFellow Demo + Q&A",
+    "location": "15 Cliff Street, New York, NY 10038 -> Chelsea",
+    "start": "2026-06-03 11:28",
     "end": "2026-06-03 12:00",
-    "notes": "TechWeekID: TW-5889\nCalendarBlockID: TW-5889-TRAVEL-IN\nRerankID: \nPartifulID: 4HvzWY1VZlHgK21fMBUz\nWalk 0 min to Wall St (2/3); subway 22 min; walk 4 min from 23 St (A/C/E); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: FiDi home base -> Chelsea ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.744081%2C-73.999562\nRank/tier/score:  /  / \nURL: https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN",
+    "notes": "TechWeekID: TW-5889\nCalendarBlockID: TW-5889-TRAVEL-IN\nRerankID: \nPartifulID: 4HvzWY1VZlHgK21fMBUz\nWalk 3 min to Fulton St (2/3); subway 20 min; walk 4 min from 23 St (A/C/E); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: 15 Cliff Street, New York, NY 10038 -> Chelsea ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.744081%2C-73.999562\nRank/tier/score:  /  / \nURL: https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN",
     "url": "https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN",
-    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.744081%2C-73.999562"
+    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.744081%2C-73.999562"
   },
   {
     "calendar_block_id": "TW-5889-SCHEDULE",
@@ -503,13 +503,13 @@
     "entry_type": "travel",
     "status": "registered",
     "category": "travel",
-    "title": "Travel: MCP in the Wild: Panel & Night of Networking -> FiDi home base",
-    "location": "MCP in the Wild: Panel & Night of Networking -> FiDi home base",
+    "title": "Travel: MCP in the Wild: Panel & Night of Networking -> 15 Cliff Street, New York, NY 10038",
+    "location": "MCP in the Wild: Panel & Night of Networking -> 15 Cliff Street, New York, NY 10038",
     "start": "2026-06-03 21:30",
-    "end": "2026-06-03 21:50",
-    "notes": "TechWeekID: TW-4664\nCalendarBlockID: TW-20260603-TRAVEL-HOME\nRerankID: \nPartifulID: 6ZuudQBBZXcMNjdMynJ2\nWalk 1 min to Astor Pl (4/6); subway 14 min; walk 0 min from Wall St (2/3); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: MCP in the Wild: Panel & Night of Networking -> FiDi home base ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.72985%2C-73.99139&destination=40.706821%2C-74.0091\nRank/tier/score:  /  / \nURL: https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2",
+    "end": "2026-06-03 21:51",
+    "notes": "TechWeekID: TW-4664\nCalendarBlockID: TW-20260603-TRAVEL-HOME\nRerankID: \nPartifulID: 6ZuudQBBZXcMNjdMynJ2\nWalk 1 min to Astor Pl (4/6); subway 12 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: MCP in the Wild: Panel & Night of Networking -> 15 Cliff Street, New York, NY 10038 ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.72985%2C-73.99139&destination=40.7084297%2C-74.0056635\nRank/tier/score:  /  / \nURL: https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2",
     "url": "https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2",
-    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.72985%2C-73.99139&destination=40.706821%2C-74.0091"
+    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.72985%2C-73.99139&destination=40.7084297%2C-74.0056635"
   },
   {
     "calendar_block_id": "TW-20260604-SLEEP",
@@ -520,12 +520,12 @@
     "status": "registered",
     "category": "sleep",
     "title": "Sleep: 8 hours",
-    "location": "FiDi home base",
+    "location": "15 Cliff Street, New York, NY 10038",
     "start": "2026-06-04 03:15",
     "end": "2026-06-04 11:15",
-    "notes": "TechWeekID: \nCalendarBlockID: TW-20260604-SLEEP\nRerankID: \nPartifulID: \nStaggered late sleep block; night-to-night bedtime shift stays within 30 minutes.\nRSVP status: registered\nCategory: sleep\nVenue basis: FiDi home base (sleep_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: ",
+    "notes": "TechWeekID: \nCalendarBlockID: TW-20260604-SLEEP\nRerankID: \nPartifulID: \nStaggered late sleep block; night-to-night bedtime shift stays within 30 minutes.\nRSVP status: registered\nCategory: sleep\nVenue basis: 15 Cliff Street, New York, NY 10038 (sleep_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/score:  /  / \nURL: ",
     "url": "",
-    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY"
+    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038"
   },
   {
     "calendar_block_id": "TW-20260604-MEAL-LUNCH",
@@ -536,12 +536,12 @@
     "status": "registered",
     "category": "meal",
     "title": "Meal: Late lunch / reset",
-    "location": "FiDi home base",
+    "location": "15 Cliff Street, New York, NY 10038",
     "start": "2026-06-04 14:30",
     "end": "2026-06-04 15:30",
-    "notes": "TechWeekID: \nCalendarBlockID: TW-20260604-MEAL-LUNCH\nRerankID: \nPartifulID: \nOne-hour meal buffer before leaving for the Thursday route.\nRSVP status: registered\nCategory: meal\nVenue basis: FiDi home base (meal_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: ",
+    "notes": "TechWeekID: \nCalendarBlockID: TW-20260604-MEAL-LUNCH\nRerankID: \nPartifulID: \nOne-hour meal buffer before leaving for the Thursday route.\nRSVP status: registered\nCategory: meal\nVenue basis: 15 Cliff Street, New York, NY 10038 (meal_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/score:  /  / \nURL: ",
     "url": "",
-    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY"
+    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038"
   },
   {
     "calendar_block_id": "TW-5372-TRAVEL-IN",
@@ -551,13 +551,13 @@
     "entry_type": "travel",
     "status": "registered",
     "category": "travel",
-    "title": "Travel: FiDi home base -> Shipping Faster with AI Coding Agents: What's Working and What's Not",
-    "location": "FiDi home base -> New York, NY",
-    "start": "2026-06-04 15:36",
+    "title": "Travel: 15 Cliff Street, New York, NY 10038 -> Shipping Faster with AI Coding Agents: What's Working and What's Not",
+    "location": "15 Cliff Street, New York, NY 10038 -> New York, NY",
+    "start": "2026-06-04 15:35",
     "end": "2026-06-04 16:00",
-    "notes": "TechWeekID: TW-5372\nCalendarBlockID: TW-5372-TRAVEL-IN\nRerankID: \nPartifulID: 5K5c4eODrGPKME7or20H\nWalk 0 min to Wall St (2/3); subway 19 min; walk 0 min from Prince St (N/Q/R/W); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: FiDi home base -> New York, NY ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.724329%2C-73.997702\nRank/tier/score:  /  / \nURL: https://partiful.com/e/5K5c4eODrGPKME7or20H",
+    "notes": "TechWeekID: TW-5372\nCalendarBlockID: TW-5372-TRAVEL-IN\nRerankID: \nPartifulID: 5K5c4eODrGPKME7or20H\nWalk 3 min to Fulton St (2/3); subway 17 min; walk 0 min from Prince St (N/Q/R/W); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: 15 Cliff Street, New York, NY 10038 -> New York, NY ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.724329%2C-73.997702\nRank/tier/score:  /  / \nURL: https://partiful.com/e/5K5c4eODrGPKME7or20H",
     "url": "https://partiful.com/e/5K5c4eODrGPKME7or20H",
-    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.724329%2C-73.997702"
+    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.724329%2C-73.997702"
   },
   {
     "calendar_block_id": "TW-5372-SCHEDULE",
@@ -631,13 +631,13 @@
     "entry_type": "travel",
     "status": "registered",
     "category": "travel",
-    "title": "Travel: Stop Making AI Guess: When Your Codebase Becomes the Spec -> FiDi home base",
-    "location": "Stop Making AI Guess: When Your Codebase Becomes the Spec -> FiDi home base",
+    "title": "Travel: Stop Making AI Guess: When Your Codebase Becomes the Spec -> 15 Cliff Street, New York, NY 10038",
+    "location": "Stop Making AI Guess: When Your Codebase Becomes the Spec -> 15 Cliff Street, New York, NY 10038",
     "start": "2026-06-04 21:45",
-    "end": "2026-06-04 22:03",
-    "notes": "TechWeekID: TW-5114\nCalendarBlockID: TW-20260604-TRAVEL-HOME\nRerankID: \nPartifulID: X0u5GrmzvIUTrjoAOgVm\nWalk 0 min to 14 St-Union Sq (N/Q/R/W); subway 13 min; walk 0 min from Wall St (2/3); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Stop Making AI Guess: When Your Codebase Becomes the Spec -> FiDi home base ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.735736%2C-73.990568&destination=40.706821%2C-74.0091\nRank/tier/score:  /  / \nURL: https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm",
+    "end": "2026-06-04 22:04",
+    "notes": "TechWeekID: TW-5114\nCalendarBlockID: TW-20260604-TRAVEL-HOME\nRerankID: \nPartifulID: X0u5GrmzvIUTrjoAOgVm\nWalk 0 min to 14 St-Union Sq (N/Q/R/W); subway 11 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Stop Making AI Guess: When Your Codebase Becomes the Spec -> 15 Cliff Street, New York, NY 10038 ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.735736%2C-73.990568&destination=40.7084297%2C-74.0056635\nRank/tier/score:  /  / \nURL: https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm",
     "url": "https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm",
-    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.735736%2C-73.990568&destination=40.706821%2C-74.0091"
+    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.735736%2C-73.990568&destination=40.7084297%2C-74.0056635"
   },
   {
     "calendar_block_id": "TW-20260605-SLEEP",
@@ -648,12 +648,12 @@
     "status": "registered",
     "category": "sleep",
     "title": "Sleep: 8 hours",
-    "location": "FiDi home base",
+    "location": "15 Cliff Street, New York, NY 10038",
     "start": "2026-06-05 03:45",
     "end": "2026-06-05 11:45",
-    "notes": "TechWeekID: \nCalendarBlockID: TW-20260605-SLEEP\nRerankID: \nPartifulID: \nStaggered late sleep block; night-to-night bedtime shift stays within 30 minutes.\nRSVP status: registered\nCategory: sleep\nVenue basis: FiDi home base (sleep_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: ",
+    "notes": "TechWeekID: \nCalendarBlockID: TW-20260605-SLEEP\nRerankID: \nPartifulID: \nStaggered late sleep block; night-to-night bedtime shift stays within 30 minutes.\nRSVP status: registered\nCategory: sleep\nVenue basis: 15 Cliff Street, New York, NY 10038 (sleep_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/score:  /  / \nURL: ",
     "url": "",
-    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY"
+    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038"
   },
   {
     "calendar_block_id": "TW-20260605-MEAL-DINNER",
@@ -664,12 +664,12 @@
     "status": "registered",
     "category": "meal",
     "title": "Meal: Early dinner before Bare Metal",
-    "location": "FiDi home base",
+    "location": "15 Cliff Street, New York, NY 10038",
     "start": "2026-06-05 15:10",
     "end": "2026-06-05 16:10",
-    "notes": "TechWeekID: \nCalendarBlockID: TW-20260605-MEAL-DINNER\nRerankID: \nPartifulID: \nOne-hour food buffer before the Friday evening event.\nRSVP status: registered\nCategory: meal\nVenue basis: FiDi home base (meal_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: ",
+    "notes": "TechWeekID: \nCalendarBlockID: TW-20260605-MEAL-DINNER\nRerankID: \nPartifulID: \nOne-hour food buffer before the Friday evening event.\nRSVP status: registered\nCategory: meal\nVenue basis: 15 Cliff Street, New York, NY 10038 (meal_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/score:  /  / \nURL: ",
     "url": "",
-    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY"
+    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038"
   },
   {
     "calendar_block_id": "TW-5722-TRAVEL-IN",
@@ -679,13 +679,13 @@
     "entry_type": "travel",
     "status": "registered",
     "category": "travel",
-    "title": "Travel: FiDi home base -> Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration",
-    "location": "FiDi home base -> Union Square",
-    "start": "2026-06-05 16:22",
+    "title": "Travel: 15 Cliff Street, New York, NY 10038 -> Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration",
+    "location": "15 Cliff Street, New York, NY 10038 -> Union Square",
+    "start": "2026-06-05 16:21",
     "end": "2026-06-05 17:00",
-    "notes": "TechWeekID: TW-5722\nCalendarBlockID: TW-5722-TRAVEL-IN\nRerankID: \nPartifulID: jkjGahQgmH9PLIxjfTFt\nWalk 0 min to Wall St (2/3); subway 29 min; walk 4 min from 14 St-Union Sq (N/Q/R/W); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: FiDi home base -> Union Square ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.7365763%2C-73.9885429\nRank/tier/score:  /  / \nURL: https://partiful.com/e/jkjGahQgmH9PLIxjfTFt",
+    "notes": "TechWeekID: TW-5722\nCalendarBlockID: TW-5722-TRAVEL-IN\nRerankID: \nPartifulID: jkjGahQgmH9PLIxjfTFt\nWalk 3 min to Fulton St (2/3); subway 27 min; walk 4 min from 14 St-Union Sq (N/Q/R/W); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: 15 Cliff Street, New York, NY 10038 -> Union Square ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7365763%2C-73.9885429\nRank/tier/score:  /  / \nURL: https://partiful.com/e/jkjGahQgmH9PLIxjfTFt",
     "url": "https://partiful.com/e/jkjGahQgmH9PLIxjfTFt",
-    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.706821%2C-74.0091&destination=40.7365763%2C-73.9885429"
+    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7365763%2C-73.9885429"
   },
   {
     "calendar_block_id": "TW-5722-SCHEDULE",
@@ -711,13 +711,13 @@
     "entry_type": "travel",
     "status": "registered",
     "category": "travel",
-    "title": "Travel: Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> FiDi home base",
-    "location": "Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> FiDi home base",
+    "title": "Travel: Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> 15 Cliff Street, New York, NY 10038",
+    "location": "Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> 15 Cliff Street, New York, NY 10038",
     "start": "2026-06-05 20:00",
-    "end": "2026-06-05 20:22",
-    "notes": "TechWeekID: TW-5722\nCalendarBlockID: TW-20260605-TRAVEL-HOME\nRerankID: \nPartifulID: jkjGahQgmH9PLIxjfTFt\nWalk 4 min to 14 St-Union Sq (N/Q/R/W); subway 13 min; walk 0 min from Wall St (2/3); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> FiDi home base ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.7365763%2C-73.9885429&destination=40.706821%2C-74.0091\nRank/tier/score:  /  / \nURL: https://partiful.com/e/jkjGahQgmH9PLIxjfTFt",
+    "end": "2026-06-05 20:23",
+    "notes": "TechWeekID: TW-5722\nCalendarBlockID: TW-20260605-TRAVEL-HOME\nRerankID: \nPartifulID: jkjGahQgmH9PLIxjfTFt\nWalk 4 min to 14 St-Union Sq (N/Q/R/W); subway 11 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> 15 Cliff Street, New York, NY 10038 ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.7365763%2C-73.9885429&destination=40.7084297%2C-74.0056635\nRank/tier/score:  /  / \nURL: https://partiful.com/e/jkjGahQgmH9PLIxjfTFt",
     "url": "https://partiful.com/e/jkjGahQgmH9PLIxjfTFt",
-    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.7365763%2C-73.9885429&destination=40.706821%2C-74.0091"
+    "google_maps_url": "https://www.google.com/maps/dir/?api=1&origin=40.7365763%2C-73.9885429&destination=40.7084297%2C-74.0056635"
   },
   {
     "calendar_block_id": "TW-20260606-SLEEP",
@@ -728,11 +728,11 @@
     "status": "registered",
     "category": "sleep",
     "title": "Sleep: 8 hours",
-    "location": "FiDi home base",
+    "location": "15 Cliff Street, New York, NY 10038",
     "start": "2026-06-06 04:15",
     "end": "2026-06-06 12:15",
-    "notes": "TechWeekID: \nCalendarBlockID: TW-20260606-SLEEP\nRerankID: \nPartifulID: \nStaggered late sleep block after the final Tech Week route day.\nRSVP status: registered\nCategory: sleep\nVenue basis: FiDi home base (sleep_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: ",
+    "notes": "TechWeekID: \nCalendarBlockID: TW-20260606-SLEEP\nRerankID: \nPartifulID: \nStaggered late sleep block after the final Tech Week route day.\nRSVP status: registered\nCategory: sleep\nVenue basis: 15 Cliff Street, New York, NY 10038 (sleep_buffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/score:  /  / \nURL: ",
     "url": "",
-    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY"
+    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038"
   }
 ]

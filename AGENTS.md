@@ -210,7 +210,7 @@ Approval email monitoring:
 - If local mail sync remains stale, use Gmail directly from the phone/web and search: `to:techweek2026@pavlovcik.com after:2026/5/9 (partiful OR "Tech Week" OR NYTechWeek) (approved OR accepted OR confirmed OR "you're in" OR waitlist)`.
 
 Transit assumptions:
-- Home anchor is FiDi / Wall St station.
+- Home anchor is 15 Cliff Street, New York, NY 10038.
 - Exact venue addresses are preferred from RSVP status or cached Partiful event pages.
 - Hidden venues use neighborhood centroids until hosts reveal exact addresses.
 - Routing uses local OSM/Nominatim geocoding, local walking estimates, and SubwayInfo.nyc station-trip estimates.
