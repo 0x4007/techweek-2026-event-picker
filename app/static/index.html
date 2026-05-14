@@ -6,7 +6,8 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     >
-    <meta name="theme-color" content="#f5f3ee">
+    <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#111112" media="(prefers-color-scheme: dark)">
     <title>Tech Week Route</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
@@ -24,6 +25,10 @@
       </symbol>
       <symbol id="icon-message" viewBox="0 0 24 24">
         <path d="M21 12a7 7 0 0 1-7 7H8l-5 3 2-5a7 7 0 1 1 16-5Z" />
+      </symbol>
+      <symbol id="icon-terminal" viewBox="0 0 24 24">
+        <path d="m4 7 5 5-5 5" />
+        <path d="M12 17h8" />
       </symbol>
       <symbol id="icon-user-plus" viewBox="0 0 24 24">
         <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
@@ -68,6 +73,12 @@
       <symbol id="icon-clock" viewBox="0 0 24 24">
         <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
         <path d="M12 7v5l3 2" />
+      </symbol>
+      <symbol id="icon-refresh" viewBox="0 0 24 24">
+        <path d="M20 12a8 8 0 0 1-13.7 5.7L4 15" />
+        <path d="M4 19v-4h4" />
+        <path d="M4 12A8 8 0 0 1 17.7 6.3L20 9" />
+        <path d="M20 5v4h-4" />
       </symbol>
       <symbol id="icon-slash" viewBox="0 0 24 24">
         <path d="M4 4l16 16" />
@@ -129,7 +140,14 @@
             <a href="/api/ics/operational">
               <svg><use href="#icon-download"></use></svg><span>ICS</span>
             </a>
+            <button type="button" data-agenda-recalculate>
+              <svg><use href="#icon-refresh"></use></svg><span>Recalc</span>
+            </button>
+            <button type="button" data-partiful-sync>
+              <svg><use href="#icon-refresh"></use></svg><span>Sync</span>
+            </button>
           </menu>
+          <p data-agenda-status></p>
         </article>
 
         <section aria-label="Day picker" data-day-tabs></section>
@@ -229,6 +247,16 @@
     <button type="button" data-chat-fab data-chat-open>
       <svg><use href="#icon-message"></use></svg><span>Ask</span>
     </button>
+    <button
+      type="button"
+      aria-label="Open development chat"
+      data-dev-chat-fab
+      data-chat-fab-side="left"
+      data-dev-chat-open
+      hidden
+    >
+      <svg><use href="#icon-terminal"></use></svg><span>Dev</span>
+    </button>
 
     <div data-event-backdrop hidden></div>
     <aside data-event-modal role="dialog" aria-modal="true" aria-label="Block details" hidden>
@@ -260,7 +288,7 @@
       <section data-agent-header>
         <section>
           <p>Agent</p>
-          <h2>Route assistant</h2>
+          <h2>Executive assistant</h2>
         </section>
         <menu data-agent-tools>
           <button type="button" aria-label="New chat" data-chat-new data-icon-only>
@@ -310,6 +338,76 @@
           <button type="submit" aria-label="Send message" data-icon-only disabled>
             <svg><use href="#icon-send"></use></svg>
           </button>
+        </form>
+      </section>
+    </aside>
+
+    <div data-agent-backdrop data-agent-side="left" data-dev-agent-backdrop hidden></div>
+    <aside
+      data-agent-drawer
+      data-agent-side="left"
+      data-dev-agent-drawer
+      data-agent-api="http://localhost:18080"
+      data-repo-id="techweek-2026-event-picker"
+      data-repo-label="techweek-2026-event-picker"
+      data-deploy="true"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Development agent"
+      hidden
+    >
+      <section data-agent-header>
+        <button
+          type="button"
+          aria-label="Back to development threads"
+          data-dev-chat-back
+          data-icon-only
+          hidden
+        >
+          <svg><use href="#icon-layers"></use></svg>
+        </button>
+        <section>
+          <p data-dev-chat-kicker>Development</p>
+          <h2 data-dev-chat-title>Threads</h2>
+          <small data-dev-chat-subtitle></small>
+        </section>
+        <menu data-agent-tools>
+          <button type="button" aria-label="New development chat" data-dev-chat-new data-icon-only>
+            <svg><use href="#icon-plus"></use></svg>
+          </button>
+          <button
+            type="button"
+            aria-label="Close development agent"
+            data-dev-chat-close
+            data-icon-only
+          >
+            <svg><use href="#icon-x"></use></svg>
+          </button>
+        </menu>
+      </section>
+      <section data-dev-chat-log data-empty="true" aria-live="polite">
+        <section data-message="assistant" data-empty-message>
+          <div data-message-content>
+            <p>Development agent ready.</p>
+          </div>
+        </section>
+      </section>
+      <section data-agent-composer>
+        <label data-dev-deploy-control hidden>
+          <input type="checkbox" data-dev-deploy>
+          <span>Auto deploy</span>
+        </label>
+        <form data-dev-chat-form>
+          <textarea
+            name="prompt"
+            rows="2"
+            autocomplete="off"
+            placeholder="Message development agent"
+          ></textarea>
+          <button type="submit" aria-label="Send development message" data-icon-only disabled>
+            <svg><use href="#icon-send"></use></svg>
+          </button>
+          <p data-dev-composer-error hidden></p>
         </form>
       </section>
     </aside>

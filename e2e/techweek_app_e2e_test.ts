@@ -58,6 +58,25 @@ async function withIphonePage(test: (page: Page) => Promise<void>) {
   }
 }
 
+async function withDesktopPage(test: (page: Page) => Promise<void>) {
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--no-sandbox"],
+  });
+  const context = await browser.newContext({
+    viewport: { width: 1040, height: 760 },
+    deviceScaleFactor: 1,
+    locale: "en-US",
+  });
+  const page = await context.newPage();
+  try {
+    await test(page);
+  } finally {
+    await context.close();
+    await browser.close();
+  }
+}
+
 async function withEnv(
   values: Record<string, string | null>,
   test: () => Promise<void>,
@@ -99,6 +118,19 @@ async function collectConsoleLogs(test: (logs: string[]) => Promise<void>) {
   }
 }
 
+async function waitForTestCondition(
+  condition: () => boolean,
+  message: string,
+  timeoutMs = 2500,
+) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (condition()) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(message);
+}
+
 async function withMockGateway(
   draft: JsonRecord,
   test: (gatewayBodies: JsonRecord[]) => Promise<void>,
@@ -127,9 +159,14 @@ async function withMockGatewayReplies(
       if (!headers.has("content-type") && typeof reply.body !== "string") {
         headers.set("content-type", "application/json");
       }
+      const responseBody = reply.body instanceof ReadableStream
+        ? reply.body
+        : typeof reply.body === "string"
+        ? reply.body
+        : JSON.stringify(reply.body);
       return Promise.resolve(
         new Response(
-          typeof reply.body === "string" ? reply.body : JSON.stringify(reply.body),
+          responseBody,
           { status: reply.status ?? 200, headers },
         ),
       );
@@ -157,6 +194,43 @@ function gatewaySuccessBody(draft: JsonRecord): JsonRecord {
     ],
     usage: null,
   };
+}
+
+function gatewayStreamingStream(text: string, delayMs = 6): ReadableStream<Uint8Array> {
+  return gatewayStreamingEventStream(gatewayStreamingEvents(text), delayMs);
+}
+
+function gatewayStreamingEventStream(
+  events: string[],
+  delayMs = 6,
+  onEmit?: (index: number) => void,
+): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  let index = 0;
+  return new ReadableStream({
+    async pull(controller) {
+      if (index >= events.length) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(encoder.encode(events[index]));
+      onEmit?.(index);
+      index += 1;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    },
+  });
+}
+
+function gatewayStreamingEvents(text: string): string[] {
+  const deltas = text
+    .split(/(\n\n)/)
+    .filter(Boolean)
+    .map((chunk) => `data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`);
+  return [...deltas, "data: [DONE]\n\n"];
+}
+
+function gatewayDeltaEvent(text: string): string {
+  return `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`;
 }
 
 async function writeFakeBusinessCardImage(card: FakeCard): Promise<string> {
@@ -287,6 +361,113 @@ async function assertNoHorizontalOverflow(page: Page) {
   );
 }
 
+type DevAgentMockRequest = {
+  body: JsonRecord;
+  method: string;
+  url: URL;
+};
+
+type DevAgentMockResponse = {
+  body?: unknown;
+  headers?: Record<string, string>;
+  status?: number;
+};
+
+async function routeDevAgentApi(
+  page: Page,
+  baseUrl: string,
+  handler: (request: DevAgentMockRequest) => DevAgentMockResponse | Promise<DevAgentMockResponse>,
+) {
+  const origin = new URL(baseUrl).origin;
+  const corsHeaders = {
+    "access-control-allow-credentials": "true",
+    "access-control-allow-headers": "content-type, accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": origin,
+    vary: "Origin",
+  };
+  await page.route("http://localhost:18080/**", async (route) => {
+    const request = route.request();
+    if (request.method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: corsHeaders, body: "" });
+      return;
+    }
+
+    const rawBody = request.postData() || "";
+    let body: JsonRecord = {};
+    if (rawBody) {
+      try {
+        body = JSON.parse(rawBody) as JsonRecord;
+      } catch {
+        body = {};
+      }
+    }
+
+    const response = await handler({
+      body,
+      method: request.method(),
+      url: new URL(request.url()),
+    });
+    const responseBody = typeof response.body === "string"
+      ? response.body
+      : JSON.stringify(response.body ?? {});
+    await route.fulfill({
+      status: response.status ?? 200,
+      headers: {
+        ...corsHeaders,
+        "content-type": typeof response.body === "string" ? "text/plain" : "application/json",
+        ...(response.headers || {}),
+      },
+      body: responseBody,
+    });
+  });
+}
+
+async function installDevAgentEventSourceMock(page: Page, events: JsonRecord[]) {
+  await page.addInitScript((streamEvents) => {
+    type SourceRecord = { closed: boolean; url: string; withCredentials: boolean };
+    const win = globalThis as unknown as {
+      EventSource: unknown;
+      __devEventSources: SourceRecord[];
+    };
+    win.__devEventSources = [];
+    class MockEventSource extends EventTarget {
+      onerror: ((event: Event) => void) | null = null;
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      onopen: ((event: Event) => void) | null = null;
+      record: SourceRecord;
+
+      constructor(url: string, options?: { withCredentials?: boolean }) {
+        super();
+        this.record = {
+          closed: false,
+          url: String(url),
+          withCredentials: Boolean(options?.withCredentials),
+        };
+        win.__devEventSources.push(this.record);
+        setTimeout(() => {
+          const open = new Event("open");
+          this.onopen?.(open);
+          this.dispatchEvent(open);
+          for (const event of streamEvents as JsonRecord[]) {
+            const type = String(event.type || "message");
+            const message = new MessageEvent(type, {
+              data: JSON.stringify(event),
+            });
+            this.dispatchEvent(message);
+            if (type === "message") this.onmessage?.(message);
+          }
+        }, 20);
+      }
+
+      close() {
+        this.record.closed = true;
+      }
+    }
+    win.EventSource = MockEventSource;
+  }, events);
+}
+
 async function selectedLeadEventText(page: Page): Promise<string> {
   return await page.locator("[data-lead-event] option:checked").textContent() ?? "";
 }
@@ -387,6 +568,92 @@ Deno.test({
         assert(
           !selected.includes("From Vibe Coding"),
           "Expected between-events fallback to avoid jumping to the next event.",
+        );
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "app follows dark system color scheme without a theme toggle",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withIphonePage(async (page) => {
+        await page.emulateMedia({ colorScheme: "dark" });
+        await page.goto(baseUrl);
+        await page.locator("[data-next-card]").waitFor();
+
+        const theme = await page.evaluate(() => {
+          type ElementLike = {
+            textContent?: string | null;
+            getAttribute?(name: string): string | null;
+          };
+          type DocumentLike = {
+            body: ElementLike;
+            documentElement: ElementLike;
+            querySelector(selector: string): ElementLike | null;
+            querySelectorAll(selector: string): ArrayLike<ElementLike>;
+          };
+          const win = globalThis as unknown as {
+            document: DocumentLike;
+            getComputedStyle(element: ElementLike): {
+              backgroundColor: string;
+              colorScheme: string;
+              getPropertyValue(name: string): string;
+            };
+            matchMedia(query: string): { matches: boolean };
+          };
+          const brightness = (value: string) => {
+            const channels = (value.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
+            return channels.length === 3
+              ? (channels[0] * 0.299 + channels[1] * 0.587 + channels[2] * 0.114)
+              : 255;
+          };
+          const root = win.getComputedStyle(win.document.documentElement);
+          const card = win.document.querySelector("[data-next-card]");
+          const darkThemeColorMeta = win.document.querySelector(
+            'meta[name="theme-color"][media="(prefers-color-scheme: dark)"]',
+          );
+          const themeControlLabels = Array.from(win.document.querySelectorAll("button, a"))
+            .map((element) => element.textContent?.trim().toLowerCase() || "")
+            .filter((text) => /\b(dark|light|theme)\b/.test(text));
+
+          return {
+            prefersDark: win.matchMedia("(prefers-color-scheme: dark)").matches,
+            colorScheme: root.colorScheme,
+            rootBackground: root.getPropertyValue("--bg").trim(),
+            bodyBrightness: brightness(win.getComputedStyle(win.document.body).backgroundColor),
+            cardBrightness: card ? brightness(win.getComputedStyle(card).backgroundColor) : 255,
+            darkThemeColor: darkThemeColorMeta?.getAttribute
+              ? darkThemeColorMeta.getAttribute("content")
+              : null,
+            themeControlLabels,
+          };
+        });
+
+        assert(theme.prefersDark, "Expected Playwright to emulate dark system preference.");
+        assert(
+          theme.colorScheme.includes("dark"),
+          `Expected dark color-scheme, got ${theme.colorScheme}`,
+        );
+        assert(
+          theme.rootBackground === "#111112",
+          `Expected dark root background, got ${theme.rootBackground}`,
+        );
+        assert(
+          theme.bodyBrightness < 40,
+          `Expected dark body background, got ${theme.bodyBrightness}`,
+        );
+        assert(
+          theme.cardBrightness < 50,
+          `Expected dark card background, got ${theme.cardBrightness}`,
+        );
+        assert(theme.darkThemeColor === "#111112", "Expected dark browser theme color metadata.");
+        assert(
+          theme.themeControlLabels.length === 0,
+          `Expected no dark-mode UI controls, got ${theme.themeControlLabels.join(", ")}`,
         );
       });
     });
@@ -1119,12 +1386,14 @@ Deno.test({
             await page.waitForFunction(() => {
               const win = globalThis as unknown as {
                 document: {
-                  querySelectorAll(selector: string): ArrayLike<{ textContent?: string | null }>;
+                  querySelectorAll(
+                    selector: string,
+                  ): ArrayLike<{ dataset?: { streaming?: string }; textContent?: string | null }>;
                 };
               };
               return Array.from(win.document.querySelectorAll('[data-message="assistant"]')).some((
                 item,
-              ) => item.textContent?.includes("Service Unavailable"));
+              ) => item.dataset?.streaming === "false" && item.textContent?.trim());
             });
 
             assert(
@@ -1143,6 +1412,298 @@ Deno.test({
             await assertNoHorizontalOverflow(page);
           });
         });
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "development chat opens from a separate left-side launcher and loads Pi threads",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withDesktopPage(async (page) => {
+        await installDevAgentEventSourceMock(page, [
+          {
+            id: 4,
+            type: "agent.message",
+            threadId: "thread-1",
+            repoId: "techweek-2026-event-picker",
+            text: "Streamed update from SSE",
+            createdAt: "2026-05-14T13:04:00Z",
+          },
+        ]);
+        await routeDevAgentApi(page, baseUrl, ({ method, url }) => {
+          if (method === "GET" && url.pathname === "/api/session") {
+            return { body: { authenticated: true, user: { displayName: "Dev" } } };
+          }
+          if (method === "GET" && url.pathname === "/api/threads") {
+            return {
+              body: [
+                {
+                  threadId: "thread-1",
+                  repoId: "techweek-2026-event-picker",
+                  title: "Mobile header polish",
+                  latestText: "Ready to test",
+                  phase: "running",
+                  unread: true,
+                  activeRunIds: ["run-1"],
+                  createdAt: "2026-05-14T13:00:00Z",
+                  updatedAt: "2026-05-14T13:03:00Z",
+                },
+                {
+                  threadId: "thread-other",
+                  repoId: "other-repo",
+                  title: "Other repo thread",
+                  latestText: "Should be filtered out",
+                  phase: "queued",
+                  unread: false,
+                  activeRunIds: [],
+                  createdAt: "2026-05-14T12:00:00Z",
+                  updatedAt: "2026-05-14T12:00:00Z",
+                },
+              ],
+            };
+          }
+          if (method === "GET" && url.pathname === "/api/threads/thread-1") {
+            return {
+              body: {
+                threadId: "thread-1",
+                repoId: "techweek-2026-event-picker",
+                title: "Mobile header polish",
+                latestText: "Ready to test",
+                phase: "running",
+                unread: true,
+                activeRunIds: ["run-1"],
+                createdAt: "2026-05-14T13:00:00Z",
+                updatedAt: "2026-05-14T13:03:00Z",
+                messages: [
+                  {
+                    id: 1,
+                    type: "user.message",
+                    threadId: "thread-1",
+                    text: "Fix the mobile header",
+                    createdAt: "2026-05-14T13:00:00Z",
+                  },
+                  {
+                    id: 2,
+                    type: "agent.message",
+                    threadId: "thread-1",
+                    text: "I tightened the header layout.",
+                    createdAt: "2026-05-14T13:01:00Z",
+                  },
+                  {
+                    id: 3,
+                    type: "command.started",
+                    threadId: "thread-1",
+                    data: { command: "deno task check" },
+                    createdAt: "2026-05-14T13:02:00Z",
+                  },
+                ],
+              },
+            };
+          }
+          return { status: 404, body: { error: { message: "not found" } } };
+        });
+
+        await page.goto(baseUrl);
+
+        const devLauncher = page.locator("[data-dev-chat-open]");
+        await devLauncher.waitFor({ state: "visible" });
+        const routeLauncherBox = await page.locator("[data-chat-open]").boundingBox();
+        const devLauncherBox = await devLauncher.boundingBox();
+        assert(routeLauncherBox, "Expected route chat launcher bounds.");
+        assert(devLauncherBox, "Expected development chat launcher bounds.");
+        assert(
+          devLauncherBox.x < routeLauncherBox.x,
+          `Expected development launcher on the left, got ${
+            JSON.stringify({ devLauncherBox, routeLauncherBox })
+          }`,
+        );
+
+        await devLauncher.click();
+        const drawer = page.locator("[data-dev-agent-drawer]");
+        await drawer.waitFor({ state: "visible" });
+        const drawerBox = await drawer.boundingBox();
+        assert(drawerBox, "Expected development drawer bounds.");
+        assert(
+          drawerBox.x < 4 && drawerBox.width <= 500,
+          `Expected development drawer to sit on the left edge, got ${JSON.stringify(drawerBox)}`,
+        );
+
+        await drawer.locator("[data-dev-thread-row]").filter({
+          hasText: "Mobile header polish",
+        }).waitFor();
+        assert(
+          await drawer.locator("[data-dev-thread-row]").count() === 1,
+          "Expected inbox to filter threads to the embedded repo.",
+        );
+        assert(
+          await drawer.locator("[data-dev-deploy-control]").isVisible(),
+          "Expected auto deploy control to be visible for deploy-enabled apps.",
+        );
+        assert(
+          await drawer.locator("[data-dev-deploy]").isChecked(),
+          "Expected auto deploy to default on.",
+        );
+
+        await drawer.locator("[data-dev-thread-row]").click();
+        await drawer.locator('[data-message="user"]').filter({
+          hasText: "Fix the mobile header",
+        }).waitFor();
+        await drawer.locator('[data-message="assistant"]').filter({
+          hasText: "I tightened the header layout.",
+        }).waitFor();
+        await drawer.locator('[data-message="assistant"]').filter({
+          hasText: "Streamed update from SSE",
+        }).waitFor();
+        assert(
+          await drawer.locator("[data-dev-technical]").getByText("Technical details (1)")
+            .isVisible(),
+          "Expected non-visible events to render in collapsed technical details.",
+        );
+
+        const sources = await page.evaluate(() => {
+          const win = globalThis as unknown as {
+            __devEventSources?: Array<{ url: string; withCredentials: boolean }>;
+          };
+          return win.__devEventSources || [];
+        });
+        assert(sources.length === 1, `Expected one EventSource, got ${JSON.stringify(sources)}`);
+        assert(
+          sources[0].withCredentials,
+          `Expected credentialed EventSource, got ${JSON.stringify(sources)}`,
+        );
+        assert(
+          sources[0].url.includes("/api/threads/thread-1/events") &&
+            sources[0].url.includes("after=3"),
+          `Expected EventSource after cursor from historical events, got ${
+            JSON.stringify(sources)
+          }`,
+        );
+
+        const storedRouteMessages = await page.evaluate(() =>
+          JSON.parse(localStorage.getItem("techweek-chat") || "[]").length
+        );
+        assert(
+          storedRouteMessages === 0,
+          `Expected development chat to avoid route chat storage, got ${storedRouteMessages}`,
+        );
+        await assertNoHorizontalOverflow(page);
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "development chat submits runs with deploy state and preserves failed prompts",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withDesktopPage(async (page) => {
+        await installDevAgentEventSourceMock(page, []);
+        const runBodies: JsonRecord[] = [];
+        let runAttempts = 0;
+        await routeDevAgentApi(page, baseUrl, ({ body, method, url }) => {
+          if (method === "GET" && url.pathname === "/api/session") {
+            return { body: { authenticated: true } };
+          }
+          if (method === "GET" && url.pathname === "/api/threads") {
+            return { body: [] };
+          }
+          if (method === "POST" && url.pathname === "/api/runs") {
+            runAttempts += 1;
+            runBodies.push(body);
+            if (runAttempts === 1) {
+              return {
+                status: 500,
+                body: { error: { message: "Build runner unavailable" } },
+              };
+            }
+            return {
+              status: 202,
+              body: {
+                runId: "run-new",
+                threadId: "thread-new",
+                repoId: "techweek-2026-event-picker",
+                status: "queued",
+                phase: "queued",
+                eventsUrl: "/api/runs/run-new/events",
+                threadEventsUrl: "/api/threads/thread-new/events",
+              },
+            };
+          }
+          if (method === "GET" && url.pathname === "/api/threads/thread-new") {
+            return {
+              body: {
+                threadId: "thread-new",
+                repoId: "techweek-2026-event-picker",
+                title: "Ship this change",
+                latestText: "Queued agent run",
+                phase: "queued",
+                unread: true,
+                activeRunIds: ["run-new"],
+                createdAt: "2026-05-14T13:20:00Z",
+                updatedAt: "2026-05-14T13:20:00Z",
+                messages: [
+                  {
+                    id: 1,
+                    type: "user.message",
+                    threadId: "thread-new",
+                    text: "Ship this change",
+                    createdAt: "2026-05-14T13:20:00Z",
+                  },
+                  {
+                    id: 2,
+                    type: "phase.changed",
+                    threadId: "thread-new",
+                    phase: "queued",
+                    text: "Queued agent run",
+                    createdAt: "2026-05-14T13:20:01Z",
+                  },
+                ],
+              },
+            };
+          }
+          return { status: 404, body: { error: { message: "not found" } } };
+        });
+
+        await page.goto(baseUrl);
+        await page.locator("[data-dev-chat-open]").click();
+        const drawer = page.locator("[data-dev-agent-drawer]");
+        await drawer.getByText("No threads yet.").waitFor();
+
+        const textarea = drawer.locator("form[data-dev-chat-form] textarea");
+        await drawer.locator("[data-dev-deploy]").uncheck();
+        await textarea.fill("Failing prompt");
+        await page.keyboard.press("Enter");
+        await drawer.getByText("Build runner unavailable").waitFor();
+        assert(
+          await textarea.inputValue() === "Failing prompt",
+          "Expected failed prompt submission to keep composer text.",
+        );
+        assert(
+          runBodies[0]?.deploy === false,
+          `Expected unchecked deploy state in failed request, got ${JSON.stringify(runBodies[0])}`,
+        );
+
+        await drawer.locator("[data-dev-deploy]").check();
+        await textarea.fill("Ship this change");
+        await page.keyboard.press("Enter");
+        await drawer.locator('[data-message="user"]').filter({
+          hasText: "Ship this change",
+        }).waitFor();
+        assert(await textarea.inputValue() === "", "Expected successful submission to clear text.");
+        assert(
+          runBodies[1]?.deploy === true &&
+            runBodies[1]?.repoId === "techweek-2026-event-picker" &&
+            runBodies[1]?.title === "Ship this change",
+          `Expected new run request to include repo, title, and deploy state, got ${
+            JSON.stringify(runBodies[1])
+          }`,
+        );
       });
     });
   },
@@ -1242,6 +1803,88 @@ Deno.test({
 });
 
 Deno.test({
+  name: "agent requests do not open a geolocation permission prompt",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withEnv({ UOS_AI_TOKEN: null, OPENAI_API_KEY: null }, async () => {
+      await collectConsoleLogs(async (logs) => {
+        await withApp(async (baseUrl) => {
+          await withIphonePage(async (page) => {
+            await page.addInitScript(() => {
+              const win = globalThis as unknown as { __geoGetCurrentPositionCalls: number };
+              win.__geoGetCurrentPositionCalls = 0;
+
+              const geolocation = {
+                getCurrentPosition() {
+                  win.__geoGetCurrentPositionCalls += 1;
+                },
+              };
+              const permissions = {
+                query: (descriptor: { name?: string }) =>
+                  Promise.resolve({
+                    state: descriptor?.name === "geolocation" ? "prompt" : "denied",
+                  }),
+              };
+
+              for (const target of [navigator, Navigator.prototype]) {
+                try {
+                  Object.defineProperty(target, "geolocation", {
+                    configurable: true,
+                    value: geolocation,
+                  });
+                } catch {
+                  // Browser-owned property; try the next target.
+                }
+                try {
+                  Object.defineProperty(target, "permissions", {
+                    configurable: true,
+                    value: permissions,
+                  });
+                } catch {
+                  // Browser-owned property; try the next target.
+                }
+              }
+            });
+
+            await page.goto(baseUrl);
+            await page.locator("[data-chat-fab]").click();
+            const textarea = page.locator("form[data-chat-form] textarea");
+            await textarea.fill("What should I ask at this event?");
+            const agentResponse = page.waitForResponse((response) =>
+              response.url().endsWith("/api/agent/stream")
+            );
+            await page.keyboard.press("Enter");
+
+            await page.locator('[data-message="user"]').filter({
+              hasText: "What should I ask at this event?",
+            }).waitFor();
+            const response = await agentResponse;
+            assert(
+              response.status() === 503,
+              `Expected missing-token 503, got ${response.status()}`,
+            );
+
+            const calls = await page.evaluate(() =>
+              (globalThis as unknown as { __geoGetCurrentPositionCalls?: number })
+                .__geoGetCurrentPositionCalls ?? 0
+            );
+            assert(calls === 0, "Expected agent context collection not to request geolocation.");
+          });
+        });
+
+        const agentLog = jsonLogs(logs, "agent_context").at(-1);
+        const clientContext = agentLog?.clientContext as JsonRecord | undefined;
+        assert(
+          clientContext?.locationStatus === "permission_prompt_not_requested",
+          `Expected prompt-state location to be skipped, got ${clientContext?.locationStatus}`,
+        );
+      });
+    });
+  },
+});
+
+Deno.test({
   name: "chat history can delete the active chat and return to an empty thread",
   sanitizeOps: false,
   sanitizeResources: false,
@@ -1251,7 +1894,17 @@ Deno.test({
         await withApp(async (baseUrl) => {
           await withIphonePage(async (page) => {
             await page.goto(baseUrl);
-            await page.locator("[data-chat-fab]").click();
+            await page.locator("[data-chat-fab]").click({ force: true });
+            await page.waitForFunction(() => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelector(selector: string): {
+                    hasAttribute(name: string): boolean;
+                  } | null;
+                };
+              };
+              return !win.document.querySelector("[data-agent-drawer]")?.hasAttribute("hidden");
+            });
 
             const textarea = page.locator("form[data-chat-form] textarea");
             await textarea.fill("Save this chat so I can delete it.");
@@ -1297,6 +1950,628 @@ Deno.test({
             assert(afterDelete.currentMessages === 0, "Expected current chat storage to be empty.");
             assert(afterDelete.sessionCount === 0, "Expected chat history storage to be empty.");
             assert(afterDelete.userMessages === 0, "Expected the visible deleted chat to clear.");
+          });
+        });
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "agent streaming paces bursty completed rows on a smoothed cadence",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withEnv({
+        UOS_AI_TOKEN: "e2e-token",
+        OPENAI_API_KEY: null,
+        OPENAI_BASE_URL: `${baseUrl}/mock/v1`,
+        UOS_AI_BASE_URL: null,
+      }, async () => {
+        let emittedEvents = 0;
+        const rowCount = 14;
+        const events = Array.from(
+          { length: rowCount },
+          (_, index) => gatewayDeltaEvent(`- Smoothed row ${index + 1}\n`),
+        );
+        const stream = gatewayStreamingEventStream(
+          [...events, "data: [DONE]\n\n"],
+          1,
+          () => {
+            emittedEvents += 1;
+          },
+        );
+
+        await withMockGatewayReplies([
+          {
+            status: 200,
+            body: stream,
+            headers: { "content-type": "text/event-stream" },
+          },
+        ], async () => {
+          await withIphonePage(async (page) => {
+            await page.goto(baseUrl);
+            await page.locator("[data-chat-fab]").click({ force: true });
+            await page.waitForFunction(() => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelector(selector: string): {
+                    hasAttribute(name: string): boolean;
+                  } | null;
+                };
+              };
+              return !win.document.querySelector("[data-agent-drawer]")?.hasAttribute("hidden");
+            });
+
+            const textarea = page.locator("form[data-chat-form] textarea");
+            await textarea.fill("Give me bursty rows.");
+            await page.keyboard.press("Enter");
+
+            await waitForTestCondition(
+              () => emittedEvents >= rowCount,
+              "Expected the gateway to emit all bursty rows.",
+            );
+            await page.waitForFunction(() => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelector(selector: string): {
+                    querySelectorAll(selector: string): ArrayLike<unknown>;
+                  } | null;
+                };
+              };
+              return (win.document.querySelector('[data-message="assistant"]')
+                ?.querySelectorAll("li[data-stream-row]").length || 0) > 0;
+            });
+            await page.waitForTimeout(80);
+
+            const pacedRows = await page.evaluate(() => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelector(selector: string): {
+                    querySelectorAll(selector: string): ArrayLike<unknown>;
+                  } | null;
+                };
+                getComputedStyle(element: unknown): {
+                  animationDuration: string;
+                  animationName: string;
+                };
+              };
+              const rows = Array.from(
+                win.document.querySelector('[data-message="assistant"]')
+                  ?.querySelectorAll("li[data-stream-row]") || [],
+              );
+              return {
+                animationDuration: rows[0] ? win.getComputedStyle(rows[0]).animationDuration : "",
+                animationName: rows[0] ? win.getComputedStyle(rows[0]).animationName : "",
+                visibleRows: rows.length,
+              };
+            });
+            assert(
+              pacedRows.visibleRows > 0 && pacedRows.visibleRows < rowCount,
+              `Expected bursty rows to be paced instead of all appearing at once, got ${
+                JSON.stringify(pacedRows)
+              }`,
+            );
+            assert(
+              pacedRows.animationName === "stream-row-in" &&
+                pacedRows.animationDuration === "0.44s",
+              `Expected rows to use the slower opacity fade, got ${JSON.stringify(pacedRows)}`,
+            );
+
+            await page.waitForFunction((expectedRows) => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelector(selector: string): {
+                    dataset?: { streaming?: string };
+                    querySelectorAll(selector: string): ArrayLike<unknown>;
+                  } | null;
+                };
+              };
+              const assistant = win.document.querySelector('[data-message="assistant"]');
+              return assistant?.dataset?.streaming === "false" &&
+                assistant.querySelectorAll("li[data-stream-row]").length === expectedRows;
+            }, rowCount);
+          });
+        });
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "agent streaming reveals only completed rows while the active row is still changing",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withEnv({
+        UOS_AI_TOKEN: "e2e-token",
+        OPENAI_API_KEY: null,
+        OPENAI_BASE_URL: `${baseUrl}/mock/v1`,
+        UOS_AI_BASE_URL: null,
+      }, async () => {
+        let emittedEvents = 0;
+        const stream = gatewayStreamingEventStream(
+          [
+            gatewayDeltaEvent("Draft row should stay hidden while it streams"),
+            gatewayDeltaEvent(" and keeps growing"),
+            gatewayDeltaEvent("\nNext row is active now"),
+            gatewayDeltaEvent(" and should stay hidden until it completes"),
+            "data: [DONE]\n\n",
+          ],
+          180,
+          () => {
+            emittedEvents += 1;
+          },
+        );
+
+        await withMockGatewayReplies([
+          {
+            status: 200,
+            body: stream,
+            headers: { "content-type": "text/event-stream" },
+          },
+        ], async () => {
+          await withIphonePage(async (page) => {
+            await page.goto(baseUrl);
+            await page.locator("[data-chat-fab]").click();
+
+            const textarea = page.locator("form[data-chat-form] textarea");
+            await textarea.fill("Give me a two row stream.");
+            await page.keyboard.press("Enter");
+
+            await waitForTestCondition(
+              () => emittedEvents >= 2,
+              "Expected the first active row chunks to be emitted.",
+            );
+            await page.waitForTimeout(40);
+
+            const activeOnlyText = await page.locator('[data-message="assistant"]').textContent();
+            assert(
+              !activeOnlyText?.includes("Draft row should stay hidden"),
+              `Expected the active row to stay hidden, got ${activeOnlyText}`,
+            );
+
+            await waitForTestCondition(
+              () => emittedEvents >= 3,
+              "Expected the second row to start streaming.",
+            );
+            await page.waitForFunction(() => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelectorAll(selector: string): ArrayLike<unknown>;
+                };
+              };
+              return win.document.querySelectorAll("[data-stream-row]").length === 1;
+            });
+
+            const laggedRows = await page.evaluate(() => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelector(selector: string): {
+                    textContent?: string | null;
+                  } | null;
+                  querySelectorAll(selector: string): ArrayLike<unknown>;
+                };
+              };
+              const assistant = win.document.querySelector('[data-message="assistant"]');
+              return {
+                rowCount: win.document.querySelectorAll("[data-stream-row]").length,
+                text: assistant?.textContent || "",
+              };
+            });
+            assert(
+              laggedRows.text.includes("Draft row should stay hidden while it streams"),
+              `Expected the completed first row to be revealed, got ${JSON.stringify(laggedRows)}`,
+            );
+            assert(
+              !laggedRows.text.includes("Next row is active now"),
+              `Expected the active second row to stay hidden, got ${JSON.stringify(laggedRows)}`,
+            );
+
+            await page.locator('[data-message="assistant"]').filter({
+              hasText: "Next row is active now",
+            }).waitFor();
+            await page.waitForFunction(() => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelector(selector: string): { dataset?: { streaming?: string } } | null;
+                };
+              };
+              return win.document.querySelector('[data-message="assistant"]')?.dataset
+                ?.streaming === "false";
+            });
+          });
+        });
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "agent streaming renders completed rows with final markdown before stream end",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withEnv({
+        UOS_AI_TOKEN: "e2e-token",
+        OPENAI_API_KEY: null,
+        OPENAI_BASE_URL: `${baseUrl}/mock/v1`,
+        UOS_AI_BASE_URL: null,
+      }, async () => {
+        let emittedEvents = 0;
+        const stream = gatewayStreamingEventStream(
+          [
+            gatewayDeltaEvent("### Room read\n"),
+            gatewayDeltaEvent("- Meet **CTOs**\n"),
+            gatewayDeltaEvent("- Ask about `reviews`\n"),
+            gatewayDeltaEvent("Final paragraph stays hidden"),
+            gatewayDeltaEvent(" until done"),
+            "data: [DONE]\n\n",
+          ],
+          120,
+          () => {
+            emittedEvents += 1;
+          },
+        );
+
+        await withMockGatewayReplies([
+          {
+            status: 200,
+            body: stream,
+            headers: { "content-type": "text/event-stream" },
+          },
+        ], async () => {
+          await withIphonePage(async (page) => {
+            await page.goto(baseUrl);
+            await page.locator("[data-chat-fab]").click();
+
+            const textarea = page.locator("form[data-chat-form] textarea");
+            await textarea.fill("Give me markdown coaching.");
+            await page.keyboard.press("Enter");
+
+            await waitForTestCondition(
+              () => emittedEvents >= 2,
+              "Expected the first list row to be emitted.",
+            );
+            await page.waitForFunction(() => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelector(selector: string): {
+                    querySelector(selector: string): {
+                      textContent?: string | null;
+                    } | null;
+                    querySelectorAll(selector: string): ArrayLike<unknown>;
+                  } | null;
+                };
+              };
+              const assistant = win.document.querySelector('[data-message="assistant"]');
+              return assistant?.querySelector("h3, h4")?.textContent?.includes("Room read") &&
+                assistant.querySelectorAll("li").length === 1;
+            });
+            const firstListItem = await page.evaluate(() => {
+              type QueryNode = {
+                textContent?: string | null;
+                querySelector(selector: string): QueryNode | null;
+              };
+              const win = globalThis as unknown as {
+                __streamFirstListItem?: unknown;
+                document: { querySelector(selector: string): QueryNode | null };
+                getComputedStyle(element: unknown): { animationName: string };
+              };
+              const firstItem = win.document
+                .querySelector('[data-message="assistant"]')
+                ?.querySelector("li") ?? null;
+              win.__streamFirstListItem = firstItem;
+              return {
+                animation: firstItem ? win.getComputedStyle(firstItem).animationName : "",
+                text: firstItem?.textContent || "",
+              };
+            });
+            assert(
+              firstListItem.animation === "stream-row-in",
+              `Expected the first list row to fade in, got ${JSON.stringify(firstListItem)}`,
+            );
+
+            await waitForTestCondition(
+              () => emittedEvents >= 3,
+              "Expected completed markdown rows to be emitted.",
+            );
+            await page.waitForFunction(() => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelector(selector: string): {
+                    querySelector(selector: string): {
+                      textContent?: string | null;
+                    } | null;
+                    querySelectorAll(selector: string): ArrayLike<unknown>;
+                  } | null;
+                };
+              };
+              const assistant = win.document.querySelector('[data-message="assistant"]');
+              return assistant?.querySelector("h3, h4")?.textContent?.includes("Room read") &&
+                assistant.querySelectorAll("li").length === 2;
+            });
+
+            const streamingMarkdown = await page.evaluate(() => {
+              type QueryNode = {
+                dataset?: { streamingRows?: string };
+                textContent?: string | null;
+                querySelector(selector: string): QueryNode | null;
+                querySelectorAll(selector: string): ArrayLike<unknown>;
+              };
+              const win = globalThis as unknown as {
+                __streamHeading?: unknown;
+                __streamFirstListItem?: unknown;
+                __streamList?: unknown;
+                document: { querySelector(selector: string): QueryNode | null };
+                getComputedStyle(element: unknown): { animationName: string };
+              };
+              const assistant = win.document.querySelector('[data-message="assistant"]');
+              const content = assistant?.querySelector("[data-message-content]");
+              const heading = assistant?.querySelector("h3, h4") ?? null;
+              const list = assistant?.querySelector("ul") ?? null;
+              const listItems = Array.from(assistant?.querySelectorAll("li") || []);
+              win.__streamHeading = heading;
+              win.__streamList = list;
+              return {
+                contentHasStreamingRows: content?.dataset?.streamingRows === "true",
+                heading: heading?.textContent || "",
+                hasStrong: Boolean(assistant?.querySelector("strong")),
+                hasCode: Boolean(assistant?.querySelector("code")),
+                listItemRowCount: assistant?.querySelectorAll("li[data-stream-row]").length || 0,
+                rowCount: assistant?.querySelectorAll("[data-stream-row]").length || 0,
+                sameFirstListItem: win.__streamFirstListItem === listItems[0],
+                secondListItemAnimation: listItems[1]
+                  ? win.getComputedStyle(listItems[1]).animationName
+                  : "",
+                text: assistant?.textContent || "",
+              };
+            });
+
+            assert(
+              streamingMarkdown.contentHasStreamingRows,
+              "Expected markdown streaming to mark the streaming content.",
+            );
+            assert(
+              streamingMarkdown.heading === "Room read",
+              `Expected heading markdown before completion, got ${
+                JSON.stringify(streamingMarkdown)
+              }`,
+            );
+            assert(
+              streamingMarkdown.hasStrong && streamingMarkdown.hasCode,
+              `Expected inline markdown before completion, got ${
+                JSON.stringify(streamingMarkdown)
+              }`,
+            );
+            assert(
+              streamingMarkdown.rowCount === 3 && streamingMarkdown.listItemRowCount === 2,
+              `Expected heading and list rows to be marked individually, got ${
+                JSON.stringify(streamingMarkdown)
+              }`,
+            );
+            assert(
+              streamingMarkdown.sameFirstListItem &&
+                streamingMarkdown.secondListItemAnimation === "stream-row-in",
+              `Expected appended list rows to fade without replacing earlier rows, got ${
+                JSON.stringify(streamingMarkdown)
+              }`,
+            );
+            assert(
+              !streamingMarkdown.text.includes("Final paragraph stays hidden"),
+              `Expected active final row to stay hidden, got ${JSON.stringify(streamingMarkdown)}`,
+            );
+
+            await page.locator('[data-message="assistant"]').filter({
+              hasText: "Final paragraph stays hidden until done",
+            }).waitFor();
+            await page.waitForFunction(() => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelector(selector: string): {
+                    getAttribute(name: string): string | null;
+                  } | null;
+                };
+              };
+              return win.document.querySelector('[data-message="assistant"]')?.getAttribute(
+                "data-streaming",
+              ) === "false";
+            });
+
+            const finalMarkdown = await page.evaluate(() => {
+              type QueryNode = {
+                textContent?: string | null;
+                querySelector(selector: string): QueryNode | null;
+              };
+              const win = globalThis as unknown as {
+                __streamHeading?: unknown;
+                __streamList?: unknown;
+                document: { querySelector(selector: string): QueryNode | null };
+              };
+              const assistant = win.document.querySelector('[data-message="assistant"]');
+              return {
+                sameHeading: win.__streamHeading === assistant?.querySelector("h3, h4"),
+                sameList: win.__streamList === assistant?.querySelector("ul"),
+                text: assistant?.textContent || "",
+              };
+            });
+            assert(
+              finalMarkdown.sameHeading && finalMarkdown.sameList,
+              `Expected final render to preserve streamed markdown DOM, got ${
+                JSON.stringify(finalMarkdown)
+              }`,
+            );
+            assert(
+              finalMarkdown.text.includes("Final paragraph stays hidden until done"),
+              `Expected final active row to be revealed, got ${JSON.stringify(finalMarkdown)}`,
+            );
+          });
+        });
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "agent streaming does not keep forcing the chat log to the bottom",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withEnv({
+        UOS_AI_TOKEN: "e2e-token",
+        OPENAI_API_KEY: null,
+        OPENAI_BASE_URL: `${baseUrl}/mock/v1`,
+        UOS_AI_BASE_URL: null,
+      }, async () => {
+        const longResponse = Array.from(
+          { length: 90 },
+          (_, index) =>
+            `Paragraph ${
+              index + 1
+            }: Keep this early coaching readable while later text is still streaming into the same assistant response.`,
+        ).join("\n\n");
+
+        await withMockGatewayReplies([
+          {
+            status: 200,
+            body: gatewayStreamingStream(longResponse),
+            headers: { "content-type": "text/event-stream" },
+          },
+        ], async () => {
+          await collectConsoleLogs(async () => {
+            await withIphonePage(async (page) => {
+              await page.goto(baseUrl);
+              await page.locator("[data-chat-fab]").click();
+
+              const textarea = page.locator("form[data-chat-form] textarea");
+              await textarea.fill("Give me a long prep brief.");
+              await page.keyboard.press("Enter");
+
+              await page.waitForFunction(() => {
+                const win = globalThis as unknown as {
+                  document: {
+                    querySelector(selector: string): { dataset?: { streaming?: string } } | null;
+                    querySelectorAll(selector: string): ArrayLike<unknown>;
+                  };
+                };
+                return win.document.querySelector('[data-message="assistant"]')?.dataset
+                      ?.streaming === "true" &&
+                  win.document.querySelectorAll("[data-stream-row]").length >= 6;
+              });
+
+              const streamingRows = await page.evaluate(() => {
+                const win = globalThis as unknown as {
+                  document: {
+                    querySelector(selector: string): {
+                      dataset?: { streamingRows?: string };
+                      textContent?: string | null;
+                    } | null;
+                    querySelectorAll(selector: string): ArrayLike<{
+                      textContent?: string | null;
+                    }>;
+                  };
+                  getComputedStyle(element: unknown): {
+                    animationDuration: string;
+                    animationName: string;
+                    transform: string;
+                  };
+                };
+                const content = win.document.querySelector(
+                  '[data-message="assistant"] [data-message-content]',
+                );
+                const rows = Array.from(win.document.querySelectorAll("[data-stream-row]"));
+                return {
+                  contentHasStreamingRows: content?.dataset?.streamingRows === "true",
+                  firstAnimationDuration: rows[0]
+                    ? win.getComputedStyle(rows[0]).animationDuration
+                    : "",
+                  firstAnimation: rows[0] ? win.getComputedStyle(rows[0]).animationName : "",
+                  firstTransform: rows[0] ? win.getComputedStyle(rows[0]).transform : "",
+                  rowCount: rows.length,
+                  firstText: rows[0]?.textContent || "",
+                };
+              });
+              assert(
+                streamingRows.contentHasStreamingRows,
+                "Expected streaming renderer to mark row-based streaming content.",
+              );
+              assert(
+                streamingRows.firstAnimation === "stream-row-in",
+                `Expected rows to fade in, got ${JSON.stringify(streamingRows)}`,
+              );
+              assert(
+                streamingRows.firstAnimationDuration === "0.44s",
+                `Expected rows to use the slower opacity fade, got ${
+                  JSON.stringify(streamingRows)
+                }`,
+              );
+              assert(
+                streamingRows.firstTransform === "none",
+                `Expected rows to fade without vertical motion, got ${
+                  JSON.stringify(streamingRows)
+                }`,
+              );
+              assert(
+                streamingRows.firstText.includes("Paragraph 1"),
+                `Expected the first streamed row to remain readable, got ${
+                  JSON.stringify(streamingRows)
+                }`,
+              );
+
+              await page.locator('[data-message="assistant"]').filter({
+                hasText: "Paragraph 90",
+              }).waitFor();
+              await page.waitForFunction(() => {
+                const win = globalThis as unknown as {
+                  document: {
+                    querySelector(selector: string): {
+                      dataset?: { streaming?: string };
+                      textContent?: string | null;
+                    } | null;
+                  };
+                };
+                return win.document.querySelector('[data-message="assistant"]')?.dataset
+                  ?.streaming === "false";
+              });
+
+              const metrics = await page.evaluate(() => {
+                const win = globalThis as unknown as {
+                  document: {
+                    querySelector(selector: string): {
+                      clientHeight: number;
+                      scrollHeight: number;
+                      scrollTop: number;
+                    } | null;
+                  };
+                };
+                const log = win.document.querySelector("[data-chat-log]");
+                if (!log) return null;
+                return {
+                  bottomGap: log.scrollHeight - log.clientHeight - log.scrollTop,
+                  clientHeight: log.clientHeight,
+                  scrollHeight: log.scrollHeight,
+                  scrollTop: log.scrollTop,
+                };
+              });
+
+              assert(metrics, "Expected chat log metrics.");
+              assert(
+                metrics.scrollHeight > metrics.clientHeight + 300,
+                `Expected streamed response to overflow the chat log, got ${
+                  JSON.stringify(metrics)
+                }`,
+              );
+              assert(
+                metrics.bottomGap > 160,
+                `Expected streaming to preserve reader position instead of jumping to bottom, got ${
+                  JSON.stringify(metrics)
+                }`,
+              );
+            });
           });
         });
       });
