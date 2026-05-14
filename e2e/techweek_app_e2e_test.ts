@@ -1710,6 +1710,41 @@ Deno.test({
 });
 
 Deno.test({
+  name: "development chat returns to sign-in when the Pi session expires",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withDesktopPage(async (page) => {
+        await installDevAgentEventSourceMock(page, []);
+        await routeDevAgentApi(page, baseUrl, ({ method, url }) => {
+          if (method === "GET" && url.pathname === "/api/session") {
+            return { body: { authenticated: true, user: { displayName: "Dev" } } };
+          }
+          if (method === "GET" && url.pathname === "/api/threads") {
+            return {
+              status: 401,
+              body: { error: { message: "Unauthorized" } },
+            };
+          }
+          return { status: 404, body: { error: { message: "not found" } } };
+        });
+
+        await page.goto(baseUrl);
+        await page.locator("[data-dev-chat-open]").click();
+        const drawer = page.locator("[data-dev-agent-drawer]");
+        await drawer.getByText("Sign in required.").waitFor();
+        await drawer.getByText("Your Pi agent session expired. Sign in again.").waitFor();
+        assert(
+          !(await drawer.getByText("Pi agent unavailable.").isVisible()),
+          "Expected expired sessions to show auth, not unavailable.",
+        );
+      });
+    });
+  },
+});
+
+Deno.test({
   name: "event Ask reopens the cached thread when the prompt context fingerprint is unchanged",
   sanitizeOps: false,
   sanitizeResources: false,

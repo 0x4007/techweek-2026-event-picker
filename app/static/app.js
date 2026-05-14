@@ -28,6 +28,9 @@ const PARTIFUL_FAST_SYNC_TIMEOUT_MS = 60_000;
 const LIVE_ROUTE_REFRESH_TIMEOUT_MS = 150_000;
 const DEV_AUTH_POPUP_POLL_MS = 500;
 const DEV_AUTH_POPUP_TIMEOUT_MS = 2 * 60_000;
+const DEV_AGENT_SAME_SITE_ORIGIN = "https://techweek.pavlovcik.com";
+const DEV_AGENT_LEGACY_HOSTNAMES = new Set(["techweek-2026-event-picker.0x4007.deno.net"]);
+const DEV_AGENT_SESSION_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000];
 const DEV_AGENT_SELECTED_THREAD_KEY = "techweek-dev-agent-selected-thread";
 const DEV_AGENT_LAST_EVENT_KEY_PREFIX = "techweek-dev-agent-last-event:";
 const DEV_AGENT_EVENT_TYPES = [
@@ -292,6 +295,7 @@ function closeChat() {
 
 function openDevChat() {
   closeChat();
+  if (redirectDevAgentToSameSite()) return;
   devChatDrawer.hidden = false;
   devChatBackdrop.hidden = false;
   document.body.dataset.devChatOpen = "true";
@@ -310,6 +314,7 @@ function openDevChat() {
 }
 
 function closeDevChat() {
+  clearDevSessionRetry();
   devChatDrawer.hidden = true;
   devChatBackdrop.hidden = true;
   document.body.dataset.devChatOpen = "false";
@@ -385,8 +390,13 @@ async function handleDevChatSubmit(event) {
       renderDevAgent();
     }
   } catch (error) {
-    devAgent.composerError = devFriendlyError(error, "Could not send prompt.");
-    renderDevAgent();
+    if (isAuthStatus(error)) {
+      markDevUnauthenticated("Your Pi agent session expired. Sign in again.");
+      renderDevAgent();
+    } else {
+      devAgent.composerError = devFriendlyError(error, "Could not send prompt.");
+      renderDevAgent();
+    }
   } finally {
     devAgent.sending = false;
     updateDevComposerState();
@@ -418,6 +428,8 @@ function createDevAgentState() {
     error: "",
     authStatus: "",
     authPopupTimer: 0,
+    sessionRetryTimer: 0,
+    sessionRetryAttempt: 0,
     composerError: "",
     stream: null,
     streamState: "idle",
@@ -447,7 +459,7 @@ function readDevAgentConfig() {
   };
 }
 
-async function bootstrapDevAgent() {
+async function bootstrapDevAgent(options = {}) {
   if (!devAgent.config.ready) {
     devAgent.bootstrapped = true;
     devAgent.authState = "config_error";
@@ -455,6 +467,8 @@ async function bootstrapDevAgent() {
     renderDevAgent();
     return;
   }
+  if (!options.retrying) clearDevSessionRetry();
+  if (redirectDevAgentToSameSite()) return;
 
   devAgent.loadingSession = true;
   devAgent.error = "";
@@ -464,6 +478,7 @@ async function bootstrapDevAgent() {
     devAgent.session = session && typeof session === "object" ? session : {};
     devAgent.bootstrapped = true;
     devAgent.authState = devSessionState(devAgent.session);
+    clearDevSessionRetry();
     if (devAgent.authState === "authenticated") {
       devAgent.authStatus = "";
       await loadDevThreads({ silent: true });
@@ -472,13 +487,74 @@ async function bootstrapDevAgent() {
       }
     }
   } catch (error) {
+    if (isAuthStatus(error)) {
+      markDevUnauthenticated("Your Pi agent session expired. Sign in again.");
+      return;
+    }
     devAgent.bootstrapped = true;
     devAgent.authState = "error";
     devAgent.error = devFriendlyError(error, "Could not reach the Pi agent API.");
+    if (scheduleDevSessionRetry()) {
+      devAgent.error = `${devAgent.error} Retrying automatically.`;
+    }
   } finally {
     devAgent.loadingSession = false;
     renderDevAgent();
   }
+}
+
+function redirectDevAgentToSameSite() {
+  if (!shouldRedirectDevAgentToSameSite()) return false;
+  const destination = new URL(globalThis.location.href);
+  const sameSite = new URL(DEV_AGENT_SAME_SITE_ORIGIN);
+  destination.protocol = sameSite.protocol;
+  destination.host = sameSite.host;
+  globalThis.location.replace(destination.toString());
+  return true;
+}
+
+function shouldRedirectDevAgentToSameSite() {
+  if (globalThis.location.origin === DEV_AGENT_SAME_SITE_ORIGIN) return false;
+  return DEV_AGENT_LEGACY_HOSTNAMES.has(globalThis.location.hostname);
+}
+
+function scheduleDevSessionRetry() {
+  if (!devAgent.open || devAgent.sessionRetryTimer) return false;
+  const index = Math.min(
+    devAgent.sessionRetryAttempt,
+    DEV_AGENT_SESSION_RETRY_DELAYS_MS.length - 1,
+  );
+  const delay = DEV_AGENT_SESSION_RETRY_DELAYS_MS[index];
+  devAgent.sessionRetryAttempt += 1;
+  devAgent.sessionRetryTimer = globalThis.setTimeout(() => {
+    devAgent.sessionRetryTimer = 0;
+    void bootstrapDevAgent({ retrying: true });
+  }, delay);
+  return true;
+}
+
+function clearDevSessionRetry() {
+  if (devAgent.sessionRetryTimer) {
+    globalThis.clearTimeout(devAgent.sessionRetryTimer);
+  }
+  devAgent.sessionRetryTimer = 0;
+  devAgent.sessionRetryAttempt = 0;
+}
+
+function markDevUnauthenticated(message) {
+  clearDevSessionRetry();
+  closeDevThreadStream();
+  devAgent.bootstrapped = true;
+  devAgent.authState = "unauthenticated";
+  devAgent.session = null;
+  devAgent.view = "inbox";
+  devAgent.thread = null;
+  devAgent.events = [];
+  devAgent.currentThreadId = "";
+  devAgent.error = "";
+  devAgent.composerError = "";
+  devAgent.authStatus = message || "Sign in on the Pi origin to continue.";
+  localStorage.removeItem(DEV_AGENT_SELECTED_THREAD_KEY);
 }
 
 function devSessionState(session) {
@@ -503,8 +579,11 @@ async function loadDevThreads(options = {}) {
       )
       : [];
   } catch (error) {
-    devAgent.error = devFriendlyError(error, "Could not load development threads.");
-    if (isAuthStatus(error)) devAgent.authState = "unauthenticated";
+    if (isAuthStatus(error)) {
+      markDevUnauthenticated("Your Pi agent session expired. Sign in again.");
+    } else {
+      devAgent.error = devFriendlyError(error, "Could not load development threads.");
+    }
   } finally {
     devAgent.loadingThreads = false;
     renderDevAgent();
@@ -557,8 +636,11 @@ async function openDevThread(threadId, options = {}) {
     upsertDevThread(devAgent.thread);
     startDevThreadStream(id);
   } catch (error) {
-    devAgent.error = devFriendlyError(error, "Could not load development thread.");
-    if (isAuthStatus(error)) devAgent.authState = "unauthenticated";
+    if (isAuthStatus(error)) {
+      markDevUnauthenticated("Your Pi agent session expired. Sign in again.");
+    } else {
+      devAgent.error = devFriendlyError(error, "Could not load development thread.");
+    }
   } finally {
     devAgent.loadingThread = false;
     renderDevAgent();
