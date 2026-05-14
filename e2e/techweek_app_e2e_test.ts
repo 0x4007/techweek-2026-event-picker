@@ -1429,7 +1429,7 @@ Deno.test({
             id: 4,
             type: "agent.message",
             threadId: "thread-1",
-            repoId: "techweek-2026-event-picker",
+            repoId: "0x4007/techweek-2026-event-picker",
             text: "Streamed update from SSE",
             createdAt: "2026-05-14T13:04:00Z",
           },
@@ -1443,7 +1443,7 @@ Deno.test({
               body: [
                 {
                   threadId: "thread-1",
-                  repoId: "techweek-2026-event-picker",
+                  repoId: "0x4007/techweek-2026-event-picker",
                   title: "Mobile header polish",
                   latestText: "Ready to test",
                   phase: "running",
@@ -1470,7 +1470,7 @@ Deno.test({
             return {
               body: {
                 threadId: "thread-1",
-                repoId: "techweek-2026-event-picker",
+                repoId: "0x4007/techweek-2026-event-picker",
                 title: "Mobile header polish",
                 latestText: "Ready to test",
                 phase: "running",
@@ -1627,7 +1627,7 @@ Deno.test({
               body: {
                 runId: "run-new",
                 threadId: "thread-new",
-                repoId: "techweek-2026-event-picker",
+                repoId: "0x4007/techweek-2026-event-picker",
                 status: "queued",
                 phase: "queued",
                 eventsUrl: "/api/runs/run-new/events",
@@ -1639,7 +1639,7 @@ Deno.test({
             return {
               body: {
                 threadId: "thread-new",
-                repoId: "techweek-2026-event-picker",
+                repoId: "0x4007/techweek-2026-event-picker",
                 title: "Ship this change",
                 latestText: "Queued agent run",
                 phase: "queued",
@@ -1698,7 +1698,7 @@ Deno.test({
         assert(await textarea.inputValue() === "", "Expected successful submission to clear text.");
         assert(
           runBodies[1]?.deploy === true &&
-            runBodies[1]?.repoId === "techweek-2026-event-picker" &&
+            runBodies[1]?.repoId === "0x4007/techweek-2026-event-picker" &&
             runBodies[1]?.title === "Ship this change",
           `Expected new run request to include repo, title, and deploy state, got ${
             JSON.stringify(runBodies[1])
