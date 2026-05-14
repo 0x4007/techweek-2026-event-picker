@@ -151,23 +151,21 @@ chatCloseButton.addEventListener("click", closeChat);
 chatNewButton.addEventListener("click", startNewChat);
 chatHistoryToggle.addEventListener("click", toggleChatHistory);
 chatBackdrop.addEventListener("click", closeChat);
-if (isDevelopmentHost()) {
-  devChatOpenButton.hidden = false;
-  devChatOpenButton.addEventListener("click", openDevChat);
-  devChatCloseButton.addEventListener("click", closeDevChat);
-  devChatNewButton.addEventListener("click", startNewDevThread);
-  devChatBackButton.addEventListener("click", showDevInbox);
-  devChatBackdrop.addEventListener("click", closeDevChat);
-  devChatForm.addEventListener("submit", handleDevChatSubmit);
-  devChatForm.elements.prompt.addEventListener("input", updateDevComposerState);
-  devChatForm.elements.prompt.addEventListener("keydown", handleDevChatKeydown);
-  devDeployCheckbox.addEventListener("change", () => {
-    devAgent.deploy = devDeployCheckbox.checked;
-    updateDevComposerState();
-  });
-  globalThis.addEventListener("message", handleDevAuthMessage);
-  renderDevAgent();
-}
+devChatOpenButton.hidden = false;
+devChatOpenButton.addEventListener("click", openDevChat);
+devChatCloseButton.addEventListener("click", closeDevChat);
+devChatNewButton.addEventListener("click", startNewDevThread);
+devChatBackButton.addEventListener("click", showDevInbox);
+devChatBackdrop.addEventListener("click", closeDevChat);
+devChatForm.addEventListener("submit", handleDevChatSubmit);
+devChatForm.elements.prompt.addEventListener("input", updateDevComposerState);
+devChatForm.elements.prompt.addEventListener("keydown", handleDevChatKeydown);
+devDeployCheckbox.addEventListener("change", () => {
+  devAgent.deploy = devDeployCheckbox.checked;
+  updateDevComposerState();
+});
+globalThis.addEventListener("message", handleDevAuthMessage);
+renderDevAgent();
 eventCloseButton.addEventListener("click", closeEventModal);
 eventBackdrop.addEventListener("click", closeEventModal);
 leadEventSelect.addEventListener("change", () => {
@@ -291,7 +289,6 @@ function closeChat() {
 }
 
 function openDevChat() {
-  if (!isDevelopmentHost()) return;
   closeChat();
   devChatDrawer.hidden = false;
   devChatBackdrop.hidden = false;
@@ -3787,12 +3784,6 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("`", "&#096;");
-}
-
-function isDevelopmentHost() {
-  const hostname = globalThis.location?.hostname || "";
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" ||
-    hostname.endsWith(".local");
 }
 
 function readJsonStorage(key, fallback) {
