@@ -1,4 +1,4 @@
-import { chromium, devices, type Page } from "playwright";
+import { chromium, devices, type Page, type Route } from "playwright";
 import { router } from "../app/server.ts";
 
 type JsonRecord = Record<string, unknown>;
@@ -386,7 +386,7 @@ async function routeDevAgentApi(
     "access-control-allow-origin": origin,
     vary: "Origin",
   };
-  await page.route("https://agent.pavlovcik.com/**", async (route) => {
+  const fulfill = async (route: Route) => {
     const request = route.request();
     if (request.method() === "OPTIONS") {
       await route.fulfill({ status: 204, headers: corsHeaders, body: "" });
@@ -403,10 +403,14 @@ async function routeDevAgentApi(
       }
     }
 
+    const requestUrl = new URL(request.url());
+    if (requestUrl.pathname.startsWith("/__pi-agent/")) {
+      requestUrl.pathname = requestUrl.pathname.replace("/__pi-agent", "");
+    }
     const response = await handler({
       body,
       method: request.method(),
-      url: new URL(request.url()),
+      url: requestUrl,
     });
     const responseBody = typeof response.body === "string"
       ? response.body
@@ -420,7 +424,9 @@ async function routeDevAgentApi(
       },
       body: responseBody,
     });
-  });
+  };
+  await page.route("https://agent.pavlovcik.com/**", fulfill);
+  await page.route(`${origin}/__pi-agent/**`, fulfill);
 }
 
 async function installDevAgentEventSourceMock(page: Page, events: JsonRecord[]) {

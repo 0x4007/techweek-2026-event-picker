@@ -444,18 +444,20 @@ function createDevAgentState() {
 
 function readDevAgentConfig() {
   const dataset = devChatDrawer?.dataset || {};
-  const apiBase = normalizeApiBase(dataset.agentApi || "https://agent.pavlovcik.com");
+  const apiBase = normalizeApiBase(dataset.agentApi || "/__pi-agent");
+  const authBase = normalizeApiBase(dataset.agentAuth || "https://agent.pavlovcik.com");
   const repo = String(dataset.repo || "").trim();
   const repoId = String(dataset.repoId || "").trim();
   const repoLabel = String(dataset.repoLabel || repoName(repo) || repoId || "Development repo")
     .trim();
   return {
     apiBase,
+    authBase,
     repo,
     repoId,
     repoLabel,
     deployEnabled: dataset.deploy === "true",
-    ready: Boolean(apiBase && (repo || repoId)),
+    ready: Boolean(apiBase && authBase && (repo || repoId)),
   };
 }
 
@@ -1096,7 +1098,17 @@ async function devFetchJson(path, options = {}) {
 }
 
 function devApiUrl(path) {
-  return new URL(path, `${devAgent.config.apiBase}/`);
+  return devBaseUrl(devAgent.config.apiBase, path);
+}
+
+function devAuthUrl(path) {
+  return devBaseUrl(devAgent.config.authBase, path);
+}
+
+function devBaseUrl(base, path) {
+  const normalizedBase = String(base || "").replace(/\/+$/, "");
+  const normalizedPath = String(path || "").replace(/^\/+/, "");
+  return new URL(normalizedPath, `${normalizedBase}/`);
 }
 
 function devFriendlyError(error, fallback) {
@@ -1118,7 +1130,7 @@ function isAuthStatus(error) {
 
 function openDevAuth(mode) {
   clearDevAuthPopupWatcher();
-  const url = devApiUrl("/auth.html");
+  const url = devAuthUrl("/auth.html");
   url.searchParams.set("mode", mode);
   url.searchParams.set("embedOrigin", globalThis.location.origin);
   url.searchParams.set("returnUrl", globalThis.location.href);
@@ -1148,8 +1160,8 @@ function openDevAuth(mode) {
 }
 
 function handleDevAuthMessage(event) {
-  if (!devAgent?.config?.apiBase) return;
-  if (event.origin !== new URL(devAgent.config.apiBase).origin) return;
+  if (!devAgent?.config?.authBase) return;
+  if (event.origin !== new URL(devAgent.config.authBase).origin) return;
   if (event.data?.type !== "pi-codex-auth-complete") return;
   clearDevAuthPopupWatcher();
   void refreshDevAuthAfterWindow();
@@ -1168,7 +1180,7 @@ async function refreshDevAuthAfterWindow() {
   if (devAgent.authState === "authenticated") return;
   if (devAgent.authState === "unauthenticated") {
     devAgent.authStatus =
-      "The Pi sign-in window closed, but this page still cannot read the Pi session cookie. Allow cross-site cookies for agent.pavlovcik.com or open the app on a pavlovcik.com domain, then retry.";
+      "The Pi sign-in window closed, but the shared app session is still missing. Sign in again to refresh it.";
     renderDevAgent();
   }
 }
