@@ -9,7 +9,8 @@ mkdir -p \
   "$root/outputs/signed_up" \
   "$root/data/rankings" \
   "$root/docs/agenda" \
-  "$root/docs/handoffs"
+  "$root/docs/handoffs" \
+  "$root/scripts/lib"
 
 cp -R app/. "$root/app/"
 cp deno.json deno.lock README.md "$root/"
@@ -30,3 +31,6 @@ cp \
   docs/handoffs/SIGNUP_STATE_HANDOFF.md \
   docs/handoffs/BACKUP_SIGNUP_AGENT_HANDOFF.md \
   "$root/docs/handoffs/"
+
+cp -R scripts/lib/. "$root/scripts/lib/"
+cp scripts/build_signed_up_calendar.ts scripts/build_signed_up_calendar_test.ts "$root/scripts/"
