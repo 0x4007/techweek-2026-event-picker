@@ -140,9 +140,6 @@
             <a href="/api/ics/operational">
               <svg><use href="#icon-download"></use></svg><span>ICS</span>
             </a>
-            <button type="button" data-agenda-recalculate>
-              <svg><use href="#icon-refresh"></use></svg><span>Recalc</span>
-            </button>
             <button type="button" data-partiful-sync>
               <svg><use href="#icon-refresh"></use></svg><span>Partiful</span>
             </button>
@@ -310,6 +307,9 @@
       <section data-chat-log aria-live="polite"></section>
       <section data-agent-composer>
         <section aria-label="Quick prompts" data-prompts>
+          <button type="button" data-agenda-recalculate data-variant="primary">
+            <svg><use href="#icon-sparkles"></use></svg><span>Optimize</span>
+          </button>
           <button type="button" data-ask="What should I do next?">
             <svg><use href="#icon-calendar"></use></svg><span>Next</span>
           </button>
@@ -326,6 +326,7 @@
             <svg><use href="#icon-sparkles"></use></svg><span>Pitch</span>
           </button>
         </section>
+        <p data-agent-agenda-status data-agenda-status></p>
         <form data-chat-form>
           <textarea
             name="prompt"

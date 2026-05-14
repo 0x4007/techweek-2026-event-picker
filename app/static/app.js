@@ -135,7 +135,7 @@ const cardPreview = document.querySelector("[data-card-preview]");
 const followUpEmailStatus = document.querySelector("[data-follow-up-email-status]");
 const agendaRecalculateButton = document.querySelector("[data-agenda-recalculate]");
 const partifulSyncButton = document.querySelector("[data-partiful-sync]");
-const agendaStatus = document.querySelector("[data-agenda-status]");
+const agendaStatusItems = document.querySelectorAll("[data-agenda-status]");
 const SVG_NS = "http://www.w3.org/2000/svg";
 const VIEW_TITLES = {
   route: "Route (agent test)",
@@ -1287,7 +1287,7 @@ async function loadSchedule() {
 
 async function recalculateAgenda() {
   if (state.agendaBusy || state.partifulSyncBusy || state.liveRouteRefreshBusy) return;
-  setAgendaBusy(true, "Recalculating agenda...");
+  setAgendaBusy(true, "Optimizing schedule...");
   try {
     const response = await fetchWithTimeout(
       "/api/agenda/recalculate",
@@ -1309,7 +1309,7 @@ async function recalculateAgenda() {
     }
     const selected = body.agenda?.summary?.selectedEvents ?? countScheduleEvents();
     const dropped = body.agenda?.summary?.droppedEvents ?? 0;
-    setAgendaBusy(false, `Recalculated ${selected} events; ${dropped} alternatives left out.`);
+    setAgendaBusy(false, `Optimized ${selected} events; ${dropped} alternatives left out.`);
   } catch (error) {
     setAgendaBusy(false, error instanceof Error ? error.message : "Could not recalculate agenda.");
   }
@@ -1321,15 +1321,14 @@ async function syncPartifulAndRecalculate() {
 
 async function syncPartifulAndRecalculateInTwoPhases({ background = false } = {}) {
   if (state.agendaBusy || state.partifulSyncBusy || state.liveRouteRefreshBusy) {
-    if (!background) agendaStatus.textContent = "Agenda refresh is already running.";
+    if (!background) setAgendaStatus("Agenda refresh is already running.");
     return false;
   }
 
   state.partifulSyncBusy = true;
   updateAgendaControls();
   if (!background) {
-    agendaStatus.textContent =
-      "Syncing Partiful approvals... live routes will refine in the background.";
+    setAgendaStatus("Syncing Partiful approvals... live routes will refine in the background.");
   }
 
   try {
@@ -1351,10 +1350,11 @@ async function syncPartifulAndRecalculateInTwoPhases({ background = false } = {}
     const discovered = body.headless?.targetCount ?? body.ingestion?.snapshotCount ?? 0;
     const failed = body.headless?.failureCount ?? 0;
     if (!background) {
-      agendaStatus.textContent =
+      setAgendaStatus(
         `Synced ${discovered} Partiful events; agenda now has ${selected} selected.${
           failed ? ` ${failed} fetches failed.` : ""
-        } Refining live routes in the background.`;
+        } Refining live routes in the background.`,
+      );
     }
     void refreshLiveRoutesInBackground({ silent: background });
     return true;
@@ -1362,9 +1362,7 @@ async function syncPartifulAndRecalculateInTwoPhases({ background = false } = {}
     if (background) {
       console.warn(error);
     } else {
-      agendaStatus.textContent = error instanceof Error
-        ? error.message
-        : "Could not sync Partiful.";
+      setAgendaStatus(error instanceof Error ? error.message : "Could not sync Partiful.");
     }
     return false;
   } finally {
@@ -1377,7 +1375,7 @@ async function refreshLiveRoutesInBackground({ silent = true } = {}) {
   if (state.liveRouteRefreshBusy) return false;
   state.liveRouteRefreshBusy = true;
   updateAgendaControls();
-  if (!silent) agendaStatus.textContent = "Refreshing live routes in the background...";
+  if (!silent) setAgendaStatus("Refreshing live routes in the background...");
 
   try {
     const response = await fetchWithTimeout(
@@ -1400,7 +1398,7 @@ async function refreshLiveRoutesInBackground({ silent = true } = {}) {
     }
     if (!silent) {
       const selected = body.agenda?.summary?.selectedEvents ?? countScheduleEvents();
-      agendaStatus.textContent = `Live routes refreshed; agenda has ${selected} selected events.`;
+      setAgendaStatus(`Live routes refreshed; agenda has ${selected} selected events.`);
     }
     return true;
   } catch (error) {
@@ -1408,7 +1406,7 @@ async function refreshLiveRoutesInBackground({ silent = true } = {}) {
       console.warn(error);
     } else {
       const message = error instanceof Error ? error.message : "Could not refresh live routes.";
-      agendaStatus.textContent = `Partiful sync completed; ${message}`;
+      setAgendaStatus(`Partiful sync completed; ${message}`);
     }
     return false;
   } finally {
@@ -1462,13 +1460,19 @@ function applyAgendaProposal(agenda) {
 function setAgendaBusy(busy, message) {
   state.agendaBusy = busy;
   updateAgendaControls();
-  agendaStatus.textContent = message || "";
+  setAgendaStatus(message || "");
 }
 
 function updateAgendaControls() {
   const busy = state.agendaBusy || state.partifulSyncBusy || state.liveRouteRefreshBusy;
   agendaRecalculateButton.disabled = busy;
   partifulSyncButton.disabled = busy;
+}
+
+function setAgendaStatus(message) {
+  agendaStatusItems.forEach((item) => {
+    item.textContent = message || "";
+  });
 }
 
 function scheduleServerPartifulAutoSync(delayMs = PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS) {
