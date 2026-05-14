@@ -26,6 +26,8 @@ const PARTIFUL_AUTO_SYNC_STATUS_POLL_MS = 20_000;
 const PARTIFUL_AUTO_SYNC_MAX_POLLS = 8;
 const PARTIFUL_FAST_SYNC_TIMEOUT_MS = 60_000;
 const LIVE_ROUTE_REFRESH_TIMEOUT_MS = 150_000;
+const DEV_AUTH_POPUP_POLL_MS = 500;
+const DEV_AUTH_POPUP_TIMEOUT_MS = 2 * 60_000;
 const DEV_AGENT_SELECTED_THREAD_KEY = "techweek-dev-agent-selected-thread";
 const DEV_AGENT_LAST_EVENT_KEY_PREFIX = "techweek-dev-agent-last-event:";
 const DEV_AGENT_EVENT_TYPES = [
@@ -414,6 +416,8 @@ function createDevAgentState() {
     loadingThread: false,
     sending: false,
     error: "",
+    authStatus: "",
+    authPopupTimer: 0,
     composerError: "",
     stream: null,
     streamState: "idle",
@@ -461,6 +465,7 @@ async function bootstrapDevAgent() {
     devAgent.bootstrapped = true;
     devAgent.authState = devSessionState(devAgent.session);
     if (devAgent.authState === "authenticated") {
+      devAgent.authStatus = "";
       await loadDevThreads({ silent: true });
       if (devAgent.currentThreadId) {
         await openDevThread(devAgent.currentThreadId, { silent: true });
@@ -861,7 +866,7 @@ function devNotice(title, message, retry) {
 function devAuthNotice() {
   const wrapper = devNotice(
     "Sign in required.",
-    "Use the Pi agent passkey flow to continue.",
+    devAgent.authStatus || "Use the Pi agent passkey flow to continue.",
     null,
   );
   const button = document.createElement("button");
@@ -1030,21 +1035,60 @@ function isAuthStatus(error) {
 }
 
 function openDevAuth(mode) {
+  clearDevAuthPopupWatcher();
   const url = devApiUrl("/auth.html");
   url.searchParams.set("mode", mode);
   url.searchParams.set("embedOrigin", globalThis.location.origin);
   url.searchParams.set("returnUrl", globalThis.location.href);
+  devAgent.authStatus = "Waiting for passkey sign-in in the Pi window.";
+  renderDevAgent();
   const popup = globalThis.open(url.toString(), "pi-codex-auth", "popup,width=460,height=720");
   if (!popup) {
+    devAgent.authStatus = "Opening the Pi passkey page in this tab.";
+    renderDevAgent();
     globalThis.location.href = url.toString();
+    return;
   }
+  popup.focus?.();
+  const openedAt = Date.now();
+  devAgent.authPopupTimer = globalThis.setInterval(() => {
+    if (popup.closed) {
+      clearDevAuthPopupWatcher();
+      void refreshDevAuthAfterWindow();
+      return;
+    }
+    if (Date.now() - openedAt > DEV_AUTH_POPUP_TIMEOUT_MS) {
+      clearDevAuthPopupWatcher();
+      devAgent.authStatus = "The Pi sign-in window is still open.";
+      renderDevAgent();
+    }
+  }, DEV_AUTH_POPUP_POLL_MS);
 }
 
 function handleDevAuthMessage(event) {
   if (!devAgent?.config?.apiBase) return;
   if (event.origin !== new URL(devAgent.config.apiBase).origin) return;
   if (event.data?.type !== "pi-codex-auth-complete") return;
-  void bootstrapDevAgent();
+  clearDevAuthPopupWatcher();
+  void refreshDevAuthAfterWindow();
+}
+
+function clearDevAuthPopupWatcher() {
+  if (!devAgent.authPopupTimer) return;
+  globalThis.clearInterval(devAgent.authPopupTimer);
+  devAgent.authPopupTimer = 0;
+}
+
+async function refreshDevAuthAfterWindow() {
+  devAgent.authStatus = "Checking Pi agent session after passkey sign-in.";
+  renderDevAgent();
+  await bootstrapDevAgent();
+  if (devAgent.authState === "authenticated") return;
+  if (devAgent.authState === "unauthenticated") {
+    devAgent.authStatus =
+      "The Pi sign-in window closed, but this page still cannot read the Pi session cookie. Allow cross-site cookies for agent.pavlovcik.com or open the app on a pavlovcik.com domain, then retry.";
+    renderDevAgent();
+  }
 }
 
 function readDevLastEventId(threadId) {
