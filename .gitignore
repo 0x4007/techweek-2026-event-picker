@@ -16,6 +16,7 @@ outputs/sync/sync_google_personal_june_*.applescript
 .codex/*.log
 .codex/*.pid
 .codex/*.plist
+.codex/agenda-runs/
 .codex/ocr-local/
 .codex/ocr-test/
 
