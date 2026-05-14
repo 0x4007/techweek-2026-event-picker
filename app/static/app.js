@@ -133,7 +133,7 @@ const partifulSyncButton = document.querySelector("[data-partiful-sync]");
 const agendaStatus = document.querySelector("[data-agenda-status]");
 const SVG_NS = "http://www.w3.org/2000/svg";
 const VIEW_TITLES = {
-  route: "Route",
+  route: "Route (agent test)",
   backup: "Backups",
   crm: "CRM",
 };
@@ -261,7 +261,7 @@ function updateDevComposerState() {
 
 function setView(view) {
   state.activeView = view;
-  pageTitle.textContent = VIEW_TITLES[view] || "Route";
+  pageTitle.textContent = VIEW_TITLES[view] || "Route (agent test)";
   viewButtons.forEach((button) => {
     button.setAttribute("aria-current", button.dataset.viewButton === view ? "page" : "false");
   });
