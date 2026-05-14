@@ -96,6 +96,9 @@ const PARTIFUL_SYNC_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 120;
 const AGENDA_RUN_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const PARTIFUL_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 const PARTIFUL_AUTO_SYNC_LOCK_TTL_MS = 5 * 60 * 1000;
+const DENO_DEPLOY_HOSTNAME = "techweek-2026-event-picker.0x4007.deno.net";
+const SAME_SITE_APP_HOSTNAME = "techweek.pavlovcik.com";
+const SAME_SITE_PROXY_HEADER = "x-techweek-same-site-proxy";
 const MANUAL_AGENDA_ROUTE_POINTS = [
   {
     pattern: /\b(?:IBM One Madison|1 Madison Ave)\b/i,
@@ -4813,6 +4816,8 @@ function copyDebugHeaders(headers: Headers): Headers {
 export async function router(request: Request): Promise<Response> {
   const url = new URL(request.url);
   try {
+    const sameSiteRedirect = redirectDenoDeployToSameSiteDomain(request, url);
+    if (sameSiteRedirect) return sameSiteRedirect;
     if (request.method === "GET" && url.pathname === "/api/health") return await handleHealth();
     if (request.method === "GET" && url.pathname === "/api/schedule") return await handleSchedule();
     if (request.method === "POST" && url.pathname === "/api/agenda/recalculate") {
@@ -4875,6 +4880,16 @@ export async function router(request: Request): Promise<Response> {
     console.error(error);
     return serverError(error instanceof Error ? error.message : "Unknown server error.");
   }
+}
+
+function redirectDenoDeployToSameSiteDomain(request: Request, url: URL): Response | null {
+  if (url.hostname !== DENO_DEPLOY_HOSTNAME) return null;
+  if (request.headers.get(SAME_SITE_PROXY_HEADER) === "1") return null;
+  const destination = new URL(url);
+  destination.protocol = "https:";
+  destination.hostname = SAME_SITE_APP_HOSTNAME;
+  destination.port = "";
+  return Response.redirect(destination, 308);
 }
 
 if (import.meta.main) {

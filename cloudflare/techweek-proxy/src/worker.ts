@@ -12,6 +12,7 @@ export default {
     const headers = new Headers(request.headers);
     headers.set("X-Forwarded-Host", incomingUrl.host);
     headers.set("X-Forwarded-Proto", incomingUrl.protocol.replace(":", ""));
+    headers.set("X-Techweek-Same-Site-Proxy", "1");
 
     const proxiedRequest = new Request(upstreamUrl.toString(), {
       method: request.method,
