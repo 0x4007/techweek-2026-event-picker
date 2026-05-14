@@ -386,7 +386,7 @@ async function routeDevAgentApi(
     "access-control-allow-origin": origin,
     vary: "Origin",
   };
-  await page.route("http://localhost:18080/**", async (route) => {
+  await page.route("https://agent.pavlovcik.com/**", async (route) => {
     const request = route.request();
     if (request.method() === "OPTIONS") {
       await route.fulfill({ status: 204, headers: corsHeaders, body: "" });

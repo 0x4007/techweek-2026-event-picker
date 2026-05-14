@@ -431,7 +431,7 @@ function createDevAgentState() {
 
 function readDevAgentConfig() {
   const dataset = devChatDrawer?.dataset || {};
-  const apiBase = normalizeApiBase(dataset.agentApi || "http://localhost:18080");
+  const apiBase = normalizeApiBase(dataset.agentApi || "https://agent.pavlovcik.com");
   const repo = String(dataset.repo || "").trim();
   const repoId = String(dataset.repoId || "").trim();
   const repoLabel = String(dataset.repoLabel || repoName(repo) || repoId || "Development repo")
