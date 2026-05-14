@@ -433,7 +433,7 @@ type AgendaRunMetadata = {
 };
 
 type ProposedAction = {
-  type: "event_note" | "google_sync_request";
+  type: "event_note";
   techweekId?: string;
   calendarBlockId?: string;
   reason?: string;
@@ -2562,15 +2562,6 @@ async function handleCacheStatus(): Promise<Response> {
   });
 }
 
-function handleGoogleSyncStatus(): Response {
-  return json({
-    status: "setup_required",
-    message:
-      "Direct Google Calendar write sync needs OAuth credentials. The current Deno app exposes the operational ICS export.",
-    operationalIcs: "/api/ics/operational",
-  }, { status: 501 });
-}
-
 function normalizeContextText(value: string): string {
   return value.replace(/\r\n?/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
 }
@@ -2918,8 +2909,8 @@ function compactContext(prompt: string, entries: ScheduleEntry[], state: AppStat
     nextActualEvent ? `Next actual event: ${compactEntry(nextActualEvent, state, true)}` : "",
     "All actual event rows and their local data are included below when they fit the context budget.",
     "Registered means confirmed. Applied or pending means wait for host approval. Reference events are alternatives/backups, not the active route.",
-    "Direct Google Calendar write sync is not configured in this app yet; do not claim changes were synced to Google Calendar.",
-    "Supported local actions, if useful: event_note, google_sync_request.",
+    "Calendar export is available through the ICS link; do not propose direct Google Calendar sync actions.",
+    "Supported local actions, if useful: event_note.",
     'When proposing a local action, append one final line that starts with UOS_ACTIONS followed by minified JSON: {"actions":[...]}',
     `All actual events and data:\n${eventLines}`,
     `Non-event route blocks:\n${
@@ -4938,7 +4929,6 @@ export async function router(request: Request): Promise<Response> {
     if (request.method === "GET" && url.pathname === "/api/sync/partiful") {
       return await handlePartifulSyncRead();
     }
-    if (url.pathname === "/api/sync/google") return handleGoogleSyncStatus();
     if (url.pathname.startsWith("/api/")) return notFound();
     if (request.method !== "GET") return notFound();
     return await serveStatic(url.pathname);

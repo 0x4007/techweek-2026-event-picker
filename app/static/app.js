@@ -4222,24 +4222,15 @@ function renderProposedActions(messageEl, actions) {
 
 function actionLabel(action) {
   if (action.type === "event_note") return "Save note";
-  if (action.type === "google_sync_request") return "Check sync";
   return "Apply";
 }
 
 function actionIcon(action) {
   if (action.type === "event_note") return "sparkles";
-  if (action.type === "google_sync_request") return "calendar";
   return "check";
 }
 
 async function applyAction(action) {
-  if (action.type === "google_sync_request") {
-    const response = await fetch("/api/sync/google", { method: "POST" });
-    const body = await response.json();
-    appendMessage("assistant", body.message || "Google sync setup required.");
-    return;
-  }
-
   const response = await fetch("/api/state", {
     method: "POST",
     headers: { "content-type": "application/json" },

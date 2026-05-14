@@ -152,6 +152,13 @@ Deno.test("Partiful sync endpoint ingests browser response snapshots and exposes
   assertEquals(getPath(openSource, ["normalizedEvent", "rawStatus"]), "APPROVED");
 });
 
+Deno.test("Google Calendar write sync endpoint is removed", async () => {
+  const response = await router(
+    new Request("http://localhost/api/sync/google", { method: "POST" }),
+  );
+  assertEquals(response.status, 404);
+});
+
 Deno.test({
   name: "sends Resend test email to test@pavlovcik.com",
   async fn() {
