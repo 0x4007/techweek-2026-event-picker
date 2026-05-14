@@ -19,6 +19,7 @@ import {
   callPartifulFunction,
   defaultAuthFilePath,
   ensureFreshPartifulAuth,
+  parseStoredPartifulAuthJson,
   partifulIdFromUrl,
   type PartifulTarget,
   readStoredPartifulAuth,
@@ -75,6 +76,7 @@ const OPERATIONAL_ICS = new URL(
 );
 const LOCAL_OCR_DIR = new URL("../.codex/ocr-local/", import.meta.url);
 const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
+const PARTIFUL_AUTH_JSON_ENV = "TECHWEEK_PARTIFUL_AUTH_JSON";
 const PORT = 8787;
 const TIME_ZONE = "America/New_York";
 const AGENT_MODEL = "gpt-5.5";
@@ -2100,8 +2102,22 @@ async function handlePartifulHeadlessSync(request: Request): Promise<Response> {
   const raw = body && typeof body === "object" && !Array.isArray(body)
     ? body as Record<string, unknown>
     : {};
-  const authFile = textField(raw.authFile, 1000) || await defaultPartifulLocalAuthFile();
-  const auth = await ensureFreshPartifulAuth(await readStoredPartifulAuth(authFile), authFile);
+  const requestedAuthFile = textField(raw.authFile, 1000);
+  let authSource: PartifulAuthSource;
+  try {
+    authSource = await readPartifulAuthSource(requestedAuthFile);
+  } catch (error) {
+    if (error instanceof PartifulAuthConfigurationError) {
+      return json({
+        error: {
+          message: error.message,
+          type: "configuration_error",
+        },
+      }, { status: 503 });
+    }
+    throw error;
+  }
+  const auth = await ensureFreshPartifulAuth(authSource.auth, authSource.persistPath);
   const entries = await readAgendaCandidateEntries();
   const targets = mergePartifulTargets(
     partifulTargetsFromEntries(entries),
@@ -2148,13 +2164,63 @@ async function handlePartifulHeadlessSync(request: Request): Promise<Response> {
   return json({
     ...responseBody,
     headless: {
-      authFile,
+      authSource: authSource.label,
+      ...(authSource.authFile ? { authFile: authSource.authFile } : {}),
       targetCount: selectedTargets.length,
       snapshotCount: snapshots.length,
       failureCount: failures.length,
       failures,
     },
   }, { status: syncResponse.status });
+}
+
+type PartifulAuthSource = {
+  auth: StoredPartifulAuth;
+  authFile?: string;
+  label: string;
+  persistPath: string | null;
+};
+
+async function readPartifulAuthSource(requestedAuthFile = ""): Promise<PartifulAuthSource> {
+  if (!requestedAuthFile) {
+    const envAuth = textField(Deno.env.get(PARTIFUL_AUTH_JSON_ENV), 200_000);
+    if (envAuth) {
+      try {
+        return {
+          auth: parseStoredPartifulAuthJson(envAuth, PARTIFUL_AUTH_JSON_ENV),
+          label: `deno_env:${PARTIFUL_AUTH_JSON_ENV}`,
+          persistPath: null,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new PartifulAuthConfigurationError(message);
+      }
+    }
+  }
+
+  const authFile = requestedAuthFile || await defaultPartifulLocalAuthFile();
+  try {
+    return {
+      auth: await readStoredPartifulAuth(authFile),
+      authFile,
+      label: "local_file",
+      persistPath: authFile,
+    };
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      throw new PartifulAuthConfigurationError(
+        `Partiful sync is not configured. Set the ${PARTIFUL_AUTH_JSON_ENV} Deno Deploy secret or run the local auth capture task to create ${authFile}.`,
+      );
+    }
+    throw error;
+  }
+}
+
+class PartifulAuthConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PartifulAuthConfigurationError";
+  }
 }
 
 async function handlePartifulAutoSync(): Promise<Response> {
@@ -2236,7 +2302,7 @@ function partifulAutoSyncDecision(
     };
   }
 
-  if (isRecent) {
+  if (isRecent && sync.status !== "failed") {
     return {
       action: "skip_recent",
       reason: "Automatic Partiful sync already started within the last 15 minutes.",

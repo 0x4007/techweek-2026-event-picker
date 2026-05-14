@@ -48,7 +48,19 @@ export async function readStoredPartifulAuth(
   path = defaultAuthFilePath(),
 ): Promise<StoredPartifulAuth> {
   const text = await Deno.readTextFile(path);
-  return validateStoredPartifulAuth(JSON.parse(text));
+  return parseStoredPartifulAuthJson(text, `Stored Partiful auth file ${path}`);
+}
+
+export function parseStoredPartifulAuthJson(
+  value: string,
+  source = "Stored Partiful auth JSON",
+): StoredPartifulAuth {
+  try {
+    return validateStoredPartifulAuth(JSON.parse(value));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${source} is invalid: ${message}`);
+  }
 }
 
 export async function writeStoredPartifulAuth(
@@ -121,7 +133,7 @@ export function partifulIdFromUrl(value: string): string {
 
 export async function ensureFreshPartifulAuth(
   auth: StoredPartifulAuth,
-  path = defaultAuthFilePath(),
+  path: string | null = defaultAuthFilePath(),
   now = Date.now(),
 ): Promise<StoredPartifulAuth> {
   if (auth.expirationTime - now > TOKEN_REFRESH_LEEWAY_MS) return auth;
@@ -160,7 +172,9 @@ export async function ensureFreshPartifulAuth(
     refreshToken,
     expirationTime: now + expiresInSeconds * 1000,
   };
-  await writeStoredPartifulAuth(refreshed, path);
+  if (path) {
+    await writeStoredPartifulAuth(refreshed, path);
+  }
   return refreshed;
 }
 

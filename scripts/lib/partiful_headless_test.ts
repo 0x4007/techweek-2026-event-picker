@@ -2,6 +2,7 @@ import {
   buildCallableSnapshot,
   callableResult,
   extractFirebaseAuthRecord,
+  parseStoredPartifulAuthJson,
   partifulIdFromUrl,
 } from "./partiful_headless.ts";
 
@@ -51,6 +52,31 @@ Deno.test("extractFirebaseAuthRecord reads Firebase IndexedDB rows", () => {
       expiresAt: 1770000000000,
     },
   );
+});
+
+Deno.test("parseStoredPartifulAuthJson validates deploy secret payloads", () => {
+  const auth = parseStoredPartifulAuthJson(JSON.stringify({
+    version: 1,
+    source: "test",
+    capturedAt: "2026-05-14T12:00:00Z",
+    updatedAt: "2026-05-14T12:00:00Z",
+    apiKey: "api-key",
+    appName: "[DEFAULT]",
+    userId: "user-123",
+    accessToken: "access-token",
+    refreshToken: "refresh-token",
+    expirationTime: 1770000000000,
+  }));
+
+  assertEquals({
+    source: auth.source,
+    userId: auth.userId,
+    expirationTime: auth.expirationTime,
+  }, {
+    source: "test",
+    userId: "user-123",
+    expirationTime: 1770000000000,
+  });
 });
 
 Deno.test("buildCallableSnapshot extracts viewer status from callable payloads", () => {
