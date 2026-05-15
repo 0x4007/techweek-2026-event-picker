@@ -3182,22 +3182,36 @@ function setButtonContent(element, iconName, label) {
 }
 
 function renderPlaceLink(entry, text) {
-  const label = String(text || "").trim();
-  if (!label) return document.createTextNode("");
-  const directions = directionsUrl(entry, label);
-  if (!directions) return document.createTextNode(label);
+  const destinationLabel = String(text || "").trim();
+  if (!destinationLabel) return document.createTextNode("");
+  const displayLabel = shortPlaceLabel(destinationLabel);
+  const directions = directionsUrl(entry, destinationLabel);
+  if (!directions) return document.createTextNode(displayLabel);
 
   const link = document.createElement("a");
   link.href = directions;
   link.target = "_blank";
   link.rel = "noreferrer";
   link.dataset.placeLink = "";
-  link.setAttribute("aria-label", `Open directions to ${label} from current location`);
+  link.setAttribute("aria-label", `Open directions to ${destinationLabel} from current location`);
   link.addEventListener("click", (event) => event.stopPropagation());
   const span = document.createElement("span");
-  span.textContent = label;
+  span.textContent = displayLabel;
   link.append(renderIcon("map-pin"), span);
   return link;
+}
+
+function shortPlaceLabel(value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  const shortened = text
+    .replace(
+      /,\s*(?:New York|NYC|Manhattan|Brooklyn|Queens|Bronx|Staten Island)?\s*,?\s*NY(?:\s+\d{5}(?:-\d{4})?)?\s*$/i,
+      "",
+    )
+    .replace(/,\s*New York(?:\s+\d{5}(?:-\d{4})?)?\s*$/i, "")
+    .replace(/,\s*\d{5}(?:-\d{4})?\s*$/, "")
+    .trim();
+  return shortened || text;
 }
 
 function directionsUrl(entry, label) {
