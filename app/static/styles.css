@@ -37,6 +37,20 @@
   --drawer-glass: rgb(255 255 255 / 68%);
   --drawer-glass-strong: rgb(255 255 255 / 88%);
   --drawer-gradient-start: rgb(232 248 255 / 58%);
+  --agent-backdrop: rgb(9 19 22 / 18%);
+  --agent-background:
+    linear-gradient(180deg, rgb(232 248 255 / 62%), rgb(255 255 255 / 0) 46%),
+    #fbfdff;
+  --agent-soft: #e8f8ff;
+  --agent-surface: #fbfdff;
+  --agent-glass: rgb(255 255 255 / 72%);
+  --agent-glass-strong: rgb(255 255 255 / 92%);
+  --agent-message-assistant-bg: rgb(255 255 255 / 84%);
+  --agent-subtle-ink-bg: rgb(9 19 22 / 7%);
+  --agent-code-bg: rgb(40 199 255 / 10%);
+  --agent-pre-bg: #f2f8fa;
+  --agent-warn-bg: rgb(56 108 136 / 10%);
+  --agent-warn-bg-strong: rgb(56 108 136 / 14%);
   --message-assistant-bg: rgb(255 255 255 / 78%);
   --message-user-bg: #0066d6;
   --message-user-ink: #ffffff;
@@ -103,6 +117,18 @@
     --drawer-glass: rgb(17 24 32 / 78%);
     --drawer-glass-strong: rgb(17 24 32 / 90%);
     --drawer-gradient-start: rgb(17 31 48 / 66%);
+    --agent-backdrop: rgb(0 0 0 / 32%);
+    --agent-background: linear-gradient(180deg, rgb(18 18 20 / 72%), rgb(5 5 5 / 0) 44%), #050505;
+    --agent-soft: #171719;
+    --agent-surface: #101012;
+    --agent-glass: rgb(18 18 20 / 84%);
+    --agent-glass-strong: rgb(24 24 26 / 94%);
+    --agent-message-assistant-bg: rgb(18 18 20 / 92%);
+    --agent-subtle-ink-bg: rgb(255 255 255 / 9%);
+    --agent-code-bg: rgb(255 255 255 / 10%);
+    --agent-pre-bg: #151518;
+    --agent-warn-bg: rgb(255 255 255 / 10%);
+    --agent-warn-bg-strong: rgb(255 255 255 / 14%);
     --message-assistant-bg: rgb(17 24 32 / 84%);
     --message-user-bg: #0071e3;
     --message-user-ink: #ffffff;
@@ -1246,24 +1272,21 @@ article[data-entry] > p {
   position: fixed;
   inset: 0;
   z-index: 25;
-  background: rgb(0 0 0 / 32%);
+  background: var(--agent-backdrop);
   /* backdrop-filter: blur(6px) saturate(1.05); */
 }
 
 [data-agent-drawer] {
-  --ink: #f5f5f7;
-  --muted: #9b9ba1;
-  --line: rgb(255 255 255 / 12%);
-  --soft: #171719;
-  --surface: #101012;
-  --drawer-glass: rgb(18 18 20 / 84%);
-  --drawer-glass-strong: rgb(24 24 26 / 94%);
-  --message-assistant-bg: rgb(18 18 20 / 92%);
-  --subtle-ink-bg: rgb(255 255 255 / 9%);
-  --code-bg: rgb(255 255 255 / 10%);
-  --pre-bg: #151518;
-  --warn-bg: rgb(255 255 255 / 10%);
-  --warn-bg-strong: rgb(255 255 255 / 14%);
+  --soft: var(--agent-soft);
+  --surface: var(--agent-surface);
+  --drawer-glass: var(--agent-glass);
+  --drawer-glass-strong: var(--agent-glass-strong);
+  --message-assistant-bg: var(--agent-message-assistant-bg);
+  --subtle-ink-bg: var(--agent-subtle-ink-bg);
+  --code-bg: var(--agent-code-bg);
+  --pre-bg: var(--agent-pre-bg);
+  --warn-bg: var(--agent-warn-bg);
+  --warn-bg-strong: var(--agent-warn-bg-strong);
   position: fixed;
   inset: 0;
   z-index: 30;
@@ -1279,7 +1302,7 @@ article[data-entry] > p {
   padding: calc(8px + env(safe-area-inset-top)) 8px calc(8px + env(safe-area-inset-bottom));
   border-radius: 0;
   color: var(--ink);
-  background: #050505;
+  background: var(--agent-background);
   box-shadow: none;
   overflow: hidden;
 }
