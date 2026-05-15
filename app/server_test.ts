@@ -320,6 +320,60 @@ Deno.test("lead creation persists compact OCR provenance metadata", async () => 
   }
 });
 
+Deno.test("lead creation ignores invalid OCR metadata payloads", async () => {
+  const leadName = `OCR Metadata Invalid ${crypto.randomUUID().slice(0, 8)}`;
+  const create = await router(
+    new Request("http://localhost/api/state", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        type: "lead_create",
+        calendarBlockId: "TW-5978-SCHEDULE",
+        name: leadName,
+        company: "Fallback Labs",
+        role: "PM",
+        email: "invalid@example.com",
+        phone: "+1 (212) 555-2222",
+        priority: "B",
+        followUp: "Invalid OCR metadata regression test",
+        notes: "Seeded by server test.",
+        ocr: "should-be-an-object",
+      }),
+    }),
+  );
+  if (create.status !== 200) {
+    throw new Error(`Expected create status 200, got ${create.status}`);
+  }
+  const created = await create.json() as Record<string, unknown>;
+  const createdLead = getPath(created, ["lead"]) as { id?: unknown } | undefined;
+  const createdId = String(createdLead?.id || "");
+  try {
+    if (!createdId) throw new Error("Expected lead id in create response.");
+
+    const schedule = await router(new Request("http://localhost/api/schedule"));
+    if (schedule.status !== 200) {
+      throw new Error(`Expected schedule status 200, got ${schedule.status}`);
+    }
+    const payload = await schedule.json() as Record<string, unknown>;
+    const state = getPath(payload, ["state"]) as Record<string, unknown> | undefined;
+    const leads = Array.isArray(state?.leads) ? state.leads as unknown[] : [];
+    const lead = leads.find((item) => getPath(item, ["id"]) === createdId) as
+      | Record<string, unknown>
+      | undefined;
+    if (!lead) throw new Error("Expected persisted lead.");
+    if (lead.ocr !== undefined) {
+      throw new Error(`Expected no OCR provenance for invalid input, got ${JSON.stringify(lead.ocr)}`);
+    }
+  } finally {
+    if (!createdId) return;
+    await router(new Request("http://localhost/api/state", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type: "lead_delete", id: createdId }),
+    }));
+  }
+});
+
 function scheduleEntry(overrides: Partial<ScheduleEntry> = {}): ScheduleEntry {
   return {
     calendar: "schedule",
