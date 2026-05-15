@@ -1,5 +1,6 @@
 import {
   buildLeadFollowUpEmailContent,
+  deriveLeadPriorityFromEvent,
   extractEmailAddress,
   fallbackAgentAnswer,
   parseCsv,
@@ -64,6 +65,24 @@ Deno.test("buildLeadFollowUpEmailContent escapes HTML and includes event context
   if (content.html.includes("<Lovelace>")) {
     throw new Error(`Expected HTML escaping, got ${content.html}`);
   }
+});
+
+Deno.test("deriveLeadPriorityFromEvent uses event ranking metadata", () => {
+  assertEquals(deriveLeadPriorityFromEvent(scheduleEntry({ tier: "S" })), "A");
+  assertEquals(
+    deriveLeadPriorityFromEvent(scheduleEntry({ tier: "A", opportunityScore: "63" })),
+    "A",
+  );
+  assertEquals(deriveLeadPriorityFromEvent(scheduleEntry({ tier: "B" })), "B");
+  assertEquals(deriveLeadPriorityFromEvent(scheduleEntry({ tier: "C" })), "C");
+  assertEquals(
+    deriveLeadPriorityFromEvent(scheduleEntry({ tier: "", opportunityScore: "35", rank: "" })),
+    "C",
+  );
+  assertEquals(
+    deriveLeadPriorityFromEvent(scheduleEntry({ tier: "", opportunityScore: "", rank: "24" })),
+    "A",
+  );
 });
 
 Deno.test("fallbackAgentAnswer gives local event coaching when the prompt names an event", () => {

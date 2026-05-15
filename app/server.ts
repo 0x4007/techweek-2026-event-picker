@@ -559,7 +559,6 @@ type LeadDraft = {
   email: string;
   phone: string;
   notes: string;
-  priority: Lead["priority"];
   followUp: string;
 };
 
@@ -1126,6 +1125,31 @@ function emptyPartifulAutoSyncState(): PartifulAutoSyncState {
 
 function normalizeLeadPriority(value: unknown): Lead["priority"] {
   return value === "A" || value === "C" ? value : "B";
+}
+
+export function deriveLeadPriorityFromEvent(
+  entry: Pick<ScheduleEntry, "tier" | "opportunityScore" | "rank">,
+): "A" | "B" | "C" {
+  const tier = String(entry.tier || "").trim().toUpperCase();
+  if (tier === "S" || tier === "A") return "A";
+  if (tier === "B") return "B";
+  if (tier === "C") return "C";
+
+  const score = Number.parseFloat(String(entry.opportunityScore || ""));
+  if (Number.isFinite(score)) {
+    if (score >= 60) return "A";
+    if (score >= 40) return "B";
+    return "C";
+  }
+
+  const rank = Number.parseInt(String(entry.rank || ""), 10);
+  if (Number.isFinite(rank)) {
+    if (rank <= 40) return "A";
+    if (rank <= 150) return "B";
+    return "C";
+  }
+
+  return "B";
 }
 
 function normalizeLeadFollowUpEmail(value: unknown): LeadFollowUpEmail | null {
@@ -1814,7 +1838,7 @@ async function handleStateAction(request: Request): Promise<Response> {
       email: textField(body.email, 220),
       phone: textField(body.phone, 80),
       notes: textField(body.notes, 2000),
-      priority: normalizeLeadPriority(body.priority),
+      priority: deriveLeadPriorityFromEvent(entry),
       followUp: textField(body.followUp, 300),
       followUpEmail: null,
       createdAt: now,
@@ -2705,10 +2729,11 @@ function crmLeadRubricContextText(): string {
     "Default lead event selection rule: use the current actual event by actual_start/actual_end; if no actual event is currently in progress, use the most recent previous actual event; if none exists, use the first upcoming actual event.",
     "For follow-up coaching, always consider the selected event's audience, host, topic, status, location, ranking, matched signals, and sales coaching.",
     "",
-    "Lead priority rubric:",
-    "- Priority A: CTO, VP Engineering, Head of Engineering, founder/technical founder, DevEx/platform/internal-tools leader, engineering operations leader, AI infra leader, open-source maintainer lead, or buyer with clear authority over GitHub workflows, engineering process, rewards, contractors, or contributor programs.",
-    "- Priority B: engineer, product/ops lead, founder without obvious engineering-process ownership, investor/operator who can make useful intros, or someone with plausible but unconfirmed buyer fit.",
-    "- Priority C: student, vendor, recruiter, generic community attendee, low-fit consumer/business role, or anyone with weak/no connection to engineering teams, GitHub workflows, DevEx, AI coding workflows, or contribution recognition.",
+    "CRM priority is assigned automatically from the selected event's ranking metadata, not from a manual CRM field or business-card role.",
+    "- Priority A: selected event is S/A tier, has a high opportunity score, or is top-ranked.",
+    "- Priority B: selected event is B tier or mid-ranked.",
+    "- Priority C: selected event is C tier, low-scoring, or weakly ranked.",
+    "Treat priority as event importance when coaching. Still qualify each person from their role, company, notes, and conversation context.",
     "",
     "Follow-up guidance:",
     "- For A leads, propose a specific next step: 5-minute demo, sample manager packet review, one-repo pilot discussion, or intro to the person owning engineering process.",
@@ -3314,7 +3339,6 @@ function draftDebug(draft: LeadDraft): Record<string, unknown> {
     hasEmail: Boolean(draft.email),
     hasPhone: Boolean(draft.phone),
     hasNotes: Boolean(draft.notes),
-    priority: draft.priority,
     followUpLength: draft.followUp.length,
   };
 }
@@ -3966,7 +3990,6 @@ function normalizeLeadDraft(value: unknown): LeadDraft {
     email: textField(raw.email ?? contact.email, 220),
     phone: textField(raw.phone ?? contact.phone, 80),
     notes,
-    priority: inferLeadDraftPriority(raw.priority, company, role, notes),
     followUp: textField(raw.followUp ?? raw.follow_up, 300),
   };
 }
@@ -3975,20 +3998,6 @@ function leadNotesText(values: unknown[]): string {
   return [...new Set(values.map((value) => textField(value, 360)).filter(Boolean))]
     .join("; ")
     .slice(0, 1200);
-}
-
-function inferLeadDraftPriority(
-  value: unknown,
-  company: string,
-  role: string,
-  notes: string,
-): Lead["priority"] {
-  if (value === "A" || value === "B" || value === "C") return value;
-  const text = `${company} ${role} ${notes}`;
-  return /\b(founder|co-founder|cto|chief technology|vp|head of engineering|director|devex|developer experience|platform|ai infrastructure|staff engineer|principal engineer)\b/i
-      .test(text)
-    ? "A"
-    : "B";
 }
 
 function gatewayConfig(): GatewayConfig {

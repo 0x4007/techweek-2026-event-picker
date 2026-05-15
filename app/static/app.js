@@ -1964,7 +1964,6 @@ function renderLead(lead, showEvent) {
 
   const meta = document.createElement("section");
   meta.dataset.leadTags = "";
-  addLeadMeta(meta, `Priority ${lead.priority}`);
   addLeadMeta(meta, lead.followUp);
   const emailStatus = addLeadMeta(meta, followUpEmailLabel(lead.followUpEmail));
   if (emailStatus && lead.followUpEmail?.status) {
@@ -2034,7 +2033,6 @@ async function handleLeadSubmit(event) {
     role: String(formData.get("role") || ""),
     email: String(formData.get("email") || ""),
     phone: String(formData.get("phone") || ""),
-    priority: String(formData.get("priority") || "B"),
     followUp: String(formData.get("followUp") || ""),
     notes: String(formData.get("notes") || ""),
     sendFollowUpEmail: Boolean(
@@ -2065,7 +2063,6 @@ async function handleLeadSubmit(event) {
     const selectedId = action.calendarBlockId;
     leadForm.reset();
     leadForm.elements.calendarBlockId.value = selectedId;
-    leadForm.elements.priority.value = "B";
     state.followUpEmailTouched = false;
     renderFollowUpEmailControl();
     renderCRM();
@@ -2280,9 +2277,6 @@ function applyLeadDraft(draft) {
     if (typeof draft[field] === "string" && draft[field].trim()) {
       leadForm.elements[field].value = draft[field].trim();
     }
-  }
-  if (["A", "B", "C"].includes(draft.priority)) {
-    leadForm.elements.priority.value = draft.priority;
   }
 }
 
