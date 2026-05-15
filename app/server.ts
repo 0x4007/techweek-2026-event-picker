@@ -569,7 +569,7 @@ type AgentDebugPayload = {
 
 type OcrRequestBody = {
   model: string;
-  reasoning_effort: null;
+  reasoning_effort?: string;
   stream: false;
   messages: Array<{
     role: "user";
@@ -3337,7 +3337,6 @@ function cardOcrPrompt(): string {
 function cardOcrChatBody(imageDataUrl: string): OcrRequestBody {
   return {
     model: AGENT_MODEL,
-    reasoning_effort: null,
     stream: false,
     messages: [
       {
@@ -3354,7 +3353,6 @@ function cardOcrChatBody(imageDataUrl: string): OcrRequestBody {
 function cardOcrTranscriptBody(transcript: string): OcrRequestBody {
   return {
     model: AGENT_MODEL,
-    reasoning_effort: null,
     stream: false,
     messages: [
       {
@@ -3384,7 +3382,6 @@ function cardOcrVisionAndTranscriptBody(
 ): OcrRequestBody {
   return {
     model: AGENT_MODEL,
-    reasoning_effort: null,
     stream: false,
     messages: [
       {
