@@ -29,6 +29,17 @@ const PARTIFUL_AUTO_SYNC_STATUS_POLL_MS = 20_000;
 const PARTIFUL_AUTO_SYNC_MAX_POLLS = 8;
 const PARTIFUL_FAST_SYNC_TIMEOUT_MS = 60_000;
 const LIVE_ROUTE_REFRESH_TIMEOUT_MS = 150_000;
+const CHAT_EMPTY_GUIDE = [
+  "Action shortcuts",
+  "",
+  "- **Optimize:** rebuild the agenda around approvals, locations, and timing.",
+  "- **ICS:** download the current agenda calendar file.",
+  "- **Partiful:** sync approvals, statuses, and discovered events.",
+  "- **Next:** ask what to do next for the current tab and day.",
+  "- **Timing:** check whether the next event is reachable.",
+  "- **Options:** compare backup choices when the plan changes.",
+  "- **Pitch:** get an opening line and ask for the next event.",
+].join("\n");
 const DEV_AUTH_POPUP_POLL_MS = 500;
 const DEV_AUTH_POPUP_TIMEOUT_MS = 2 * 60_000;
 const DEV_AGENT_SAME_SITE_ORIGIN = "https://techweek.pavlovcik.com";
@@ -71,6 +82,20 @@ const DEV_AGENT_VISIBLE_PHASES = new Set([
   "cancelled",
   "canceled",
 ]);
+const VIEW_HASH_SEGMENTS = {
+  route: "agenda",
+  backup: "events",
+  crm: "crm",
+};
+const HASH_VIEW_ALIASES = {
+  agenda: "route",
+  route: "route",
+  events: "backup",
+  event: "backup",
+  backup: "backup",
+  backups: "backup",
+  crm: "crm",
+};
 
 const state = {
   payload: null,
@@ -103,10 +128,14 @@ const state = {
   partifulAutoSyncRequestBusy: false,
   partifulAutoSyncRequestTimer: 0,
   partifulAutoSyncPollTimer: 0,
+  routeTransitionDirection: "none",
   leadEventManuallySelected: false,
   followUpEmailTouched: false,
   ocrMetadata: null,
 };
+const initialNavigation = readHashNavigation();
+state.activeView = initialNavigation.view || state.activeView;
+state.activeDay = initialNavigation.day || state.activeDay;
 
 const viewButtons = document.querySelectorAll("[data-view-button]");
 const panels = document.querySelectorAll("[data-panel]");
@@ -157,11 +186,13 @@ const partifulSyncButton = document.querySelector("[data-partiful-sync]");
 const agendaStatusItems = document.querySelectorAll("[data-agenda-status]");
 const SVG_NS = "http://www.w3.org/2000/svg";
 const VIEW_TITLES = {
-  route: "Route (agent test)",
-  backup: "Backups",
+  route: "Agenda",
+  backup: "Events",
   crm: "CRM",
 };
 const devAgent = createDevAgentState();
+
+document.body.dataset.view = state.activeView;
 
 viewButtons.forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.viewButton));
@@ -213,6 +244,10 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeChat();
   if (event.key === "Escape") closeDevChat();
   if (event.key === "Escape") closeEventModal();
+});
+globalThis.addEventListener("hashchange", () => {
+  if (!applyHashNavigation() || !state.payload) return;
+  render();
 });
 
 hydrateChatHistory();
@@ -418,9 +453,11 @@ function accountAuthUrl(path) {
   return devBaseUrl(ACCOUNT_AUTH_BASE, path);
 }
 
-function setView(view) {
+function setView(view, options = {}) {
+  if (!VIEW_TITLES[view]) return;
   state.activeView = view;
-  pageTitle.textContent = VIEW_TITLES[view] || "Route (agent test)";
+  document.body.dataset.view = view;
+  pageTitle.textContent = VIEW_TITLES[view] || "Agenda";
   viewButtons.forEach((button) => {
     button.setAttribute("aria-current", button.dataset.viewButton === view ? "page" : "false");
   });
@@ -428,6 +465,7 @@ function setView(view) {
     panel.hidden = panel.dataset.panel !== view;
   });
   if (view === "crm") renderCRM();
+  if (options.updateHash !== false) writeHashNavigation();
 }
 
 function openChat() {
@@ -1424,6 +1462,57 @@ function devTitleFromPrompt(prompt) {
   return truncate(firstLine.trim().replace(/\s+/g, " "), 80);
 }
 
+function readHashNavigation() {
+  const hash = decodeURIComponent(globalThis.location.hash.replace(/^#\/?/, "")).trim();
+  if (!hash) return {};
+  const [viewPart = "", dayPart = ""] = hash.split("/").map((part) => part.trim());
+  return {
+    view: HASH_VIEW_ALIASES[viewPart.toLowerCase()] || "",
+    day: /^\d{4}-\d{2}-\d{2}$/.test(dayPart) ? dayPart : "",
+  };
+}
+
+function applyHashNavigation() {
+  const next = readHashNavigation();
+  const previousView = state.activeView;
+  const previousDay = state.activeDay;
+  if (next.view) state.activeView = next.view;
+  if (next.day) state.activeDay = next.day;
+  if (state.payload) normalizeActiveDay();
+  state.routeTransitionDirection = routeTransitionDirection(previousDay, state.activeDay);
+  document.body.dataset.view = state.activeView;
+  return previousView !== state.activeView || previousDay !== state.activeDay;
+}
+
+function writeHashNavigation(options = {}) {
+  const view = VIEW_HASH_SEGMENTS[state.activeView] || "agenda";
+  const day = state.activeDay ? `/${state.activeDay}` : "";
+  const nextHash = `#${view}${day}`;
+  if (globalThis.location.hash === nextHash) return;
+  if (options.replace) {
+    history.replaceState(null, "", nextHash);
+  } else {
+    history.pushState(null, "", nextHash);
+  }
+}
+
+function normalizeActiveDay() {
+  if (!state.payload?.days?.length) return;
+  if (!state.payload.days.some((day) => day.date === state.activeDay)) {
+    state.activeDay = state.payload.days[0]?.date || "";
+  }
+}
+
+function routeTransitionDirection(previousDay, nextDay) {
+  if (!previousDay || !nextDay || previousDay === nextDay || !state.payload?.days?.length) {
+    return "none";
+  }
+  const previousIndex = state.payload.days.findIndex((day) => day.date === previousDay);
+  const nextIndex = state.payload.days.findIndex((day) => day.date === nextDay);
+  if (previousIndex < 0 || nextIndex < 0 || previousIndex === nextIndex) return "none";
+  return nextIndex > previousIndex ? "forward" : "backward";
+}
+
 function toggleChatHistory() {
   state.historyOpen = !state.historyOpen;
   chatHistoryToggle.setAttribute("aria-expanded", String(state.historyOpen));
@@ -1438,7 +1527,9 @@ async function loadSchedule() {
     ...state.payload.referenceDays.flatMap((day) => day.entries),
   ].map((entry) => [entry.calendarBlockId, entry]));
   state.activeDay ||= state.payload.days[0]?.date || "";
+  normalizeActiveDay();
   render();
+  writeHashNavigation({ replace: true });
 }
 
 async function recalculateAgenda() {
@@ -1577,10 +1668,9 @@ function applySchedulePayload(payload) {
     ...state.payload.days.flatMap((day) => day.entries),
     ...state.payload.referenceDays.flatMap((day) => day.entries),
   ].map((entry) => [entry.calendarBlockId, entry]));
-  if (!state.payload.days.some((day) => day.date === state.activeDay)) {
-    state.activeDay = state.payload.days[0]?.date || "";
-  }
+  normalizeActiveDay();
   render();
+  writeHashNavigation({ replace: true });
 }
 
 function applyAgendaProposal(agenda) {
@@ -1607,10 +1697,9 @@ function applyAgendaProposal(agenda) {
     ...state.payload.days.flatMap((day) => day.entries),
     ...state.payload.referenceDays.flatMap((day) => day.entries),
   ].map((entry) => [entry.calendarBlockId, entry]));
-  if (!state.payload.days.some((day) => day.date === state.activeDay)) {
-    state.activeDay = state.payload.days[0]?.date || "";
-  }
+  normalizeActiveDay();
   render();
+  writeHashNavigation({ replace: true });
 }
 
 function setAgendaBusy(busy, message) {
@@ -1694,7 +1783,8 @@ function render() {
 
 function renderNext() {
   const next = state.payload?.next;
-  document.querySelector("[data-next-title]").textContent = next?.displayTitle || "No route loaded";
+  document.querySelector("[data-next-title]").textContent = next?.displayTitle ||
+    "No agenda loaded";
   document.querySelector("[data-next-time]").textContent = next
     ? `${next.weekday} ${next.timeRange}`
     : "";
@@ -1712,9 +1802,12 @@ function renderDayTabs() {
     button.title = day.date;
     button.setAttribute("aria-selected", String(day.date === state.activeDay));
     button.addEventListener("click", () => {
+      const previousDay = state.activeDay;
       state.activeDay = day.date;
+      state.routeTransitionDirection = routeTransitionDirection(previousDay, state.activeDay);
       renderDayTabs();
       renderRouteList();
+      writeHashNavigation();
     });
     dayTabs.append(button);
   }
@@ -1728,6 +1821,7 @@ function renderRouteList() {
   const optionLanes = computeCollisionLanes(optionEntries);
   const timeline = document.createElement("section");
   timeline.dataset.timeline = "";
+  timeline.dataset.transition = state.routeTransitionDirection || "none";
   timeline.style.setProperty("--slots", "96");
   timeline.append(
     renderTimeRail(),
@@ -1735,6 +1829,7 @@ function renderRouteList() {
     ...optionEntries.map((entry) => renderTimelineEntry(entry, optionLanes)),
   );
   routeList.replaceChildren(timeline);
+  state.routeTransitionDirection = "none";
 }
 
 function sameDayOptionEntries(dayKey) {
@@ -1748,12 +1843,13 @@ function sameDayOptionEntries(dayKey) {
 
 function optionLabel(entry) {
   const status = entry.statusLabel || entry.status || "option";
-  return status === "registered" ? "Registered option" : `${labelize(status)} option`;
+  const label = labelize(status).replace(/\bbackup\b/gi, "").replace(/\s+/g, " ").trim();
+  return entry.status === "registered" ? "Registered option" : `${label || "Event"} option`;
 }
 
 function renderReferenceList() {
-  const entries = state.payload.referenceDays.flatMap((day) => day.entries)
-    .filter((entry) => entry.blockType === "event");
+  const entries = eventEntries()
+    .sort((a, b) => eventStartEpochMs(a) - eventStartEpochMs(b));
   referenceList.replaceChildren(...entries.map(renderEntry));
 }
 
@@ -1797,7 +1893,7 @@ function renderCRM() {
     const option = document.createElement("option");
     option.value = entry.calendarBlockId;
     option.textContent = `${
-      entry.calendar === "schedule" ? "Route" : "Backup"
+      entry.calendar === "schedule" ? "Agenda" : "Event"
     } - ${entry.weekday} ${entry.timeRange} - ${entry.displayTitle}`;
     return option;
   }));
@@ -3111,7 +3207,7 @@ function renderEntryCard(entry, compact) {
   const titleRow = document.createElement("div");
   const title = document.createElement("h3");
   title.textContent = compact && isOption
-    ? `Option: ${entry.displayTitle}`
+    ? compactTitle(entry)
     : compact
     ? compactTitle(entry)
     : entry.displayTitle;
@@ -3201,8 +3297,7 @@ function openEventModal(entry) {
   document.querySelector("[data-event-place]").replaceChildren(
     renderPlaceLink(entry, entry.location || entry.venueQuery),
   );
-  document.querySelector("[data-event-detail]").textContent = entry.routeDetails || entry.note ||
-    firstCoachingLine(entry.salesCoaching) || "";
+  renderEventDetail(entry);
   const actions = document.querySelector("[data-event-actions]");
   actions.replaceChildren(...eventActions(entry));
   eventModal.hidden = false;
@@ -3216,36 +3311,73 @@ function closeEventModal() {
   document.body.dataset.modalOpen = "false";
 }
 
+function renderEventDetail(entry) {
+  const detail = document.querySelector("[data-event-detail]");
+  const raw = entry.routeDetails || entry.note || firstCoachingLine(entry.salesCoaching) || "";
+  const text = cleanEventDetail(raw);
+  if (!text) {
+    detail.replaceChildren();
+    return;
+  }
+  detail.replaceChildren(
+    ...detailParagraphs(text).map((paragraph) => {
+      const node = document.createElement("p");
+      node.textContent = paragraph;
+      return node;
+    }),
+  );
+}
+
+function cleanEventDetail(text) {
+  return String(text)
+    .replace(/^Discovered from live Partiful account sync\.\s*/i, "")
+    .replace(/^Description:\s*/i, "")
+    .replace(/\s+Description:\s*/i, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function detailParagraphs(text) {
+  const explicit = text.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean);
+  if (explicit.length > 1) return explicit;
+
+  const sentences = text.match(/[^.!?]+[.!?]+(?:["')\]]+)?|[^.!?]+$/g) || [text];
+  const paragraphs = [];
+  let current = "";
+  for (const sentence of sentences.map((item) => item.trim()).filter(Boolean)) {
+    const next = current ? `${current} ${sentence}` : sentence;
+    if (current && next.length > 360) {
+      paragraphs.push(current);
+      current = sentence;
+    } else {
+      current = next;
+    }
+  }
+  if (current) paragraphs.push(current);
+  return paragraphs;
+}
+
 function eventActions(entry) {
   const actions = [];
+  if (entry.eventUrl) {
+    const link = document.createElement("a");
+    link.href = entry.eventUrl;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    setButtonContent(link, "external", "Partiful");
+    actions.push(link);
+  }
+
   if (entry.blockType === "event") {
     const ask = document.createElement("button");
     ask.type = "button";
+    ask.dataset.variant = "primary";
     setButtonContent(ask, "sparkles", "Ask");
     ask.addEventListener("click", () => {
       if (state.agentBusy) return;
       openEventCoachingChat(entry);
     });
     actions.push(ask);
-  }
-
-  if (entry.googleMapsUrl) {
-    const directions = document.createElement("a");
-    directions.href = directionsUrl(entry, entry.location || entry.venueQuery);
-    directions.target = "_blank";
-    directions.rel = "noreferrer";
-    directions.dataset.variant = "primary";
-    setButtonContent(directions, "map-pin", "Maps");
-    actions.push(directions);
-  }
-
-  if (entry.eventUrl) {
-    const link = document.createElement("a");
-    link.href = entry.eventUrl;
-    link.target = "_blank";
-    link.rel = "noreferrer";
-    setButtonContent(link, "external", "Open");
-    actions.push(link);
   }
 
   return actions;
@@ -3268,22 +3400,36 @@ function setButtonContent(element, iconName, label) {
 }
 
 function renderPlaceLink(entry, text) {
-  const label = String(text || "").trim();
-  if (!label) return document.createTextNode("");
-  const directions = directionsUrl(entry, label);
-  if (!directions) return document.createTextNode(label);
+  const destinationLabel = String(text || "").trim();
+  if (!destinationLabel) return document.createTextNode("");
+  const displayLabel = shortPlaceLabel(destinationLabel);
+  const directions = directionsUrl(entry, destinationLabel);
+  if (!directions) return document.createTextNode(displayLabel);
 
   const link = document.createElement("a");
   link.href = directions;
   link.target = "_blank";
   link.rel = "noreferrer";
   link.dataset.placeLink = "";
-  link.setAttribute("aria-label", `Open directions to ${label} from current location`);
+  link.setAttribute("aria-label", `Open directions to ${destinationLabel} from current location`);
   link.addEventListener("click", (event) => event.stopPropagation());
   const span = document.createElement("span");
-  span.textContent = label;
+  span.textContent = displayLabel;
   link.append(renderIcon("map-pin"), span);
   return link;
+}
+
+function shortPlaceLabel(value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  const shortened = text
+    .replace(
+      /,\s*(?:New York|NYC|Manhattan|Brooklyn|Queens|Bronx|Staten Island)?\s*,?\s*NY(?:\s+\d{5}(?:-\d{4})?)?\s*$/i,
+      "",
+    )
+    .replace(/,\s*New York(?:\s+\d{5}(?:-\d{4})?)?\s*$/i, "")
+    .replace(/,\s*\d{5}(?:-\d{4})?\s*$/, "")
+    .trim();
+  return shortened || text;
 }
 
 function directionsUrl(entry, label) {
@@ -3335,10 +3481,7 @@ function minuteOfDay(value) {
 }
 
 function hourLabel(hour) {
-  if (hour === 0) return "12a";
-  if (hour < 12) return `${hour}a`;
-  if (hour === 12) return "12p";
-  return `${hour - 12}p`;
+  return String(hour);
 }
 
 function compactTitle(entry) {
@@ -3538,6 +3681,7 @@ async function readClientContext() {
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     isSecureContext: globalThis.isSecureContext,
     locationStatus: "not_requested",
+    userFocus: currentUserFocus(),
     viewport: {
       width: globalThis.innerWidth,
       height: globalThis.innerHeight,
@@ -3553,6 +3697,18 @@ async function readClientContext() {
     context.locationStatus = coordinates.reason;
   }
   return context;
+}
+
+function currentUserFocus() {
+  const day = state.payload?.days?.find((item) => item.date === state.activeDay) || null;
+  return {
+    view: state.activeView,
+    viewLabel: VIEW_TITLES[state.activeView] || "Agenda",
+    dayKey: state.activeDay || "",
+    weekday: day?.weekday || "",
+    date: day?.date || state.activeDay || "",
+    hash: globalThis.location.hash || "",
+  };
 }
 
 async function readCurrentPositionIfPermissionGranted() {
@@ -4444,7 +4600,7 @@ function renderChat() {
   chatLog.replaceChildren();
   if (!state.messages.length) {
     chatLog.dataset.empty = "true";
-    const empty = appendMessage("assistant", "What do you need next?", false, {
+    const empty = appendMessage("assistant", CHAT_EMPTY_GUIDE, false, {
       suppressTools: true,
     });
     empty.dataset.emptyMessage = "";

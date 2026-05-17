@@ -82,6 +82,9 @@ const PI_AGENT_SESSION_URL = "https://agent.pavlovcik.com/api/session";
 const PORT = 8787;
 const TIME_ZONE = "America/New_York";
 const AGENT_MODEL = "gpt-5.5";
+const PI_AGENT_PUBLIC_ORIGIN = "https://agent.pavlovcik.com";
+const PI_AGENT_BACKEND_ORIGIN = "https://agent-origin.pavlovcik.com";
+const PI_AGENT_PROXY_PREFIX = "/__pi-agent";
 const LOCAL_OCR_TIMEOUT_MS = 7_000;
 const LOCAL_OCR_ROTATIONS = [0, 90, 180, 270] as const;
 const LOCAL_OCR_HIGH_CONFIDENCE_SCORE = 8;
@@ -641,6 +644,14 @@ type ClientContext = {
     capturedAt?: unknown;
   };
   locationStatus?: unknown;
+  userFocus?: {
+    view?: unknown;
+    viewLabel?: unknown;
+    dayKey?: unknown;
+    weekday?: unknown;
+    date?: unknown;
+    hash?: unknown;
+  };
   viewport?: {
     width?: unknown;
     height?: unknown;
@@ -916,22 +927,35 @@ function fileUrlPath(url: URL): string {
   return decodeURIComponent(url.pathname);
 }
 
-async function serveStatic(pathname: string): Promise<Response> {
+async function serveStatic(pathname: string, method = "GET"): Promise<Response> {
   const path = normalizePath(pathname);
   const fileUrl = new URL(path, STATIC_DIR);
   if (!fileUrl.href.startsWith(STATIC_DIR.href)) return notFound();
 
   try {
+    const info = await Deno.stat(fileUrl);
+    if (!info.isFile) return notFound();
+    const modifiedMs = info.mtime?.getTime() ?? 0;
+    const version = `"${info.size.toString(36)}-${modifiedMs.toString(36)}"`;
+    const headers = new Headers({
+      "content-type": contentType(path),
+      "cache-control": "no-store, max-age=0",
+      "content-length": String(info.size),
+      "etag": version,
+      "x-static-version": version,
+    });
+    if (info.mtime) headers.set("last-modified", info.mtime.toUTCString());
+    if (method === "HEAD") {
+      return new Response(null, { headers });
+    }
+
     const file = await Deno.readFile(fileUrl);
     return new Response(file, {
-      headers: {
-        "content-type": contentType(path),
-        "cache-control": "no-store",
-      },
+      headers,
     });
   } catch (error) {
     if (error instanceof Deno.errors.NotFound && !pathname.includes(".")) {
-      return serveStatic("/");
+      return serveStatic("/", method);
     }
     return notFound();
   }
@@ -4584,8 +4608,22 @@ function clientContextText(value: unknown): string {
 
   const context = value as ClientContext;
   const coords = context.coordinates;
+  const focus = context.userFocus && typeof context.userFocus === "object"
+    ? context.userFocus
+    : null;
   return [
     "Client context from the user's current browser/device:",
+    focus
+      ? "User is currently looking at this in-app context. Treat ambiguous questions as referring to this focus unless the user says otherwise."
+      : "",
+    focus ? `visible_view=${textField(focus.viewLabel || focus.view, 80)}` : "",
+    focus && (focus.weekday || focus.date || focus.dayKey)
+      ? `visible_day=${
+        [textField(focus.weekday, 24), textField(focus.date || focus.dayKey, 32)].filter(Boolean)
+          .join(" ")
+      }`
+      : "",
+    focus ? `url_hash=${textField(focus.hash, 120)}` : "",
     typeof context.localText === "string" ? `local_time=${context.localText}` : "",
     typeof context.localIso === "string" ? `local_iso=${context.localIso}` : "",
     typeof context.timeZone === "string" ? `timezone=${context.timeZone}` : "",
@@ -5192,6 +5230,12 @@ export async function router(request: Request): Promise<Response> {
   try {
     const sameSiteRedirect = redirectDenoDeployToSameSiteDomain(request, url);
     if (sameSiteRedirect) return sameSiteRedirect;
+    if (
+      url.pathname === PI_AGENT_PROXY_PREFIX ||
+      url.pathname.startsWith(`${PI_AGENT_PROXY_PREFIX}/`)
+    ) {
+      return await proxyPiAgentRequest(request, url);
+    }
     if (request.method === "GET" && url.pathname === "/api/health") return await handleHealth();
     if (request.method === "GET" && url.pathname === "/api/account/session") {
       return await handleAccountSession(request);
@@ -5250,8 +5294,8 @@ export async function router(request: Request): Promise<Response> {
       return await handlePartifulSyncRead();
     }
     if (url.pathname.startsWith("/api/")) return notFound();
-    if (request.method !== "GET") return notFound();
-    return await serveStatic(url.pathname);
+    if (request.method !== "GET" && request.method !== "HEAD") return notFound();
+    return await serveStatic(url.pathname, request.method);
   } catch (error) {
     console.error(error);
     return serverError(error instanceof Error ? error.message : "Unknown server error.");
@@ -5266,6 +5310,77 @@ function redirectDenoDeployToSameSiteDomain(request: Request, url: URL): Respons
   destination.hostname = SAME_SITE_APP_HOSTNAME;
   destination.port = "";
   return Response.redirect(destination, 308);
+}
+
+async function proxyPiAgentRequest(request: Request, incomingUrl: URL): Promise<Response> {
+  const publicOrigin = new URL(PI_AGENT_PUBLIC_ORIGIN);
+  const backendOrigin = new URL(PI_AGENT_BACKEND_ORIGIN);
+  const upstreamUrl = new URL(request.url);
+  upstreamUrl.protocol = backendOrigin.protocol;
+  upstreamUrl.hostname = backendOrigin.hostname;
+  upstreamUrl.port = backendOrigin.port;
+  if (upstreamUrl.pathname.startsWith(PI_AGENT_PROXY_PREFIX)) {
+    upstreamUrl.pathname = upstreamUrl.pathname.slice(PI_AGENT_PROXY_PREFIX.length) || "/";
+  }
+
+  const headers = new Headers(request.headers);
+  headers.delete("host");
+  headers.set("host", publicOrigin.hostname);
+  headers.set("x-forwarded-host", incomingUrl.host);
+  headers.set("x-forwarded-proto", incomingUrl.protocol.replace(":", ""));
+  headers.set(SAME_SITE_PROXY_HEADER, "1");
+
+  const upstreamResponse = await fetch(upstreamUrl, {
+    method: request.method,
+    headers,
+    body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
+    redirect: "manual",
+  });
+  const responseHeaders = new Headers(upstreamResponse.headers);
+  rewritePiAgentLocationHeader(responseHeaders, incomingUrl, publicOrigin);
+  rewritePiAgentSetCookieHeaders(responseHeaders, upstreamResponse.headers);
+
+  return new Response(upstreamResponse.body, {
+    status: upstreamResponse.status,
+    statusText: upstreamResponse.statusText,
+    headers: responseHeaders,
+  });
+}
+
+function rewritePiAgentLocationHeader(
+  headers: Headers,
+  incomingUrl: URL,
+  upstreamOrigin: URL,
+): void {
+  const location = headers.get("location");
+  if (!location) return;
+  let locationUrl: URL;
+  try {
+    locationUrl = new URL(location, upstreamOrigin);
+  } catch {
+    return;
+  }
+  if (locationUrl.origin !== upstreamOrigin.origin) return;
+  locationUrl.protocol = incomingUrl.protocol;
+  locationUrl.host = incomingUrl.host;
+  locationUrl.pathname = `${PI_AGENT_PROXY_PREFIX}${locationUrl.pathname}`;
+  headers.set("location", locationUrl.toString());
+}
+
+function rewritePiAgentSetCookieHeaders(headers: Headers, upstreamHeaders: Headers): void {
+  const getSetCookie = (upstreamHeaders as Headers & { getSetCookie?: () => string[] })
+    .getSetCookie;
+  const cookies = typeof getSetCookie === "function"
+    ? getSetCookie.call(upstreamHeaders)
+    : headers.get("set-cookie")
+    ? [headers.get("set-cookie") as string]
+    : [];
+  if (!cookies.length) return;
+
+  headers.delete("set-cookie");
+  for (const cookie of cookies) {
+    headers.append("set-cookie", cookie.replace(/;\s*Domain=[^;]*/gi, ""));
+  }
 }
 
 if (import.meta.main) {
