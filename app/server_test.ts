@@ -324,6 +324,48 @@ Deno.test("account handoff sets a local Pi session cookie", async () => {
   }
 });
 
+Deno.test("agenda recalculation rejects unauthenticated activation without changing active agenda", async () => {
+  setPiAgentSessionFetchForTest(() =>
+    Promise.reject(new Error("Pi session endpoint should not be called without a cookie."))
+  );
+  try {
+    const before = await router(new Request("http://localhost/api/schedule"));
+    if (before.status !== 200) {
+      throw new Error(`Expected schedule status 200, got ${before.status}`);
+    }
+    const beforeBody = await before.json() as Record<string, unknown>;
+    const beforeRunId = getPath(beforeBody, ["state", "activeAgendaRunId"]);
+
+    const response = await router(
+      new Request("http://localhost/api/agenda/recalculate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          activate: true,
+          liveRouting: false,
+          overrides: { excludedEventIds: ["TW-6408"] },
+        }),
+      }),
+    );
+
+    assertEquals(response.status, 401);
+    const body = await response.json() as Record<string, unknown>;
+    assertEquals(getPath(body, ["error", "message"]), "Authentication required.");
+    if (getPath(body, ["agenda"]) !== undefined) {
+      throw new Error("Unauthenticated recalculation should not return an agenda run.");
+    }
+
+    const after = await router(new Request("http://localhost/api/schedule"));
+    if (after.status !== 200) {
+      throw new Error(`Expected schedule status 200, got ${after.status}`);
+    }
+    const afterBody = await after.json() as Record<string, unknown>;
+    assertEquals(getPath(afterBody, ["state", "activeAgendaRunId"]), beforeRunId);
+  } finally {
+    setPiAgentSessionFetchForTest(null);
+  }
+});
+
 Deno.test({
   name: "sends Resend test email to test@pavlovcik.com",
   async fn() {

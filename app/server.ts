@@ -790,6 +790,17 @@ async function handleAccountSession(request: Request): Promise<Response> {
   return json({ session });
 }
 
+async function requireAdminAccountSession(request: Request): Promise<Response | null> {
+  const session = await readPiAgentSession(request);
+  if (!session.authenticated) {
+    return json({ error: { message: "Authentication required." } }, { status: 401 });
+  }
+  if (session.user?.isAdmin !== true) {
+    return json({ error: { message: "Admin access required." } }, { status: 403 });
+  }
+  return null;
+}
+
 async function handleAccountSessionHandoff(request: Request): Promise<Response> {
   const raw = await request.json().catch(() => null);
   const body = recordValue(raw);
@@ -2176,6 +2187,9 @@ async function handleStateAction(request: Request): Promise<Response> {
 }
 
 async function handleAgendaRecalculate(request: Request): Promise<Response> {
+  const authorizationError = await requireAdminAccountSession(request);
+  if (authorizationError) return authorizationError;
+
   const body = await request.json().catch(() => ({}));
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return badRequest("Expected a JSON object body.");
