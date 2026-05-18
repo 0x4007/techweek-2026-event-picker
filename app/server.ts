@@ -46,6 +46,7 @@ import {
 } from "./lib/routing.ts";
 import {
   cacheCounts,
+  isPostgresStoreConfigured,
   listCacheValues,
   readCacheValue,
   readStateValue,
@@ -1823,7 +1824,7 @@ async function readState(): Promise<AppState> {
 async function writeState(state: AppState): Promise<AppState> {
   state.updatedAt = new Date().toISOString();
   await writeStateValue("app_state_v1", state);
-  await writeLocalAppState(state);
+  if (!isPostgresStoreConfigured()) await writeLocalAppState(state);
   return state;
 }
 
@@ -2256,7 +2257,7 @@ async function storeAgendaRun(result: AgendaRecalculateResult): Promise<void> {
     ttlMs: AGENDA_RUN_CACHE_TTL_MS,
     metadata: metadata as unknown as Record<string, unknown>,
   });
-  await writeLocalAgendaRun(result);
+  if (!isPostgresStoreConfigured()) await writeLocalAgendaRun(result);
 }
 
 async function readAgendaRun(id: string): Promise<AgendaRecalculateResult | null> {
@@ -2485,13 +2486,13 @@ async function handlePartifulSync(request: Request): Promise<Response> {
     const agenda = await recalculateAgendaFromBody({
       ...raw,
       statusUpdates: sync.updatedEvents.map((update) => ({
-      partifulId: update.normalizedEvent.partifulId,
-      status: update.mergedEvent.status,
+        partifulId: update.normalizedEvent.partifulId,
+        status: update.mergedEvent.status,
         reason: `Partiful sync status ${
           update.normalizedEvent.rawStatus || update.mergedEvent.status
         }`,
-      updatedAt: sync.syncedAt,
-    })),
+        updatedAt: sync.syncedAt,
+      })),
     });
     await storeAgendaRun(agenda);
     responseBody.agenda = agenda;

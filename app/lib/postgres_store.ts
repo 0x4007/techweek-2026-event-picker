@@ -31,6 +31,10 @@ let schemaPromise: Promise<void> | null = null;
 let poolDatabaseUrl: string | null = null;
 const memoryStore = new Map<string, unknown>();
 
+export function isPostgresStoreConfigured(databaseUrl = Deno.env.get("DATABASE_URL") ?? "") {
+  return databaseUrl !== "";
+}
+
 async function getPool(): Promise<Pool | null> {
   const databaseUrl = Deno.env.get("DATABASE_URL") ?? "";
   if (poolPromise && poolDatabaseUrl !== databaseUrl) {
@@ -39,7 +43,7 @@ async function getPool(): Promise<Pool | null> {
   }
   poolPromise ??= Promise.resolve().then(() => {
     poolDatabaseUrl = databaseUrl;
-    if (!databaseUrl) return null;
+    if (!isPostgresStoreConfigured(databaseUrl)) return null;
     return new Pool({
       connectionString: databaseUrl,
       max: 4,

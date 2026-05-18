@@ -1,5 +1,6 @@
 import {
   cacheCounts,
+  isPostgresStoreConfigured,
   listCacheValues,
   PUBLIC_STORE_HEALTH_ERROR,
   readCacheValue,
@@ -34,6 +35,11 @@ Deno.test("memory cache honors TTL expiration for read, list, and counts", async
   assertEquals(listed.map((item) => item.cacheId), ["fresh"]);
   assertEquals(listed[0].metadata, { status: "fresh" });
   assertEquals(await cacheCounts([namespace]), { [namespace]: 1 });
+});
+
+Deno.test("Postgres configuration helper distinguishes database and local persistence modes", () => {
+  assertEquals(isPostgresStoreConfigured(""), false);
+  assertEquals(isPostgresStoreConfigured("postgres://user:secret@db.example.com/app"), true);
 });
 
 Deno.test("storeHealth redacts Postgres errors from public health output", async () => {
