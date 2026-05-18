@@ -495,17 +495,18 @@ export async function recalculateAgenda(
     limitedCandidates.push(...kept);
     drops.push(...dropped);
 
+    const dayHardFixedBlocks = hardFixedBlocksForDay(hardFixedBlocks, dayKey);
     const selectedEvents = await planDay(
       context,
       dayKey,
       kept,
-      hardFixedBlocksForDay(hardFixedBlocks, dayKey),
+      dayHardFixedBlocks,
     );
     for (const planned of selectedEvents) {
       selectedCandidateIds.add(planned.candidate.id);
     }
 
-    const dayBlocks = await buildDayBlocks(context, dayKey, selectedEvents);
+    const dayBlocks = await buildDayBlocks(context, dayKey, selectedEvents, dayHardFixedBlocks);
     if (options.preserveFixedBlocks) {
       dayBlocks.push(...retainFixedBlocks(context, fixedByDay.get(dayKey) ?? [], dayBlocks));
     }
@@ -1004,6 +1005,7 @@ async function buildDayBlocks(
   context: PlanningContext,
   dayKey: string,
   selectedEvents: PlannedEvent[],
+  hardFixedBlocks: FixedBlock[],
 ): Promise<AgendaBlock[]> {
   const blocks: AgendaBlock[] = [];
   for (const planned of selectedEvents) {
@@ -1020,7 +1022,26 @@ async function buildDayBlocks(
       arriveByEpochMs: last.candidate.endEpochMs,
     });
     const returnHome = returnHomeBlock(context, dayKey, last.candidate, route);
-    if (returnHome) blocks.push(returnHome);
+    if (returnHome) {
+      const conflict = hardFixedBlocks.find((block) =>
+        intervalsOverlap(
+          returnHome.startEpochMs,
+          returnHome.endEpochMs,
+          block.startEpochMs,
+          block.endEpochMs,
+        )
+      );
+      if (conflict) {
+        context.warnings.push({
+          code: "return_home_fixed_block_conflict",
+          message: `Skipped return-home travel because it overlaps hard fixed block "${conflict.title}".`,
+          dayKey,
+          blockId: conflict.calendarBlockId,
+        });
+      } else {
+        blocks.push(returnHome);
+      }
+    }
   }
   return blocks;
 }
@@ -1192,7 +1213,10 @@ function retainFixedBlocks(
         selected.endEpochMs,
       )
     );
-    if (overlap && !context.options.lockedBlockIds.has(block.calendarBlockId)) {
+    if (
+      overlap && !block.hardConstraint &&
+      !context.options.lockedBlockIds.has(block.calendarBlockId)
+    ) {
       context.warnings.push({
         code: "fixed_block_dropped",
         message: `Dropped fixed block "${block.title}" because it overlaps ${overlap.title}.`,

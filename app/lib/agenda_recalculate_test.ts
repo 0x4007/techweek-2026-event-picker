@@ -396,6 +396,62 @@ Deno.test("recalculateAgenda labels latest-departure gaps as buffer blocks", asy
   );
 });
 
+Deno.test("recalculateAgenda preserves hard fixed blocks over return-home travel", async () => {
+  const agenda = await recalculateAgenda({
+    scheduleEntries: [
+      eventEntry("TW-evening", "Evening Demo", "2026-06-01 18:00", "2026-06-01 20:00"),
+      {
+        calendar: "schedule",
+        calendarBlockId: "HARD-FOLLOW-UP",
+        entryType: "other",
+        blockType: "other",
+        start: "2026-06-01 20:15",
+        end: "2026-06-01 21:15",
+        actualStart: "2026-06-01 20:15",
+        actualEnd: "2026-06-01 21:15",
+        title: "Hard follow-up block",
+        displayTitle: "Hard follow-up block",
+        location: "New York, NY",
+      },
+    ],
+    overrides: {
+      preserveFixedBlocks: true,
+      hardFixedBlockIds: ["HARD-FOLLOW-UP"],
+      includeReturnHome: true,
+      generateLogisticsBlocks: false,
+    },
+    routeEstimator: () => ({
+      mode: "estimated",
+      minutes: 60,
+      details: "test route",
+    }),
+    generatedAt: "2026-05-14T12:00:00Z",
+  });
+
+  const hardBlock = agenda.selectedBlocks.find((block) =>
+    block.calendarBlockId === "HARD-FOLLOW-UP"
+  );
+  assert(hardBlock, "Expected hard fixed block to be preserved.");
+  assert(
+    !agenda.travelBlocks.some((block) => block.calendarBlockId === "TW-20260601-TRAVEL-HOME"),
+    "Expected overlapping return-home travel to be omitted.",
+  );
+  assert(
+    agenda.warnings.some((warning) => warning.code === "return_home_fixed_block_conflict"),
+    "Expected warning for omitted return-home travel.",
+  );
+  for (const block of agenda.selectedBlocks) {
+    if (block.calendarBlockId === hardBlock.calendarBlockId) continue;
+    assert(
+      !(
+        hardBlock.startEpochMs < block.endEpochMs &&
+        block.startEpochMs < hardBlock.endEpochMs
+      ),
+      `Expected no overlap with hard fixed block, got ${block.calendarBlockId}.`,
+    );
+  }
+});
+
 function eventEntry(
   techweekId: string,
   title: string,
