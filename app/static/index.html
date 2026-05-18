@@ -103,12 +103,15 @@
           <p>NYC Tech Week</p>
           <h1 data-page-title>Agenda</h1>
         </section>
-        <nav aria-label="Tech Week views">
+      <nav aria-label="Tech Week views">
           <button type="button" data-view-button="route" aria-current="page">
             <svg><use href="#icon-calendar"></use></svg><span>Agenda</span>
           </button>
           <button type="button" data-view-button="backup">
             <svg><use href="#icon-layers"></use></svg><span>Events</span>
+          </button>
+          <button type="button" data-view-button="invites">
+            <svg><use href="#icon-user-plus"></use></svg><span>Invites</span>
           </button>
           <button type="button" data-view-button="crm">
             <svg><use href="#icon-user-plus"></use></svg><span>CRM</span>
@@ -147,6 +150,36 @@
           <h2>Events</h2>
         </section>
         <section aria-label="Event entries" data-reference-list></section>
+      </section>
+
+      <section data-panel="invites" hidden>
+        <section>
+          <h2>Invites</h2>
+          <p data-invite-status></p>
+        </section>
+        <section class="invite-panel">
+          <article data-invite-card>
+            <h3>Invite code</h3>
+            <section class="invite-row">
+              <strong data-invite-code>...</strong>
+              <button type="button" data-invite-copy-code>Copy</button>
+            </section>
+            <p class="invite-label">Share link</p>
+            <section class="invite-row">
+              <a data-invite-share-link href="#" target="_blank" rel="noreferrer"></a>
+              <button type="button" data-invite-copy-link>Copy</button>
+            </section>
+          </article>
+          <article class="invite-qrcode" aria-label="Invite QR code">
+            <h3>QR</h3>
+            <img data-invite-qr alt="Invite QR code" decoding="async">
+          </article>
+          <section class="invite-referrals">
+            <h3>Referred users</h3>
+            <p data-invite-referrals-count></p>
+            <ul data-invite-referrals></ul>
+          </section>
+        </section>
       </section>
 
       <section data-panel="crm" hidden>

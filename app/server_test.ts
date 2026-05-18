@@ -46,6 +46,34 @@ function useAdminSessionFetchForTest() {
   });
 }
 
+function useAccountSessionFetchForTest(user: {
+  id: string;
+  handle: string;
+  isAdmin?: boolean;
+  credentialCount?: number;
+} | null) {
+  if (!user) {
+    setPiAgentSessionFetchForTest(null);
+    return;
+  }
+  setPiAgentSessionFetchForTest((_request, cookieHeader) => {
+    if (!cookieHeader.includes("pi_codex_session=")) {
+      throw new Error(`Expected Pi session cookie, got ${cookieHeader}`);
+    }
+    return Promise.resolve(jsonResponse({
+      authenticated: true,
+      auth: "passkey",
+      user: {
+        id: user.id,
+        handle: user.handle,
+        isAdmin: Boolean(user.isAdmin),
+        credentialCount: user.credentialCount || 1,
+      },
+      expiresAt: "2026-06-01T12:00:00.000Z",
+    }));
+  });
+}
+
 Deno.test("parseCsv handles quoted multiline fields", () => {
   const rows = parseCsv(
     'id,title,note\n1,"Hello, NYC","line one\nline two"\n2,Plain,"A ""quote"""',
@@ -419,6 +447,208 @@ Deno.test("account handoff sets a local Pi session cookie", async () => {
   }
 });
 
+Deno.test("account handoff claims pending referral code", async () => {
+  useAccountSessionFetchForTest({ id: "invite_owner_ref", handle: "owner_ref", isAdmin: true });
+  let ownerCode = "";
+  try {
+    const ownerInvite = await router(
+      new Request("http://localhost/api/account/invite", {
+        headers: { cookie: "pi_codex_session=owner-invite" },
+      }),
+    );
+    assertEquals(ownerInvite.status, 200);
+    const ownerInviteBody = await ownerInvite.json() as Record<string, unknown>;
+    ownerCode = String(getPath(ownerInviteBody, ["invite", "code"]) || "");
+    assertEquals(ownerCode.length > 0, true);
+  } finally {
+    setPiAgentSessionFetchForTest(null);
+  }
+
+  let handoffCalled = false;
+  setPiAgentSessionHandoffFetchForTest((_request, handoffToken, targetOrigin) => {
+    handoffCalled = true;
+    assertEquals(handoffToken, "handoff-referral");
+    assertEquals(targetOrigin, "http://localhost");
+    return Promise.resolve(jsonResponse({
+      sessionToken: "handoff-ref-session",
+      session: {
+        authenticated: true,
+        auth: "passkey",
+        user: {
+          id: "invite_new_user",
+          handle: "new_user",
+          isAdmin: false,
+          credentialCount: 1,
+        },
+        expiresAt: "2026-06-01T12:00:00.000Z",
+      },
+    }));
+  });
+
+  try {
+    const handoff = await router(
+      new Request("http://localhost/api/account/session/handoff", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handoffToken: "handoff-referral", referralCode: ownerCode }),
+      }),
+    );
+    assertEquals(handoff.status, 200);
+    assertEquals(handoffCalled, true);
+  } finally {
+    setPiAgentSessionHandoffFetchForTest(null);
+    setPiAgentSessionFetchForTest(null);
+  }
+
+  useAccountSessionFetchForTest({ id: "invite_owner_ref", handle: "owner_ref", isAdmin: true });
+  try {
+    const ownerAfter = await router(
+      new Request("http://localhost/api/account/invite", {
+        headers: { cookie: "pi_codex_session=owner-invite" },
+      }),
+    );
+    assertEquals(ownerAfter.status, 200);
+    const ownerAfterBody = await ownerAfter.json() as Record<string, unknown>;
+    const referrals = Array.isArray(getPath(ownerAfterBody, ["invite", "referrals"]))
+      ? getPath(ownerAfterBody, ["invite", "referrals"]) as unknown[]
+      : [];
+    assertEquals(referrals.some((entry) =>
+      getPath(entry as Record<string, unknown>, ["userId"]) === "invite_new_user"
+    ), true);
+  } finally {
+    setPiAgentSessionFetchForTest(null);
+  }
+});
+
+Deno.test("account invite GET/POST reject unauthenticated requests", async () => {
+  setPiAgentSessionFetchForTest(() =>
+    Promise.reject(new Error("Pi session endpoint should not be called without a cookie."))
+  );
+  try {
+    const getResponse = await router(
+      new Request("http://localhost/api/account/invite"),
+    );
+    assertEquals(getResponse.status, 401);
+    const getBody = await getResponse.json() as Record<string, unknown>;
+    assertEquals(getPath(getBody, ["error", "message"]), "Authentication required.");
+
+    const postResponse = await router(
+      new Request("http://localhost/api/account/invite", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ referralCode: "ABCDE12345" }),
+      }),
+    );
+    assertEquals(postResponse.status, 401);
+    const postBody = await postResponse.json() as Record<string, unknown>;
+    assertEquals(getPath(postBody, ["error", "message"]), "Authentication required.");
+  } finally {
+    setPiAgentSessionFetchForTest(null);
+  }
+});
+
+Deno.test("account invite GET returns stable code and payload for the same authenticated user", async () => {
+  useAccountSessionFetchForTest({ id: "invite_user_a", handle: "alice", isAdmin: true });
+  try {
+    const first = await router(
+      new Request("http://localhost/api/account/invite", {
+        headers: { cookie: "pi_codex_session=invite-session" },
+      }),
+    );
+    assertEquals(first.status, 200);
+    const firstBody = await first.json() as Record<string, unknown>;
+    const firstInvite = getPath(firstBody, ["invite"]) as Record<string, unknown> | undefined;
+    const firstCode = String(firstInvite?.code || "");
+    assertEquals(firstCode.length > 0, true);
+    assertEquals(firstInvite?.code, firstInvite?.code);
+    const firstShare = String(firstInvite?.shareUrl || "");
+    if (!firstShare.includes("/?ref=")) {
+      throw new Error(`Expected share link to include ref, got ${firstShare}`);
+    }
+
+    const second = await router(
+      new Request("http://localhost/api/account/invite", {
+        headers: { cookie: "pi_codex_session=invite-session" },
+      }),
+    );
+    assertEquals(second.status, 200);
+    const secondBody = await second.json() as Record<string, unknown>;
+    const secondInvite = getPath(secondBody, ["invite"]) as Record<string, unknown> | undefined;
+    const secondCode = String(secondInvite?.code || "");
+    assertEquals(secondCode, firstCode);
+  } finally {
+    setPiAgentSessionFetchForTest(null);
+  }
+});
+
+Deno.test("account invite claim records referral, ignores self-referral", async () => {
+  const testSuffix = crypto.randomUUID();
+  const ownerId = `invite_owner_${testSuffix}`;
+  const friendId = `invite_friend_${testSuffix}`;
+  useAccountSessionFetchForTest({ id: ownerId, handle: "owner" });
+  try {
+    const ownerInviteResponse = await router(
+      new Request("http://localhost/api/account/invite", {
+        headers: { cookie: "pi_codex_session=invite-session-owner" },
+      }),
+    );
+    assertEquals(ownerInviteResponse.status, 200);
+    const ownerInviteBody = await ownerInviteResponse.json() as Record<string, unknown>;
+    const ownerInviteCode = String(getPath(ownerInviteBody, ["invite", "code"]) || "");
+    assertEquals(ownerInviteCode.length > 0, true);
+
+    useAccountSessionFetchForTest({ id: friendId, handle: "friend" });
+    const claimResponse = await router(
+      new Request("http://localhost/api/account/invite", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "pi_codex_session=invite-session-friend",
+        },
+        body: JSON.stringify({ referralCode: ownerInviteCode }),
+      }),
+    );
+    assertEquals(claimResponse.status, 200);
+    const claimBody = await claimResponse.json() as Record<string, unknown>;
+    const claimedInvite = getPath(claimBody, ["invite"]) as Record<string, unknown> | undefined;
+    const claimedReferrals = Array.isArray(claimedInvite?.referrals)
+      ? claimedInvite.referrals as unknown[]
+      : [];
+    assertEquals(claimedReferrals.length, 0);
+    assertEquals(claimBody?.claimed, true);
+
+    useAccountSessionFetchForTest({ id: ownerId, handle: "owner" });
+    const selfResponse = await router(
+      new Request("http://localhost/api/account/invite", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "pi_codex_session=invite-session-owner",
+        },
+        body: JSON.stringify({ referralCode: ownerInviteCode }),
+      }),
+    );
+    assertEquals(selfResponse.status, 200);
+    const selfBody = await selfResponse.json() as Record<string, unknown>;
+    assertEquals(selfBody?.claimed === false, true);
+
+    const ownerReload = await router(
+      new Request("http://localhost/api/account/invite", {
+        headers: { cookie: "pi_codex_session=invite-session-owner" },
+      }),
+    );
+    assertEquals(ownerReload.status, 200);
+    const ownerReloadBody = await ownerReload.json() as Record<string, unknown>;
+    const ownerReloadInvite = getPath(ownerReloadBody, ["invite"]) as Record<string, unknown> | undefined;
+    const ownerReferrals = Array.isArray(ownerReloadInvite?.referrals)
+      ? ownerReloadInvite.referrals as unknown[]
+      : [];
+    assertEquals(ownerReferrals.length, 1);
+  } finally {
+    useAccountSessionFetchForTest(null);
+  }
+});
+
 Deno.test("agenda recalculation rejects unauthenticated activation without changing active agenda", async () => {
   useAdminSessionFetchForTest();
   try {
@@ -535,10 +765,9 @@ Deno.test("concurrent lead creation preserves both state updates", async () => {
     const leads = getPath(body, ["state", "leads"]);
     if (!Array.isArray(leads)) throw new Error("Expected leads array.");
     for (const name of [firstLead, secondLead]) {
-      assert(
-        leads.some((lead) => getPath(lead, ["name"]) === name),
-        `Expected concurrent lead ${name} to persist.`,
-      );
+      if (!leads.some((lead) => getPath(lead, ["name"]) === name)) {
+        throw new Error(`Expected concurrent lead ${name} to persist.`);
+      }
     }
   } finally {
     for (const id of createdIds) {

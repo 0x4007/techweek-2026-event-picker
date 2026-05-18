@@ -11,6 +11,11 @@ Primary user goal for the current run:
 - Prefer a plus-one when Partiful allows leaving the plus-one as TBD.
 - Keep the user hands-off where possible.
 
+## Collaboration Defaults
+
+- Default to creating a unique git worktree before making changes, to avoid collisions with simultaneous agent edits.
+- Use `localhost:<port>` for local URLs in docs/workflows, never `0.0.0.0:<port>` or `127.0.0.1:<port>`, so passkey sign-in continues to work.
+
 ## Local Handoff
 
 Before continuing RSVP work, read:

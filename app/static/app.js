@@ -1,3 +1,6 @@
+const MOTION_IMPORT_SOURCE = "https://esm.sh/motion@12.6.4?bundle";
+let motionAnimate = null;
+
 const CHAT_STORAGE_KEY = "techweek-chat";
 const CHAT_HISTORY_KEY = "techweek-chat-history";
 const ACTIVE_CHAT_KEY = "techweek-chat-active-id";
@@ -32,16 +35,21 @@ const LIVE_ROUTE_REFRESH_TIMEOUT_MS = 150_000;
 const CHAT_EMPTY_GUIDE = [
   "Action shortcuts",
   "",
-  "- **Optimize:** rebuild the agenda around approvals, locations, and timing.",
-  "- **ICS:** download the current agenda calendar file.",
-  "- **Partiful:** sync approvals, statuses, and discovered events.",
-  "- **Next:** ask what to do next for the current tab and day.",
-  "- **Timing:** check whether the next event is reachable.",
-  "- **Options:** compare backup choices when the plan changes.",
-  "- **Pitch:** get an opening line and ask for the next event.",
+  "Optimize: rebuild the agenda around approvals, locations, and timing.",
+  "ICS: download the current agenda calendar file.",
+  "Partiful: sync approvals, statuses, and discovered events.",
+  "Next: ask what to do next for the current tab and day.",
+  "Timing: check whether the next event is reachable.",
+  "Options: compare backup choices when the plan changes.",
+  "Pitch: get an opening line and ask for the next event.",
 ].join("\n");
 const DEV_AUTH_POPUP_POLL_MS = 500;
 const DEV_AUTH_POPUP_TIMEOUT_MS = 2 * 60_000;
+const MOTION_REDUCE_OK = !globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const FORCE_MOTION = false;
+const MOTION_CARD_STAGGER_MS = 28;
+const MOTION_BUTTON_STAGGER_MS = 14;
+let motionApiLoadPromise = null;
 const DEV_AGENT_SAME_SITE_ORIGIN = "https://techweek.pavlovcik.com";
 const DEV_AGENT_LEGACY_HOSTNAMES = new Set(["techweek-2026-event-picker.0x4007.deno.net"]);
 const DEV_AGENT_SESSION_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000];
@@ -86,6 +94,7 @@ const VIEW_HASH_SEGMENTS = {
   route: "agenda",
   backup: "events",
   crm: "crm",
+  invites: "invites",
 };
 const HASH_VIEW_ALIASES = {
   agenda: "route",
@@ -95,14 +104,31 @@ const HASH_VIEW_ALIASES = {
   backup: "backup",
   backups: "backup",
   crm: "crm",
+  invites: "invites",
+  invite: "invites",
+  ref: "invites",
 };
+const INVITE_QR_IMAGE_URL = "https://api.qrserver.com/v1/create-qr-code/";
+const PENDING_REFERRAL_STORAGE_KEY = "techweek-pending-referral-code";
 const MARKDOWN_RENDERER = createMarkdownRenderer();
+
+function loadMotionLibrary() {
+  if (motionApiLoadPromise) return motionApiLoadPromise;
+  motionApiLoadPromise = import(MOTION_IMPORT_SOURCE).then((module) => {
+    motionAnimate = typeof module?.animate === "function" ? module.animate : null;
+  }).catch(() => {
+    motionAnimate = null;
+  });
+  return motionApiLoadPromise;
+}
 
 const state = {
   payload: null,
   activeView: "route",
   activeDay: "",
   entriesByBlock: new Map(),
+  invitePayload: null,
+  inviteLoading: false,
   accountSession: null,
   accountLoading: false,
   accountError: "",
@@ -172,6 +198,14 @@ const eventCloseButton = document.querySelector("[data-event-close]");
 const pageTitle = document.querySelector("[data-page-title]");
 const accountButton = document.querySelector("[data-account-button]");
 const accountLabel = document.querySelector("[data-account-label]");
+const inviteStatus = document.querySelector("[data-invite-status]");
+const inviteCode = document.querySelector("[data-invite-code]");
+const inviteCopyCodeButton = document.querySelector("[data-invite-copy-code]");
+const inviteShareLink = document.querySelector("[data-invite-share-link]");
+const inviteCopyLinkButton = document.querySelector("[data-invite-copy-link]");
+const inviteQrImage = document.querySelector("[data-invite-qr]");
+const inviteReferralsCount = document.querySelector("[data-invite-referrals-count]");
+const inviteReferralsList = document.querySelector("[data-invite-referrals]");
 const leadForm = document.querySelector("[data-lead-form]");
 const leadEventSelect = document.querySelector("[data-lead-event]");
 const leadsList = document.querySelector("[data-leads-list]");
@@ -190,8 +224,85 @@ const VIEW_TITLES = {
   route: "Agenda",
   backup: "Events",
   crm: "CRM",
+  invites: "Invites",
 };
 const devAgent = createDevAgentState();
+const motionButtonsAnimated = new WeakSet();
+const motionCardsAnimated = new WeakSet();
+
+function runMotion(target, keyframes, options = {}) {
+  if (!MOTION_REDUCE_OK && !FORCE_MOTION) return;
+  if (!target) return;
+  const animationOptions = {
+    duration: Math.round((options.duration || 0) * 1000),
+    delay: options.delay || 0,
+    easing: options.easing || "ease-out",
+    fill: options.fill || "both",
+  };
+  void loadMotionLibrary().then(() => {
+    if (typeof motionAnimate === "function") {
+      motionAnimate(target, keyframes, options);
+      return;
+    }
+    target.animate(keyframes, animationOptions);
+  });
+}
+
+function animateButtonCluster(root) {
+  if (!MOTION_REDUCE_OK && !FORCE_MOTION || !root) return;
+  const buttons = Array.from(
+    root.querySelectorAll(
+      "button, a[href], [role='button']",
+    ),
+  );
+  buttons.forEach((button, index) => {
+    if (motionButtonsAnimated.has(button) || button.hidden || button.disabled) return;
+    const delay = Number.isFinite(button.dataset.motionDelay)
+      ? Number(button.dataset.motionDelay)
+      : (index + 1) * (MOTION_BUTTON_STAGGER_MS / 1000);
+    runMotion(button, {
+      opacity: [0, 1],
+      transform: ["translateY(2px)", "translateY(0px)"],
+    }, {
+      duration: 0.22,
+      easing: "ease-out",
+      delay,
+      fill: "both",
+    });
+    motionButtonsAnimated.add(button);
+  });
+}
+
+function animateCards(root) {
+  if (!MOTION_REDUCE_OK && !FORCE_MOTION || !root) return;
+  const entries = Array.from(root.querySelectorAll("article[data-entry]"));
+  for (const [index, entry] of entries.entries()) {
+    if (motionCardsAnimated.has(entry)) continue;
+    runMotion(entry, {
+      opacity: [0, 1],
+    }, {
+      duration: 0.32,
+      delay: Math.min(0.42, (index + 1) * (MOTION_CARD_STAGGER_MS / 1000)),
+      easing: "ease-out",
+      fill: "both",
+    });
+    motionCardsAnimated.add(entry);
+  }
+}
+
+function normalizedDays(payload = state.payload) {
+  return Array.isArray(payload?.days) ? payload.days : [];
+}
+
+function normalizedReferenceDays(payload = state.payload) {
+  return Array.isArray(payload?.referenceDays) ? payload.referenceDays : [];
+}
+
+function flattenDayEntries(days = []) {
+  return (Array.isArray(days) ? days : []).flatMap((day) =>
+    Array.isArray(day?.entries) ? day.entries : []
+  );
+}
 
 document.body.dataset.view = state.activeView;
 
@@ -221,6 +332,16 @@ devDeployCheckbox.addEventListener("change", () => {
   updateDevComposerState();
 });
 accountButton.addEventListener("click", handleAccountButton);
+inviteCopyCodeButton?.addEventListener("click", () => {
+  if (state.invitePayload?.code) {
+    void copyText(state.invitePayload.code);
+  }
+});
+inviteCopyLinkButton?.addEventListener("click", () => {
+  if (state.invitePayload?.shareUrl) {
+    void copyText(state.invitePayload.shareUrl);
+  }
+});
 globalThis.addEventListener("message", handleDevAuthMessage);
 globalThis.addEventListener("message", handleAccountAuthMessage);
 renderDevAgent();
@@ -254,6 +375,7 @@ globalThis.addEventListener("hashchange", () => {
 hydrateChatHistory();
 renderChat();
 renderAccountButton();
+capturePendingReferralFromUrl();
 void loadAccountSession();
 
 promptButtons.forEach((button) => {
@@ -336,14 +458,106 @@ async function loadAccountSession() {
       throw new Error(body?.error?.message || "Could not check account session.");
     }
     applyAccountSession(body.session || null);
+    if (body?.session?.authenticated) {
+      await loadInviteDataForAuthenticatedSession();
+    } else {
+      state.invitePayload = null;
+      renderInvite();
+    }
   } catch (error) {
     state.accountError = error instanceof Error
       ? error.message
       : "Could not check account session.";
     applyAccountSession(null);
+    state.invitePayload = null;
+    renderInvite();
   } finally {
     state.accountLoading = false;
     renderAccountButton();
+  }
+}
+
+function pendingReferralCode() {
+  try {
+    return String(localStorage.getItem(PENDING_REFERRAL_STORAGE_KEY) || "").trim().toUpperCase().replace(
+      /[^A-Z0-9]/g,
+      "",
+    );
+  } catch {
+    return "";
+  }
+}
+
+function clearPendingReferralCode() {
+  try {
+    localStorage.removeItem(PENDING_REFERRAL_STORAGE_KEY);
+  } catch {
+    // ignore localStorage errors
+  }
+}
+
+function capturePendingReferralFromUrl() {
+  const target = new URL(globalThis.location.href);
+  const raw = target.searchParams.get("ref");
+  const cleaned = String(raw || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 10);
+  if (cleaned) {
+    try {
+      localStorage.setItem(PENDING_REFERRAL_STORAGE_KEY, cleaned);
+    } catch {
+      // local storage unavailable in this context
+    }
+  }
+  target.searchParams.delete("ref");
+  if (target.toString() !== globalThis.location.href) {
+    history.replaceState(null, "", target.toString());
+  }
+}
+
+async function loadInviteDataForAuthenticatedSession() {
+  if (!state.accountSession?.authenticated) {
+    state.invitePayload = null;
+    renderInvite();
+    return;
+  }
+  state.inviteLoading = true;
+  renderInvite();
+  const referralCode = pendingReferralCode();
+  try {
+    if (referralCode) {
+      const claim = await fetch("/api/account/invite", {
+        method: "POST",
+        cache: "no-store",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ referralCode }),
+      });
+      if (claim.ok) clearPendingReferralCode();
+    }
+
+    const response = await fetch("/api/account/invite", {
+      cache: "no-store",
+      credentials: "include",
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body?.error?.message || "Could not load invite data.");
+    }
+    state.invitePayload = body?.invite && typeof body.invite === "object" ? body.invite : null;
+    renderInvite();
+  } catch (error) {
+    state.invitePayload = null;
+    renderInvite();
+    state.accountError = error instanceof Error ? error.message : "Could not load invite data.";
+  } finally {
+    state.inviteLoading = false;
+    renderInvite();
   }
 }
 
@@ -463,6 +677,9 @@ async function completeAccountAuthHandoff(handoffToken) {
   state.accountError = "";
   renderAccountButton();
   try {
+    const referralCode = pendingReferralCode();
+    const handoffPayload = { handoffToken };
+    if (referralCode) handoffPayload.referralCode = referralCode;
     const response = await fetch("/api/account/session/handoff", {
       method: "POST",
       cache: "no-store",
@@ -471,13 +688,14 @@ async function completeAccountAuthHandoff(handoffToken) {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ handoffToken }),
+      body: JSON.stringify(handoffPayload),
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(body?.error?.message || "Could not complete account sign-in.");
     }
     applyAccountSession(body.session || null);
+    await loadInviteDataForAuthenticatedSession();
   } catch (error) {
     state.accountError = error instanceof Error
       ? error.message
@@ -505,6 +723,7 @@ function setView(view, options = {}) {
     panel.hidden = panel.dataset.panel !== view;
   });
   if (view === "crm") renderCRM();
+  if (view === "invites") renderInvite();
   if (options.updateHash !== false) writeHashNavigation();
 }
 
@@ -1542,18 +1761,20 @@ function writeHashNavigation(options = {}) {
 }
 
 function normalizeActiveDay() {
-  if (!state.payload?.days?.length) return;
-  if (!state.payload.days.some((day) => day.date === state.activeDay)) {
-    state.activeDay = state.payload.days[0]?.date || "";
+  const days = normalizedDays();
+  if (!days.length) return;
+  if (!days.some((day) => day.date === state.activeDay)) {
+    state.activeDay = days[0]?.date || "";
   }
 }
 
 function routeTransitionDirection(previousDay, nextDay) {
-  if (!previousDay || !nextDay || previousDay === nextDay || !state.payload?.days?.length) {
+  const days = normalizedDays();
+  if (!previousDay || !nextDay || previousDay === nextDay || !days.length) {
     return "none";
   }
-  const previousIndex = state.payload.days.findIndex((day) => day.date === previousDay);
-  const nextIndex = state.payload.days.findIndex((day) => day.date === nextDay);
+  const previousIndex = days.findIndex((day) => day.date === previousDay);
+  const nextIndex = days.findIndex((day) => day.date === nextDay);
   if (previousIndex < 0 || nextIndex < 0 || previousIndex === nextIndex) return "none";
   return nextIndex > previousIndex ? "forward" : "backward";
 }
@@ -1566,12 +1787,18 @@ function toggleChatHistory() {
 
 async function loadSchedule() {
   const response = await fetch("/api/schedule", { cache: "no-store" });
-  state.payload = await response.json();
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || "Could not load schedule.");
+  }
+  state.payload = payload;
+  const payloadDays = normalizedDays(payload);
+  const payloadReferenceDays = normalizedReferenceDays(payload);
   state.entriesByBlock = new Map([
-    ...state.payload.days.flatMap((day) => day.entries),
-    ...state.payload.referenceDays.flatMap((day) => day.entries),
+    ...flattenDayEntries(payloadDays),
+    ...flattenDayEntries(payloadReferenceDays),
   ].map((entry) => [entry.calendarBlockId, entry]));
-  state.activeDay ||= state.payload.days[0]?.date || "";
+  state.activeDay ||= payloadDays[0]?.date || "";
   normalizeActiveDay();
   render();
   surfacePartifulAutoSyncStatus();
@@ -1710,9 +1937,11 @@ async function refreshLiveRoutesInBackground({ silent = true } = {}) {
 
 function applySchedulePayload(payload) {
   state.payload = payload;
+  const payloadDays = normalizedDays(payload);
+  const payloadReferenceDays = normalizedReferenceDays(payload);
   state.entriesByBlock = new Map([
-    ...state.payload.days.flatMap((day) => day.entries),
-    ...state.payload.referenceDays.flatMap((day) => day.entries),
+    ...flattenDayEntries(payloadDays),
+    ...flattenDayEntries(payloadReferenceDays),
   ].map((entry) => [entry.calendarBlockId, entry]));
   normalizeActiveDay();
   render();
@@ -1726,8 +1955,8 @@ function applyAgendaProposal(agenda) {
     ),
   );
   const previousReference = [
-    ...(state.payload?.days || []).flatMap((day) => day.entries),
-    ...(state.payload?.referenceDays || []).flatMap((day) => day.entries),
+    ...flattenDayEntries(normalizedDays(state.payload)),
+    ...flattenDayEntries(normalizedReferenceDays(state.payload)),
   ].filter((entry) => entry.blockType === "event" && !entryMatchesAnyId(entry, selectedIds));
   const scheduleEntries = (agenda.selectedBlocks || []).map(agendaBlockToEntry);
   state.payload = {
@@ -1740,8 +1969,8 @@ function applyAgendaProposal(agenda) {
     referenceDays: groupEntriesByDay(previousReference.map(referenceEntryFromEvent)),
   };
   state.entriesByBlock = new Map([
-    ...state.payload.days.flatMap((day) => day.entries),
-    ...state.payload.referenceDays.flatMap((day) => day.entries),
+    ...flattenDayEntries(normalizedDays(state.payload)),
+    ...flattenDayEntries(normalizedReferenceDays(state.payload)),
   ].map((entry) => [entry.calendarBlockId, entry]));
   normalizeActiveDay();
   render();
@@ -1848,6 +2077,65 @@ function render() {
   renderRouteList();
   renderReferenceList();
   renderCRM();
+  renderInvite();
+  animateButtonCluster(document);
+  animateCards(routeList);
+  animateCards(referenceList);
+}
+
+function renderInvite() {
+  if (!inviteStatus) return;
+  if (!state.invitePayload) {
+    const isSignedIn = state.accountSession?.authenticated === true;
+    inviteStatus.textContent = state.inviteLoading
+      ? "Loading invite data..."
+      : isSignedIn
+      ? "Invite data is not available yet."
+      : "Sign in to create and share your invite.";
+    inviteCode.textContent = "—";
+    inviteCopyCodeButton?.setAttribute("disabled", "true");
+    inviteShareLink.textContent = "—";
+    inviteShareLink.removeAttribute("href");
+    inviteCopyLinkButton?.setAttribute("disabled", "true");
+    inviteQrImage.src = "";
+    inviteQrImage.hidden = true;
+    if (inviteReferralsCount) inviteReferralsCount.textContent = "";
+    if (inviteReferralsList) inviteReferralsList.replaceChildren();
+    return;
+  }
+
+  const payload = state.invitePayload;
+  const referrals = Array.isArray(payload.referrals) ? payload.referrals : [];
+  inviteStatus.textContent = `Share URL: ${payload.createdAt ? `created ${payload.createdAt}` : "updated"}`.trim();
+  inviteCode.textContent = payload.code || "—";
+  inviteShareLink.textContent = payload.shareUrl || "";
+  inviteShareLink.href = payload.shareUrl || "#";
+  inviteCopyCodeButton?.removeAttribute("disabled");
+  inviteCopyLinkButton?.removeAttribute("disabled");
+  if (payload.shareUrl) {
+    inviteQrImage.src = `${INVITE_QR_IMAGE_URL}?size=220x220&data=${encodeURIComponent(payload.shareUrl)}`;
+    inviteQrImage.hidden = false;
+  } else {
+    inviteQrImage.hidden = true;
+  }
+  if (inviteReferralsCount) {
+    inviteReferralsCount.textContent = `${referrals.length} referral${
+      referrals.length === 1 ? "" : "s"
+    }`;
+  }
+  if (inviteReferralsList) {
+    if (!referrals.length) {
+      inviteReferralsList.replaceChildren(
+        Object.assign(document.createElement("li"), { textContent: "No referrals yet." }),
+      );
+    } else {
+      inviteReferralsList.replaceChildren(...referrals.map((referral) => {
+        const item = document.createElement("li");
+        item.textContent = `${referral.userHandle || "User"} (${referral.userId || "id"})`;
+        return item;
+      }));
+    }
+  }
 }
 
 function renderNext() {
@@ -1864,7 +2152,7 @@ function renderNext() {
 
 function renderDayTabs() {
   dayTabs.replaceChildren();
-  for (const day of state.payload.days) {
+  for (const day of normalizedDays()) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = day.weekday;
@@ -1883,7 +2171,7 @@ function renderDayTabs() {
 }
 
 function renderRouteList() {
-  const day = state.payload.days.find((item) => item.date === state.activeDay);
+  const day = normalizedDays().find((item) => item.date === state.activeDay);
   const entries = day?.entries || [];
   const optionEntries = sameDayOptionEntries(state.activeDay);
   const lanes = computeCollisionLanes(entries);
@@ -1902,7 +2190,8 @@ function renderRouteList() {
 }
 
 function sameDayOptionEntries(dayKey) {
-  return (state.payload.referenceDays.find((day) => day.date === dayKey)?.entries || [])
+  const day = normalizedReferenceDays().find((item) => item.date === dayKey);
+  return (day?.entries || [])
     .filter((entry) => entry.blockType === "event")
     .map((entry) => ({
       ...entry,
@@ -1924,9 +2213,9 @@ function renderReferenceList() {
 
 function eventEntries() {
   if (!state.payload) return [];
-  const schedule = state.payload.days.flatMap((day) => day.entries)
+  const schedule = flattenDayEntries(state.payload?.days)
     .filter((entry) => entry.blockType === "event");
-  const reference = state.payload.referenceDays.flatMap((day) => day.entries)
+  const reference = flattenDayEntries(state.payload?.referenceDays)
     .filter((entry) => entry.blockType === "event");
   return [...schedule, ...reference];
 }
@@ -2106,7 +2395,7 @@ function entryMatchesAnyId(entry, ids) {
 }
 
 function countScheduleEvents() {
-  return state.payload?.days?.flatMap((day) => day.entries)
+  return flattenDayEntries(state.payload?.days)
     .filter((entry) => entry.blockType === "event").length ?? 0;
 }
 
@@ -3368,6 +3657,7 @@ function openEventModal(entry) {
   renderEventDetail(entry);
   const actions = document.querySelector("[data-event-actions]");
   actions.replaceChildren(...eventActions(entry));
+  animateButtonCluster(actions);
   eventModal.hidden = false;
   eventBackdrop.hidden = false;
   document.body.dataset.modalOpen = "true";
@@ -4626,6 +4916,7 @@ function renderProposedActions(messageEl, actions) {
     wrap.append(button);
   }
   messageEl.after(wrap);
+  animateButtonCluster(wrap);
 }
 
 function actionLabel(action) {

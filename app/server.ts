@@ -81,7 +81,7 @@ const PARTIFUL_AUTH_JSON_ENV = "TECHWEEK_PARTIFUL_AUTH_JSON";
 const PI_SESSION_COOKIE_NAME = "pi_codex_session";
 const PI_AGENT_SESSION_URL = "https://agent.pavlovcik.com/api/session";
 const PI_AGENT_HANDOFF_URL = "https://agent.pavlovcik.com/api/auth/handoff/consume";
-const PORT = 8788;
+const DEFAULT_PORT = 8788;
 const TIME_ZONE = "America/New_York";
 const AGENT_MODEL = "gpt-5.5";
 const PI_AGENT_PUBLIC_ORIGIN = "https://agent.pavlovcik.com";
@@ -108,6 +108,58 @@ const PARTIFUL_AUTO_SYNC_LOCK_TTL_MS = 5 * 60 * 1000;
 const DENO_DEPLOY_HOSTNAME = "techweek-2026-event-picker.0x4007.deno.net";
 const SAME_SITE_APP_HOSTNAME = "techweek.pavlovcik.com";
 const SAME_SITE_PROXY_HEADER = "x-techweek-same-site-proxy";
+const PORT_SCAN_ATTEMPTS = 150;
+const INVITE_CODE_LENGTH = 10;
+const INVITE_REFERRAL_PENDING_PREFIX = "techweek_invite_referral_";
+
+type InviteReferralEntry = {
+  userId: string;
+  userHandle: string;
+  claimedAt: string;
+};
+
+type InviteRecord = {
+  ownerUserId: string;
+  ownerHandle: string;
+  createdAt: string;
+  referrals: InviteReferralEntry[];
+};
+
+type InvitePayload = {
+  code: string;
+  shareUrl: string;
+  ownerUserId: string;
+  ownerHandle: string;
+  createdAt: string;
+  referrals: InviteReferralEntry[];
+};
+
+function resolvePreferredPort(): number {
+  const envPort = Deno.env.get("PORT");
+  const parsedPort = Number.parseInt(envPort ?? "", 10);
+  if (Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535) {
+    return parsedPort;
+  }
+  return DEFAULT_PORT;
+}
+
+async function findFreePort(startPort: number): Promise<number> {
+  let candidate = startPort;
+  const maxPort = Math.min(65_535, startPort + PORT_SCAN_ATTEMPTS - 1);
+  for (; candidate <= maxPort; candidate++) {
+    try {
+      const listener = Deno.listen({ hostname: "127.0.0.1", port: candidate });
+      listener.close();
+      return candidate;
+    } catch (error) {
+      if (error instanceof Deno.errors.AddrInUse) continue;
+      throw error;
+    }
+  }
+  throw new Error(
+    `No free port available in range ${startPort}-${maxPort}. Set PORT explicitly to choose a free port.`,
+  );
+}
 const MANUAL_AGENDA_ROUTE_POINTS = [
   {
     pattern: /\b(?:IBM One Madison|1 Madison Ave)\b/i,
@@ -413,6 +465,8 @@ type AppState = {
   dismissedBlocks: string[];
   activeAgendaRunId: string;
   partifulAutoSync: PartifulAutoSyncState;
+  inviteCodeByUserId: Record<string, string>;
+  inviteByCode: Record<string, InviteRecord>;
 };
 
 type PartifulAutoSyncState = {
@@ -773,6 +827,10 @@ function json(data: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(data, null, 2), { ...init, headers });
 }
 
+function normalizeApiPath(pathname: string): string {
+  return pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+}
+
 export function setPiAgentSessionFetchForTest(
   fetcher: ((request: Request, cookieHeader: string) => Promise<Response>) | null,
 ): void {
@@ -804,10 +862,13 @@ async function requireAdminAccountSession(request: Request): Promise<Response | 
 }
 
 async function authorizeApiRoute(request: Request, url: URL): Promise<Response | null> {
+  const pathname = normalizeApiPath(url.pathname);
   if (!url.pathname.startsWith("/api/")) return null;
   if (request.method === "GET" && url.pathname === "/api/health") return null;
-  if (request.method === "GET" && url.pathname === "/api/account/session") return null;
-  if (request.method === "POST" && url.pathname === "/api/account/session/handoff") return null;
+  if (request.method === "GET" && pathname === "/api/account/session") return null;
+  if (request.method === "GET" && pathname === "/api/account/invite") return null;
+  if (request.method === "POST" && pathname === "/api/account/session/handoff") return null;
+  if (request.method === "POST" && pathname === "/api/account/invite") return null;
   return await requireAdminAccountSession(request);
 }
 
@@ -840,10 +901,193 @@ async function handleAccountSessionHandoff(request: Request): Promise<Response> 
     });
   }
 
+  const referralCode = normalizeInviteCode(textField(raw?.referralCode, 120));
+  if (referralCode) {
+    await claimReferralWithSessionReferralCode(session.user?.id || "", session.user?.handle || "", referralCode);
+  }
+
   return json({ session }, {
     headers: {
       "set-cookie": accountSessionCookie(sessionToken, session.expiresAt, request),
     },
+  });
+}
+
+async function claimReferralWithSessionReferralCode(
+  ownerUserId: string,
+  ownerHandle: string,
+  referralCode: string,
+): Promise<void> {
+  if (!ownerUserId || !referralCode) return;
+  await claimReferralByCode(ownerUserId, ownerHandle || "Unknown", normalizeInviteCode(referralCode));
+}
+
+async function requireAuthenticatedAccountSession(request: Request): Promise<Response | null> {
+  const session = await readPiAgentSession(request);
+  if (!session.authenticated) {
+    return json({ error: { message: "Authentication required." } }, { status: 401 });
+  }
+  return null;
+}
+
+async function handleAccountInviteGet(request: Request): Promise<Response> {
+  const authError = await requireAuthenticatedAccountSession(request);
+  if (authError) return authError;
+  const session = await readPiAgentSession(request);
+  const user = session.user;
+  if (!user) return json({ error: { message: "Account user unavailable." } }, { status: 401 });
+
+  const payload = await buildAccountInvitePayload(request, user);
+  return json({ invite: payload });
+}
+
+async function handleAccountInviteClaim(request: Request): Promise<Response> {
+  const authError = await requireAuthenticatedAccountSession(request);
+  if (authError) return authError;
+  const session = await readPiAgentSession(request);
+  const user = session.user;
+  if (!user) return json({ error: { message: "Account user unavailable." } }, { status: 401 });
+
+  const body = await request.json().catch(() => null);
+  const rawReferral = recordValue(body);
+  const referralCode = normalizeInviteCode(textField(rawReferral?.referralCode, 120));
+
+  let claimed = false;
+  if (referralCode) {
+    const result = await claimReferralByCode(user.id, user.handle || "Unknown", referralCode);
+    if (result.errorMessage) {
+      return json({ error: { message: result.errorMessage } }, { status: 400 });
+    }
+    claimed = result.claimed;
+  }
+  const payload = await buildAccountInvitePayload(request, user);
+  return json({ invite: payload, claimed });
+}
+
+async function claimReferral(
+  user: AccountSessionUser,
+  referralCode: string,
+): Promise<{ claimed: boolean; errorMessage?: string }> {
+  return claimReferralByCode(user.id, user.handle || "Unknown", referralCode);
+}
+
+async function claimReferralByCode(
+  userId: string,
+  userHandle: string,
+  referralCode: string,
+): Promise<{ claimed: boolean; errorMessage?: string }> {
+  const code = normalizeInviteCode(referralCode);
+  if (!code) return { claimed: false, errorMessage: "Invalid referral code." };
+  return await mutateState(async (state) => {
+    const inviter = state.inviteByCode[code];
+    if (!inviter) return { claimed: false, errorMessage: "Invalid referral code." };
+    if (inviter.ownerUserId === userId) {
+      return { claimed: false, errorMessage: "" };
+    }
+    if (inviter.referrals.some((entry) => entry.userId === userId)) {
+      return { claimed: false, errorMessage: "" };
+    }
+    inviter.referrals.push({
+      userId,
+      userHandle: userHandle || "Unknown",
+      claimedAt: new Date().toISOString(),
+    });
+    await writeState(state);
+    return { claimed: true };
+  });
+}
+
+async function buildAccountInvitePayload(
+  request: Request,
+  user: AccountSessionUser,
+): Promise<InvitePayload> {
+  const code = await upsertInviteRecordForUser(user);
+  const state = await readState();
+  const record = state.inviteByCode[code];
+  const url = new URL(request.url);
+  url.pathname = "/";
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("ref", code);
+  return {
+    code,
+    shareUrl: url.toString(),
+    ownerUserId: user.id,
+    ownerHandle: user.handle,
+    createdAt: record?.createdAt || new Date().toISOString(),
+    referrals: [...(record?.referrals || [])],
+  };
+}
+
+async function upsertInviteRecordForUser(user: AccountSessionUser): Promise<string> {
+  const code = await ensureInviteCodeForUser(user);
+  await setInviteCodeForUser(user.id, code, user.handle || "Unknown");
+  return code;
+}
+
+function normalizeInviteCode(value: string): string {
+  const normalized = textField(value, 120)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  return normalized.slice(0, INVITE_CODE_LENGTH);
+}
+
+async function ensureInviteCodeForUser(user: AccountSessionUser): Promise<string> {
+  const existing = await getInviteCodeByUser(user.id);
+  if (existing) return existing;
+
+  let counter = 0;
+  const seedParts = [user.id, user.handle || "", INVITE_REFERRAL_PENDING_PREFIX];
+  while (counter < 20) {
+    const seed = `${seedParts.join("|")}|${counter}`;
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(seed));
+    const hex = Array.from(new Uint8Array(digest)).map((value) =>
+      value.toString(16).padStart(2, "0")
+    ).join("");
+    const code = normalizeInviteCode(hex);
+    const conflict = (await readState()).inviteByCode[code]?.ownerUserId;
+    if (!conflict) {
+      await setInviteCodeForUser(user.id, code, user.handle || "");
+      return code;
+    }
+    if (conflict === user.id) return code;
+    counter += 1;
+  }
+
+  const random = Math.random().toString(36).slice(2).toUpperCase();
+  const fallbackCode = normalizeInviteCode(`F${random}`);
+  await setInviteCodeForUser(user.id, fallbackCode, user.handle || "");
+  return fallbackCode || await ensureInviteCodeForUser(user);
+}
+
+async function getInviteCodeByUser(userId: string): Promise<string> {
+  const state = await readState();
+  const code = normalizeInviteCode(state.inviteCodeByUserId[userId] || "");
+  if (!code) return "";
+  if (state.inviteByCode[code]?.ownerUserId !== userId) {
+    return "";
+  }
+  return code;
+}
+
+async function setInviteCodeForUser(userId: string, code: string, handle: string): Promise<void> {
+  await mutateState(async (state) => {
+    const owner = state.inviteByCode[code];
+    if (owner && owner.ownerUserId !== userId) {
+      return;
+    }
+    state.inviteCodeByUserId[userId] = code;
+    if (!state.inviteByCode[code]) {
+      state.inviteByCode[code] = {
+        ownerUserId: userId,
+        ownerHandle: handle || "Unknown",
+        createdAt: new Date().toISOString(),
+        referrals: [],
+      };
+    }
+    state.inviteByCode[code].ownerHandle = handle || "Unknown";
+    await writeState(state);
+    return;
   });
 }
 
@@ -1346,6 +1590,8 @@ function emptyState(): AppState {
     dismissedBlocks: [],
     activeAgendaRunId: "",
     partifulAutoSync: emptyPartifulAutoSyncState(),
+    inviteCodeByUserId: {},
+    inviteByCode: {},
   };
 }
 
@@ -1818,6 +2064,68 @@ async function readState(): Promise<AppState> {
     dismissedBlocks: parsed.dismissedBlocks ?? [],
     activeAgendaRunId: String(parsed.activeAgendaRunId ?? ""),
     partifulAutoSync: normalizePartifulAutoSync(parsed.partifulAutoSync),
+    inviteCodeByUserId: normalizeInviteCodeByUserId(parsed.inviteCodeByUserId),
+    inviteByCode: normalizeInviteByCode(parsed.inviteByCode),
+  };
+}
+
+function normalizeInviteCodeByUserId(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const output: Record<string, string> = {};
+  for (const [userId, code] of Object.entries(value)) {
+    const normalizedUserId = textField(userId, 160);
+    const normalizedCode = normalizeInviteCode(textField(code, 120));
+    if (normalizedUserId && normalizedCode) {
+      output[normalizedUserId] = normalizedCode;
+    }
+  }
+  return output;
+}
+
+function normalizeInviteByCode(value: unknown): Record<string, InviteRecord> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const output: Record<string, InviteRecord> = {};
+  for (const [code, record] of Object.entries(value)) {
+    const normalizedCode = normalizeInviteCode(code);
+    if (!normalizedCode) continue;
+    const normalizedRecord = normalizeInviteRecord(record);
+    if (normalizedRecord.ownerUserId) {
+      output[normalizedCode] = normalizedRecord;
+    }
+  }
+  return output;
+}
+
+function normalizeInviteRecord(value: unknown): InviteRecord {
+  const raw = recordValue(value);
+  const ownerUserId = textField(raw?.ownerUserId, 160);
+  if (!ownerUserId) {
+    return {
+      ownerUserId: "",
+      ownerHandle: "",
+      createdAt: new Date().toISOString(),
+      referrals: [],
+    };
+  }
+  const referrals = Array.isArray(raw?.referrals)
+    ? raw.referrals
+      .map(normalizeInviteReferralEntry)
+      .filter((entry) => Boolean(entry.userId && entry.userHandle))
+    : [];
+  return {
+    ownerUserId,
+    ownerHandle: textField(raw?.ownerHandle, 120),
+    createdAt: textField(raw?.createdAt, 80) || new Date().toISOString(),
+    referrals,
+  };
+}
+
+function normalizeInviteReferralEntry(value: unknown): InviteReferralEntry {
+  const raw = recordValue(value);
+  return {
+    userId: textField(raw?.userId, 160),
+    userHandle: textField(raw?.userHandle, 120),
+    claimedAt: textField(raw?.claimedAt, 80),
   };
 }
 
@@ -5286,6 +5594,7 @@ function copyDebugHeaders(headers: Headers): Headers {
 export async function router(request: Request): Promise<Response> {
   const url = new URL(request.url);
   try {
+    const pathname = normalizeApiPath(url.pathname);
     const sameSiteRedirect = redirectDenoDeployToSameSiteDomain(request, url);
     if (sameSiteRedirect) return sameSiteRedirect;
     if (
@@ -5297,12 +5606,18 @@ export async function router(request: Request): Promise<Response> {
     const authorizationError = await authorizeApiRoute(request, url);
     if (authorizationError) return authorizationError;
 
-    if (request.method === "GET" && url.pathname === "/api/health") return await handleHealth();
-    if (request.method === "GET" && url.pathname === "/api/account/session") {
+    if (request.method === "GET" && pathname === "/api/health") return await handleHealth();
+    if (request.method === "GET" && pathname === "/api/account/session") {
       return await handleAccountSession(request);
     }
-    if (request.method === "POST" && url.pathname === "/api/account/session/handoff") {
+    if (request.method === "GET" && pathname === "/api/account/invite") {
+      return await handleAccountInviteGet(request);
+    }
+    if (request.method === "POST" && pathname === "/api/account/session/handoff") {
       return await handleAccountSessionHandoff(request);
+    }
+    if (request.method === "POST" && pathname === "/api/account/invite") {
+      return await handleAccountInviteClaim(request);
     }
     if (request.method === "GET" && url.pathname === "/api/schedule") return await handleSchedule();
     if (request.method === "POST" && url.pathname === "/api/agenda/recalculate") {
@@ -5448,6 +5763,12 @@ function rewritePiAgentSetCookieHeaders(headers: Headers, upstreamHeaders: Heade
 }
 
 if (import.meta.main) {
-  console.log(`Tech Week app running on http://localhost:${PORT}`);
-  Deno.serve({ port: PORT, hostname: "0.0.0.0" }, router);
+  const port = await findFreePort(resolvePreferredPort());
+  Deno.serve({
+    port,
+    hostname: "0.0.0.0",
+    onListen({ hostname, port: boundPort }) {
+      console.log(`Tech Week app running on http://${hostname}:${boundPort}`);
+    },
+  }, router);
 }
