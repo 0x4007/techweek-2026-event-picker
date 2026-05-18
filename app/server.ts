@@ -2408,6 +2408,9 @@ function isHomeAnchor(point: { id?: string; name?: string }, query: string): boo
 }
 
 async function handlePartifulSync(request: Request): Promise<Response> {
+  const authorizationError = await requireAdminAccountSession(request);
+  if (authorizationError) return authorizationError;
+
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") return badRequest("Expected a JSON body.");
   const raw = body as Record<string, unknown>;
@@ -2471,6 +2474,9 @@ async function handlePartifulSync(request: Request): Promise<Response> {
 }
 
 async function handlePartifulHeadlessSync(request: Request): Promise<Response> {
+  const authorizationError = await requireAdminAccountSession(request);
+  if (authorizationError) return authorizationError;
+
   const body = await request.json().catch(() => ({}));
   const raw = body && typeof body === "object" && !Array.isArray(body)
     ? body as Record<string, unknown>
@@ -2523,7 +2529,10 @@ async function handlePartifulHeadlessSync(request: Request): Promise<Response> {
   const syncResponse = await handlePartifulSync(
     new Request("http://localhost/api/sync/partiful", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        cookie: request.headers.get("cookie") ?? "",
+      },
       body: JSON.stringify({
         source: "partiful_headless_local",
         recalculate: raw.recalculate !== false,
@@ -2596,7 +2605,10 @@ class PartifulAuthConfigurationError extends Error {
   }
 }
 
-async function handlePartifulAutoSync(): Promise<Response> {
+async function handlePartifulAutoSync(request: Request): Promise<Response> {
+  const authorizationError = await requireAdminAccountSession(request);
+  if (authorizationError) return authorizationError;
+
   const state = await readState();
   const nowMs = Date.now();
   const decision = partifulAutoSyncDecision(state.partifulAutoSync, nowMs);
@@ -5286,7 +5298,7 @@ export async function router(request: Request): Promise<Response> {
       return await handlePartifulSync(request);
     }
     if (request.method === "POST" && url.pathname === "/api/sync/partiful/auto") {
-      return await handlePartifulAutoSync();
+      return await handlePartifulAutoSync(request);
     }
     if (request.method === "POST" && url.pathname === "/api/sync/partiful/headless") {
       return await handlePartifulHeadlessSync(request);

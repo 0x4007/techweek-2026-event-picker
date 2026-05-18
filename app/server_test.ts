@@ -202,9 +202,11 @@ Deno.test("visibleAgentGatewayError renders upstream debug details instead of lo
 });
 
 Deno.test("Partiful sync endpoint ingests browser response snapshots and exposes readback", async () => {
+  useAdminSessionFetchForTest();
   const response = await router(
     new Request("http://localhost/api/sync/partiful", {
       method: "POST",
+      headers: ADMIN_STATE_HEADERS,
       body: JSON.stringify({
         source: "test-browser-session",
         responses: [{
@@ -249,6 +251,33 @@ Deno.test("Partiful sync endpoint ingests browser response snapshots and exposes
   );
   assertEquals(getPath(openSource, ["normalizedEvent", "status"]), "registered");
   assertEquals(getPath(openSource, ["normalizedEvent", "rawStatus"]), "APPROVED");
+  setPiAgentSessionFetchForTest(null);
+});
+
+Deno.test("Partiful sync POST endpoints reject unauthenticated requests", async () => {
+  setPiAgentSessionFetchForTest(() =>
+    Promise.reject(new Error("Pi session endpoint should not be called without a cookie."))
+  );
+  try {
+    for (const path of [
+      "/api/sync/partiful",
+      "/api/sync/partiful/auto",
+      "/api/sync/partiful/headless",
+    ]) {
+      const response = await router(
+        new Request(`http://localhost${path}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({}),
+        }),
+      );
+      assertEquals(response.status, 401);
+      const body = await response.json() as Record<string, unknown>;
+      assertEquals(getPath(body, ["error", "message"]), "Authentication required.");
+    }
+  } finally {
+    setPiAgentSessionFetchForTest(null);
+  }
 });
 
 Deno.test("Google Calendar write sync endpoint is removed", async () => {
