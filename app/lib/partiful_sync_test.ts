@@ -1,4 +1,8 @@
-import { extractPartifulSnapshotPayloads, normalizePartifulSnapshot } from "./partiful_sync.ts";
+import {
+  computePartifulSync,
+  extractPartifulSnapshotPayloads,
+  normalizePartifulSnapshot,
+} from "./partiful_sync.ts";
 
 function assertEquals(actual: unknown, expected: unknown) {
   const actualJson = JSON.stringify(actual);
@@ -108,4 +112,26 @@ Deno.test("normalizePartifulSnapshot accepts Firebase callable Partiful response
   assertEquals(normalized.event?.partifulId, "abc123def");
   assertEquals(normalized.event?.status, "applied");
   assertEquals(normalized.event?.source, "partiful_callable_payload");
+});
+
+Deno.test("computePartifulSync keeps previous known status when snapshot status is unknown", () => {
+  const sync = computePartifulSync(
+    [{
+      partifulId: "abc123def",
+      eventUrl: "https://partiful.com/e/abc123def",
+      title: "Current Registered Event",
+      status: "registered",
+    }],
+    [{
+      event: {
+        publicShortUrl: "https://partiful.com/e/abc123def",
+        title: "Current Registered Event",
+      },
+    }],
+    { syncedAt: "2026-05-18T12:00:00.000Z" },
+  );
+  const update = [...sync.updatedEvents, ...sync.unchangedEvents][0];
+  assertEquals(sync.statusChanges.length, 0);
+  assertEquals(update.normalizedEvent.status, "unknown");
+  assertEquals(update.mergedEvent.status, "registered");
 });

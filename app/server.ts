@@ -2299,10 +2299,11 @@ async function readStoredPartifulStatusUpdates(): Promise<AgendaStatusUpdate[]> 
   const entries = await readStoredPartifulEvents();
   return entries.map((entry) => {
     const event = entry.normalizedEvent;
+    const status = entry.mergedEvent.status || event.status;
     return {
       partifulId: event.partifulId,
-      status: event.status,
-      reason: `Partiful sync status ${event.rawStatus || event.status}`,
+      status,
+      reason: `Partiful sync status ${event.rawStatus || status}`,
       updatedAt: entry.syncedAt,
     };
   }).filter((item) => item.partifulId && item.status);
@@ -2459,11 +2460,13 @@ async function handlePartifulSync(request: Request): Promise<Response> {
     const agenda = await recalculateAgendaFromBody({
       ...raw,
       statusUpdates: sync.updatedEvents.map((update) => ({
-        partifulId: update.normalizedEvent.partifulId,
-        status: update.normalizedEvent.status,
-        reason: `Partiful sync status ${update.normalizedEvent.rawStatus}`,
-        updatedAt: sync.syncedAt,
-      })),
+      partifulId: update.normalizedEvent.partifulId,
+      status: update.mergedEvent.status,
+        reason: `Partiful sync status ${
+          update.normalizedEvent.rawStatus || update.mergedEvent.status
+        }`,
+      updatedAt: sync.syncedAt,
+    })),
     });
     await storeAgendaRun(agenda);
     responseBody.agenda = agenda;
@@ -2846,7 +2849,7 @@ async function handlePartifulSyncRead(): Promise<Response> {
   const events = await readStoredPartifulEvents();
   const statusCounts: Record<string, number> = {};
   for (const event of events) {
-    const status = event.normalizedEvent.status || "unknown";
+    const status = event.mergedEvent.status || event.normalizedEvent.status || "unknown";
     statusCounts[status] = (statusCounts[status] ?? 0) + 1;
   }
   return json({
@@ -2885,7 +2888,10 @@ async function persistPartifulSync(
 ): Promise<void> {
   const persistedIds = new Set<string>();
   for (const update of updatedEvents) {
-    const normalizedEvent = compactNormalizedPartifulEvent(update.normalizedEvent);
+    const normalizedEvent = {
+      ...compactNormalizedPartifulEvent(update.normalizedEvent),
+      status: update.mergedEvent.status || update.normalizedEvent.status,
+    };
     const cacheId = partifulEventCacheId(
       normalizedEvent.partifulId || normalizedEvent.eventUrl,
     );
@@ -2902,7 +2908,7 @@ async function persistPartifulSync(
       } satisfies StoredPartifulEvent,
       {
         ttlMs: PARTIFUL_SYNC_CACHE_TTL_MS,
-        metadata: { status: normalizedEvent.status },
+        metadata: { status: update.mergedEvent.status || normalizedEvent.status },
       },
     );
   }
