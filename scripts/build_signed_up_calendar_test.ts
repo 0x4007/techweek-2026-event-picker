@@ -1,8 +1,10 @@
 import {
+  type CalendarRow,
   eventKeyFromUrl,
   foldIcsLine,
   formatCsvRows,
   parseCsvRecords,
+  writeOutputs,
 } from "./build_signed_up_calendar.ts";
 
 Deno.test("parseCsvRecords handles quoted commas, quotes, and newlines", () => {
@@ -80,3 +82,86 @@ Deno.test("foldIcsLine folds long UTF-8 lines", () => {
     throw new Error("Expected continuation line to start with a space");
   }
 });
+
+Deno.test("writeOutputs creates documented signed-up calendar artifacts", async () => {
+  const tempDir = await Deno.makeTempDir();
+  try {
+    const outputDir = new URL(`file://${tempDir.replaceAll("\\", "/")}/`);
+    const paths = {
+      md: new URL("techweek_signed_up_transport_schedule.md", outputDir),
+      csv: new URL("techweek_signed_up_transport_schedule.csv", outputDir),
+      xlsx: new URL("techweek_signed_up_transport_schedule.xlsx", outputDir),
+      scheduleIcs: new URL("techweek_signed_up_operational_with_travel.ics", outputDir),
+      allRsvpIcs: new URL("techweek_signed_up_all_rsvps_reference.ics", outputDir),
+      appleScript: new URL("sync/sync_techweek_to_apple_calendar.applescript", outputDir),
+    };
+    const row = calendarRow("schedule");
+    const referenceRow = calendarRow("reference");
+    const artifacts = {
+      events: [],
+      scheduleRows: [row],
+      allReferenceRows: [referenceRow],
+      referenceRows: [referenceRow],
+      combinedRows: [row, referenceRow],
+    } satisfies Parameters<typeof writeOutputs>[0];
+
+    await writeOutputs(artifacts, paths);
+
+    for (const path of Object.values(paths)) {
+      const stat = await Deno.stat(path);
+      if (!stat.isFile || stat.size === 0) {
+        throw new Error(`Expected non-empty artifact at ${path}`);
+      }
+    }
+    const xlsx = await Deno.readFile(paths.xlsx);
+    if (
+      xlsx[0] !== 0x50 || xlsx[1] !== 0x4b || xlsx[2] !== 0x03 || xlsx[3] !== 0x04
+    ) {
+      throw new Error("Expected XLSX artifact to be a ZIP package.");
+    }
+    const appleScript = await Deno.readTextFile(paths.appleScript);
+    if (!appleScript.includes('tell application "Calendar"')) {
+      throw new Error(`Expected AppleScript Calendar sync body, got ${appleScript}`);
+    }
+  } finally {
+    await Deno.remove(tempDir, { recursive: true }).catch(() => {});
+  }
+});
+
+function calendarRow(calendar: "schedule" | "reference"): CalendarRow {
+  return {
+    calendar,
+    techweekId: "TW-1",
+    calendarBlockId: `TW-1-${calendar.toUpperCase()}`,
+    partifulId: "abc",
+    sourceEventId: "1",
+    entryType: "event" as const,
+    status: "registered",
+    category: "primary",
+    start: new Date(Date.UTC(2026, 5, 1, 14, 0, 0)),
+    end: new Date(Date.UTC(2026, 5, 1, 15, 0, 0)),
+    actualStart: new Date(Date.UTC(2026, 5, 1, 14, 0, 0)),
+    actualEnd: new Date(Date.UTC(2026, 5, 1, 15, 0, 0)),
+    title: "[REG] Example Event",
+    location: "New York, NY",
+    venueQuery: "New York, NY",
+    venuePrecision: "test",
+    routeMode: "",
+    travelMinutes: "",
+    routeDetails: "",
+    subwaySegments: "",
+    transitRisk: "",
+    note: "note",
+    salesCoaching: "",
+    rank: "1",
+    tier: "S",
+    opportunityScore: "100",
+    fitSummary: "",
+    eventUrl: "https://partiful.com/e/abc",
+    googleMapsUrl: "",
+    statusLabel: "REG",
+    categoryLabel: "PRIMARY",
+    nextStep: "",
+    notes: "",
+  };
+}

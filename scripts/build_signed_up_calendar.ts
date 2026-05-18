@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read=.codex,data,app --allow-write=outputs/signed_up,data/cache --allow-net=nominatim.openstreetmap.org,subwayinfo.nyc
+#!/usr/bin/env -S deno run --allow-read=.codex,data,app --allow-write=outputs/signed_up,outputs/sync,data/cache --allow-net=nominatim.openstreetmap.org,subwayinfo.nyc
 
 import {
   buildOperationalRoute,
@@ -26,10 +26,13 @@ const STATION_CACHE = new URL("data/cache/nyc_subway_stations_cache.json", ROOT)
 const TRIP_CACHE = new URL("data/cache/techweek_subway_trip_cache.json", ROOT);
 
 const DEFAULT_OUTPUT_DIR = new URL("outputs/signed_up/", ROOT);
+const DEFAULT_SYNC_DIR = new URL("outputs/sync/", ROOT);
 const OUTPUT_MD_NAME = "techweek_signed_up_transport_schedule.md";
 const OUTPUT_CSV_NAME = "techweek_signed_up_transport_schedule.csv";
+const OUTPUT_XLSX_NAME = "techweek_signed_up_transport_schedule.xlsx";
 const SCHEDULE_ICS_NAME = "techweek_signed_up_operational_with_travel.ics";
 const ALL_RSVP_ICS_NAME = "techweek_signed_up_all_rsvps_reference.ics";
+const APPLE_SCRIPT_NAME = "sync_techweek_to_apple_calendar.applescript";
 
 const SCHEDULE_CALENDAR = "NY Tech Week 2026 - Schedule";
 const REFERENCE_CALENDAR = "NY Tech Week 2026 - All RSVPs";
@@ -96,19 +99,21 @@ interface SignedEvent extends OperationalRouteEvent {
   sales_coaching: string;
 }
 
-type CalendarRow = Omit<OperationalScheduleBlock, "calendar"> & {
+export type CalendarRow = Omit<OperationalScheduleBlock, "calendar"> & {
   calendar: "schedule" | "reference";
   sourceEventId?: string;
 };
 
-interface OutputPaths {
+export interface OutputPaths {
   md: URL;
   csv: URL;
+  xlsx: URL;
   scheduleIcs: URL;
   allRsvpIcs: URL;
+  appleScript: URL;
 }
 
-interface BuildArtifacts {
+export interface BuildArtifacts {
   events: SignedEvent[];
   scheduleRows: CalendarRow[];
   allReferenceRows: CalendarRow[];
@@ -543,10 +548,11 @@ export function formatCsvRows(rows: readonly CalendarRow[]): string {
   if (rows.length === 0) {
     return "";
   }
-  const fieldNames = Object.keys(flatCsvRow(rows[0]));
   const lines = [
-    fieldNames.map(csvCell).join(","),
-    ...rows.map((row) => fieldNames.map((name) => csvCell(flatCsvRow(row)[name] ?? "")).join(",")),
+    CSV_FIELD_NAMES.map(csvCell).join(","),
+    ...rows.map((row) =>
+      CSV_FIELD_NAMES.map((name) => csvCell(flatCsvRow(row)[name] ?? "")).join(",")
+    ),
   ];
   return `\ufeff${lines.join("\n")}\n`;
 }
@@ -937,7 +943,9 @@ function writeMarkdown(
     "",
     `- Operational import: \`outputs/signed_up/${SCHEDULE_ICS_NAME}\``,
     `- All-RSVP reference import: \`outputs/signed_up/${ALL_RSVP_ICS_NAME}\``,
+    `- Spreadsheet: \`outputs/signed_up/${OUTPUT_XLSX_NAME}\``,
     `- CSV: \`outputs/signed_up/${OUTPUT_CSV_NAME}\``,
+    `- Apple Calendar sync script: \`outputs/sync/${APPLE_SCRIPT_NAME}\``,
   ].join("\n") + "\n";
 }
 
@@ -1119,7 +1127,263 @@ function flatCsvRow(row: CalendarRow): Record<string, string> {
   };
 }
 
-async function writeOutputs(artifacts: BuildArtifacts, paths: OutputPaths): Promise<void> {
+const CSV_FIELD_NAMES = [
+  "calendar",
+  "techweek_id",
+  "calendar_block_id",
+  "partiful_id",
+  "rerank_id",
+  "entry_type",
+  "status",
+  "category",
+  "start",
+  "end",
+  "actual_start",
+  "actual_end",
+  "title",
+  "location",
+  "venue_query",
+  "venue_precision",
+  "route_mode",
+  "travel_minutes",
+  "route_details",
+  "subway_segments",
+  "transit_risk",
+  "note",
+  "sales_coaching",
+  "rank",
+  "tier",
+  "opportunity_score",
+  "event_url",
+  "google_maps_url",
+];
+
+function writeXlsx(rows: CalendarRow[]): Uint8Array {
+  const flatRows = rows.map(flatCsvRow);
+  const headers = CSV_FIELD_NAMES;
+  const sheetRows = [
+    headers,
+    ...flatRows.map((row) => headers.map((header) => row[header] ?? "")),
+  ];
+  const sheetData = sheetRows
+    .map((cells, rowIndex) =>
+      `<row r="${rowIndex + 1}">${
+        cells.map((value, columnIndex) =>
+          `<c r="${xlsxCellRef(rowIndex + 1, columnIndex)}" t="inlineStr"><is><t>${
+            xmlEscape(value)
+          }</t></is></c>`
+        ).join("")
+      }</row>`
+    )
+    .join("");
+  return zipStore([
+    {
+      name: "[Content_Types].xml",
+      data: textBytes(
+        `<?xml version="1.0" encoding="UTF-8"?>` +
+          `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+          `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+          `<Default Extension="xml" ContentType="application/xml"/>` +
+          `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
+          `<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>` +
+          `</Types>`,
+      ),
+    },
+    {
+      name: "_rels/.rels",
+      data: textBytes(
+        `<?xml version="1.0" encoding="UTF-8"?>` +
+          `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+          `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>` +
+          `</Relationships>`,
+      ),
+    },
+    {
+      name: "xl/workbook.xml",
+      data: textBytes(
+        `<?xml version="1.0" encoding="UTF-8"?>` +
+          `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+          `<sheets><sheet name="Schedule" sheetId="1" r:id="rId1"/></sheets>` +
+          `</workbook>`,
+      ),
+    },
+    {
+      name: "xl/_rels/workbook.xml.rels",
+      data: textBytes(
+        `<?xml version="1.0" encoding="UTF-8"?>` +
+          `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+          `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>` +
+          `</Relationships>`,
+      ),
+    },
+    {
+      name: "xl/worksheets/sheet1.xml",
+      data: textBytes(
+        `<?xml version="1.0" encoding="UTF-8"?>` +
+          `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+          `<sheetData>${sheetData}</sheetData>` +
+          `</worksheet>`,
+      ),
+    },
+  ]);
+}
+
+function xlsxCellRef(row: number, columnIndex: number): string {
+  let index = columnIndex + 1;
+  let letters = "";
+  while (index > 0) {
+    const remainder = (index - 1) % 26;
+    letters = String.fromCharCode(65 + remainder) + letters;
+    index = Math.floor((index - 1) / 26);
+  }
+  return `${letters}${row}`;
+}
+
+function writeAppleScript(scheduleRows: CalendarRow[], referenceRows: CalendarRow[]): string {
+  const lines = [
+    "-- Generated by scripts/build_signed_up_calendar.ts",
+    'tell application "Calendar"',
+    `\tset scheduleName to ${applescriptString(SCHEDULE_CALENDAR)}`,
+    `\tset referenceName to ${applescriptString(REFERENCE_CALENDAR)}`,
+    "\tif not (exists calendar scheduleName) then make new calendar with properties {name:scheduleName}",
+    "\tif not (exists calendar referenceName) then make new calendar with properties {name:referenceName}",
+    "\tset scheduleCal to calendar scheduleName",
+    "\tset referenceCal to calendar referenceName",
+    ...scheduleRows.map((row) => `\t${applescriptEvent(row, "scheduleCal")}`),
+    ...referenceRows.map((row) => `\t${applescriptEvent(row, "referenceCal")}`),
+    "end tell",
+    "",
+  ];
+  return lines.join("\n");
+}
+
+function applescriptEvent(row: CalendarRow, calendarVariable: string): string {
+  return `make new event at end of events of ${calendarVariable} with properties {summary:${
+    applescriptString(row.title)
+  }, start date:${applescriptDate(row.start)}, end date:${applescriptDate(row.end)}, location:${
+    applescriptString(row.location)
+  }, description:${applescriptString(descriptionForRow(row))}}`;
+}
+
+function applescriptString(value: string): string {
+  return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+}
+
+function applescriptDate(value: Date): string {
+  return `date ${applescriptString(formatHumanDateTime(value))}`;
+}
+
+function xmlEscape(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function textBytes(value: string): Uint8Array {
+  return new TextEncoder().encode(value);
+}
+
+type ZipEntry = {
+  name: string;
+  data: Uint8Array;
+};
+
+function zipStore(entries: ZipEntry[]): Uint8Array {
+  const chunks: Uint8Array[] = [];
+  const centralDirectory: Uint8Array[] = [];
+  let offset = 0;
+  for (const entry of entries) {
+    const name = textBytes(entry.name);
+    const crc = crc32(entry.data);
+    const local = concatBytes([
+      u32(0x04034b50),
+      u16(20),
+      u16(0),
+      u16(0),
+      u16(0),
+      u16(0),
+      u32(crc),
+      u32(entry.data.length),
+      u32(entry.data.length),
+      u16(name.length),
+      u16(0),
+      name,
+      entry.data,
+    ]);
+    chunks.push(local);
+    centralDirectory.push(concatBytes([
+      u32(0x02014b50),
+      u16(20),
+      u16(20),
+      u16(0),
+      u16(0),
+      u16(0),
+      u16(0),
+      u32(crc),
+      u32(entry.data.length),
+      u32(entry.data.length),
+      u16(name.length),
+      u16(0),
+      u16(0),
+      u16(0),
+      u16(0),
+      u32(0),
+      u32(offset),
+      name,
+    ]));
+    offset += local.length;
+  }
+  const central = concatBytes(centralDirectory);
+  const end = concatBytes([
+    u32(0x06054b50),
+    u16(0),
+    u16(0),
+    u16(entries.length),
+    u16(entries.length),
+    u32(central.length),
+    u32(offset),
+    u16(0),
+  ]);
+  return concatBytes([...chunks, central, end]);
+}
+
+function crc32(data: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const byte of data) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function u16(value: number): Uint8Array {
+  const bytes = new Uint8Array(2);
+  new DataView(bytes.buffer).setUint16(0, value, true);
+  return bytes;
+}
+
+function u32(value: number): Uint8Array {
+  const bytes = new Uint8Array(4);
+  new DataView(bytes.buffer).setUint32(0, value, true);
+  return bytes;
+}
+
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    output.set(part, offset);
+    offset += part.length;
+  }
+  return output;
+}
+
+export async function writeOutputs(artifacts: BuildArtifacts, paths: OutputPaths): Promise<void> {
   for (const path of Object.values(paths)) {
     await Deno.mkdir(new URL(".", path), { recursive: true });
   }
@@ -1128,6 +1392,7 @@ async function writeOutputs(artifacts: BuildArtifacts, paths: OutputPaths): Prom
     writeMarkdown(artifacts.scheduleRows, artifacts.referenceRows, artifacts.allReferenceRows),
   );
   await Deno.writeTextFile(paths.csv, formatCsvRows(artifacts.combinedRows));
+  await Deno.writeFile(paths.xlsx, writeXlsx(artifacts.combinedRows));
   await Deno.writeTextFile(
     paths.scheduleIcs,
     await writeIcs(artifacts.scheduleRows, SCHEDULE_CALENDAR, false),
@@ -1136,14 +1401,23 @@ async function writeOutputs(artifacts: BuildArtifacts, paths: OutputPaths): Prom
     paths.allRsvpIcs,
     await writeIcs(artifacts.referenceRows, REFERENCE_CALENDAR, true),
   );
+  await Deno.writeTextFile(
+    paths.appleScript,
+    writeAppleScript(
+      artifacts.scheduleRows,
+      artifacts.referenceRows,
+    ),
+  );
 }
 
 function outputPaths(outputDir: URL): OutputPaths {
   return {
     md: new URL(OUTPUT_MD_NAME, outputDir),
     csv: new URL(OUTPUT_CSV_NAME, outputDir),
+    xlsx: new URL(OUTPUT_XLSX_NAME, outputDir),
     scheduleIcs: new URL(SCHEDULE_ICS_NAME, outputDir),
     allRsvpIcs: new URL(ALL_RSVP_ICS_NAME, outputDir),
+    appleScript: new URL(APPLE_SCRIPT_NAME, DEFAULT_SYNC_DIR),
   };
 }
 
