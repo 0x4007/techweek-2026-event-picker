@@ -1841,8 +1841,12 @@ async function readLocalAppState(): Promise<Partial<AppState> | null> {
 }
 
 async function writeLocalAppState(state: AppState): Promise<void> {
-  await Deno.mkdir(new URL(".", APP_STATE_JSON), { recursive: true });
-  await Deno.writeTextFile(APP_STATE_JSON, `${JSON.stringify(state, null, 2)}\n`);
+  try {
+    await Deno.mkdir(new URL(".", APP_STATE_JSON), { recursive: true });
+    await Deno.writeTextFile(APP_STATE_JSON, `${JSON.stringify(state, null, 2)}\n`);
+  } catch (error) {
+    console.warn("Skipping local app-state mirror write.", safeError(error));
+  }
 }
 
 async function readJsonFile<T>(url: URL): Promise<T | null> {
@@ -2261,11 +2265,15 @@ async function readAgendaRun(id: string): Promise<AgendaRecalculateResult | null
 }
 
 async function writeLocalAgendaRun(result: AgendaRecalculateResult): Promise<void> {
-  await Deno.mkdir(AGENDA_RUNS_DIR, { recursive: true });
-  await Deno.writeTextFile(
-    agendaRunFile(result.agendaRunId),
-    `${JSON.stringify(result, null, 2)}\n`,
-  );
+  try {
+    await Deno.mkdir(AGENDA_RUNS_DIR, { recursive: true });
+    await Deno.writeTextFile(
+      agendaRunFile(result.agendaRunId),
+      `${JSON.stringify(result, null, 2)}\n`,
+    );
+  } catch (error) {
+    console.warn("Skipping local agenda-run mirror write.", safeError(error));
+  }
 }
 
 async function readLocalAgendaRun(id: string): Promise<AgendaRecalculateResult | null> {
