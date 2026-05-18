@@ -89,7 +89,6 @@ const PI_AGENT_PROXY_PREFIX = "/__pi-agent";
 const LOCAL_OCR_TIMEOUT_MS = 7_000;
 const LOCAL_OCR_ROTATIONS = [0, 90, 180, 270] as const;
 const LOCAL_OCR_HIGH_CONFIDENCE_SCORE = 8;
-const LOCAL_OCR_MIN_MEAN_CONFIDENCE = 74;
 const TOKEN_ENCODING_NAME = "o200k_base";
 const CHAT_MESSAGE_OVERHEAD_TOKENS = 4;
 const CHAT_REQUEST_OVERHEAD_TOKENS = 3;
@@ -3503,64 +3502,6 @@ function cardOcrChatBody(imageDataUrl: string): OcrRequestBody {
   };
 }
 
-function cardOcrTranscriptBody(transcript: string): OcrRequestBody {
-  return {
-    model: AGENT_MODEL,
-    stream: false,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: [
-              "A local OCR engine read a business card image and produced the transcript below.",
-              "Use the transcript to return only JSON with name, company, role, email, phone, and notes.",
-              "Put websites, LinkedIn, or extra visible contact details in notes.",
-              "Do not add commentary. Use null or an empty string for fields that are not present.",
-              "",
-              "OCR transcript:",
-              transcript.slice(0, 4000),
-            ].join("\n"),
-          },
-        ],
-      },
-    ],
-  };
-}
-
-function cardOcrVisionAndTranscriptBody(
-  imageDataUrl: string,
-  transcript: string,
-): OcrRequestBody {
-  return {
-    model: AGENT_MODEL,
-    stream: false,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: [
-              "Read this business card image. It may be rotated, skewed, cropped, or partially obscured.",
-              "A local OCR engine also produced a transcript. Use the transcript as supporting evidence only;",
-              "trust the image when they conflict. Return only JSON with name, company, role, email, phone,",
-              "and notes.",
-              "Put websites, LinkedIn, or extra visible contact details in notes.",
-              "Do not add commentary. Use null or an empty string for fields that are not present.",
-              "",
-              "OCR transcript:",
-              transcript.slice(0, 4000),
-            ].join("\n"),
-          },
-          { type: "image_url", image_url: { url: imageDataUrl } },
-        ],
-      },
-    ],
-  };
-}
-
 function imageDebugSummary(imageDataUrl: string) {
   const match = imageDataUrl.match(/^data:([^;,]+)(?:;[^,]*)?,/);
   return {
@@ -4064,97 +4005,8 @@ function responseOutputText(body: unknown): string {
     .join("\n");
 }
 
-async function tryOcrTranscriptFallback(
-  requestId: string,
-  chatUrl: string,
-  token: string,
-  transcript: string,
-  rawBody: Record<string, unknown>,
-  localOrientation: LocalOcrOrientation | null,
-): Promise<Response | null> {
-  if (!transcript.trim()) return null;
-
-  const fallbackBody = cardOcrTranscriptBody(transcript);
-  logOcrTranscriptContext(requestId, fallbackBody, transcript);
-
-  let result: { upstream: Response; model: string };
-  try {
-    result = await callOcrGateway(chatUrl, token, fallbackBody);
-  } catch (error) {
-    logJson("ocr_text_fallback_error", {
-      requestId,
-      stage: "gateway_fetch",
-      error: safeError(error),
-    });
-    return null;
-  }
-
-  const responseBody = await readGatewayBody(result.upstream);
-  const upstreamDebug = {
-    model: result.model,
-    ok: result.upstream.ok,
-    status: result.upstream.status,
-    statusText: result.upstream.statusText,
-    headers: debugHeaders(result.upstream.headers),
-    body: truncateDebug(responseBody),
-  };
-  logJson("ocr_text_fallback_upstream", {
-    requestId,
-    ...upstreamDebug,
-  });
-
-  if (!result.upstream.ok) return null;
-
-  const content = responseOutputText(responseBody);
-  if (!content) {
-    logJson("ocr_text_fallback_error", {
-      requestId,
-      stage: "response_shape",
-      upstream: upstreamDebug,
-    });
-    return null;
-  }
-
-  try {
-    const draft = normalizeLeadDraft(extractJsonObject(content));
-    if (!leadDraftHasUsableFields(draft)) {
-      logJson("ocr_text_fallback_empty", {
-        requestId,
-        draft: draftDebug(draft),
-        content: truncateDebug(content),
-      });
-      return null;
-    }
-    logJson("ocr_success", {
-      requestId,
-      model: result.model,
-      source: "local_ocr_transcript_fallback",
-      draft: draftDebug(draft),
-      rawCharacters: content.length,
-    });
-    return json({
-      requestId,
-      draft,
-      raw: content,
-      source: "local_ocr_transcript_fallback",
-      ocrMetadata: buildLeadOcrMetadata(rawBody, transcript, localOrientation),
-    }, {
-      headers: responseDebugHeaders(result.upstream.headers, requestId),
-    });
-  } catch (error) {
-    logJson("ocr_text_fallback_error", {
-      requestId,
-      stage: "parse_gateway_json",
-      error: safeError(error),
-      content: truncateDebug(content),
-    });
-    return null;
-  }
-}
-
 function buildLeadOcrMetadata(
   rawBody: Record<string, unknown>,
-  localTranscript: string,
   localOrientation: LocalOcrOrientation | null,
 ): OcrDraftMetadata | null {
   const clientMetadata = recordValue(rawBody.clientMetadata);
@@ -4185,7 +4037,7 @@ function buildLeadOcrMetadata(
     outputWidth,
     outputHeight,
     dataUrlCharacters,
-    localOcrUsed: Boolean(localTranscript?.trim()) || undefined,
+    localOcrUsed: Boolean(localOrientation) || undefined,
     localOcrMeanConfidence,
   };
   if (
@@ -4251,16 +4103,7 @@ async function handleLeadOcr(request: Request): Promise<Response> {
   const localOrientation = await tryLocalOcrOrientation(requestId, imageDataUrl, rawBody);
   const gatewayImageDataUrl = localOrientation?.imageDataUrl ?? imageDataUrl;
   const gatewayImage = imageDebugSummary(gatewayImageDataUrl);
-  const localTranscript = localOrientation?.meanConfidence &&
-      localOrientation.meanConfidence >= LOCAL_OCR_MIN_MEAN_CONFIDENCE
-    ? localOrientation.raw
-    : "";
-  const ocrBody = localTranscript
-    ? cardOcrVisionAndTranscriptBody(gatewayImageDataUrl, localTranscript)
-    : cardOcrChatBody(gatewayImageDataUrl);
-  if (localTranscript) {
-    logOcrTranscriptContext(requestId, ocrBody, localTranscript);
-  }
+  const ocrBody = cardOcrChatBody(gatewayImageDataUrl);
   logOcrContext(requestId, ocrBody, gatewayImageDataUrl);
 
   const { token, chatUrl } = gatewayConfig();
@@ -4301,18 +4144,6 @@ async function handleLeadOcr(request: Request): Promise<Response> {
   });
 
   if (!result.upstream.ok) {
-    if (result.upstream.status >= 500) {
-      const textFallback = await tryOcrTranscriptFallback(
-        requestId,
-        chatUrl,
-        token,
-        localOrientation?.raw ?? "",
-        rawBody,
-        localOrientation,
-      );
-      if (textFallback) return textFallback;
-    }
-
     const upstreamMessage = gatewayErrorMessage(responseBody);
     const clientStatus = result.upstream.status === 429 ? 429 : 502;
     const clientMessage = result.upstream.status === 429
@@ -4391,8 +4222,8 @@ async function handleLeadOcr(request: Request): Promise<Response> {
   logJson("ocr_success", {
     requestId,
     model: result.model,
-    source: localTranscript ? "vision_with_local_ocr_transcript" : "vision_only",
-    localOcrUsed: Boolean(localTranscript),
+    source: localOrientation ? "vision_oriented_image" : "vision_only",
+    localOcrUsed: Boolean(localOrientation),
     draft: draftDebug(draft),
     rawCharacters: content.length,
   });
@@ -4400,8 +4231,8 @@ async function handleLeadOcr(request: Request): Promise<Response> {
     requestId,
     draft,
     raw: content,
-    source: localTranscript ? "vision_with_local_ocr_transcript" : "vision_only",
-    ocrMetadata: buildLeadOcrMetadata(rawBody, localTranscript, localOrientation),
+    source: localOrientation ? "vision_oriented_image" : "vision_only",
+    ocrMetadata: buildLeadOcrMetadata(rawBody, localOrientation),
   }, {
     headers: responseDebugHeaders(result.upstream.headers, requestId),
   });

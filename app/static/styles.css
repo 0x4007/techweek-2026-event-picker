@@ -2046,11 +2046,13 @@ form[data-dev-chat-form] textarea:focus {
 [data-prompts] {
   --prompt-fade-width: 20px;
   position: relative;
+  width: 100%;
+  max-width: 100%;
   display: flex;
   flex-wrap: nowrap;
   align-items: stretch;
   gap: 6px;
-  padding: 2px var(--prompt-fade-width);
+  padding: 2px 0;
   overflow-x: auto;
   overflow-y: hidden;
   -ms-overflow-style: none;
@@ -2058,28 +2060,23 @@ form[data-dev-chat-form] textarea:focus {
   overscroll-behavior-x: contain;
   white-space: nowrap;
   scroll-snap-type: x proximity;
-  scroll-padding-inline: var(--prompt-fade-width);
-}
-
-[data-prompts]::before,
-[data-prompts]::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 2px;
-  width: var(--prompt-fade-width);
-  pointer-events: none;
-  z-index: 1;
-}
-
-[data-prompts]::before {
-  left: 0;
-  background: linear-gradient(to right, var(--agent-glass-strong) 0, transparent);
-}
-
-[data-prompts]::after {
-  right: 0;
-  background: linear-gradient(to left, var(--agent-glass-strong) 0, transparent);
+  scroll-padding-inline: 0;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--prompt-fade-width),
+    #000 calc(100% - var(--prompt-fade-width)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--prompt-fade-width),
+    #000 calc(100% - var(--prompt-fade-width)),
+    transparent 100%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 
 [data-prompts]::-webkit-scrollbar {
