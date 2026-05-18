@@ -212,28 +212,29 @@ function phoneForPartifulInput(phoneE164: string): string {
 }
 
 export function parseArgs(argv: string[]): Args {
-  const twilioAuthFile = defaultTwilioAuthFilePath();
-  const defaultPartifulAuthFile = defaultAuthFilePath().replace(
-    /partiful-auth\.json$/,
-    "partiful-auth-twilio.json",
-  );
   const args: Args = {
-    partifulAuthFile: defaultPartifulAuthFile,
+    partifulAuthFile: "",
     phone: "",
     session: DEFAULT_SESSION,
     timeoutMs: 120_000,
-    twilioAuthFile,
+    twilioAuthFile: "",
   };
+  let hasPartifulAuthFile = false;
+  let hasTwilioAuthFile = false;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--twilio-auth-file") {
       args.twilioAuthFile = requiredValue(argv[++index], arg);
+      hasTwilioAuthFile = true;
     } else if (arg.startsWith("--twilio-auth-file=")) {
       args.twilioAuthFile = arg.slice("--twilio-auth-file=".length);
+      hasTwilioAuthFile = true;
     } else if (arg === "--partiful-auth-file") {
       args.partifulAuthFile = requiredValue(argv[++index], arg);
+      hasPartifulAuthFile = true;
     } else if (arg.startsWith("--partiful-auth-file=")) {
       args.partifulAuthFile = arg.slice("--partiful-auth-file=".length);
+      hasPartifulAuthFile = true;
     } else if (arg === "--phone") {
       args.phone = requiredValue(argv[++index], arg);
     } else if (arg.startsWith("--phone=")) {
@@ -252,6 +253,13 @@ export function parseArgs(argv: string[]): Args {
   }
   if (!Number.isFinite(args.timeoutMs) || args.timeoutMs < 1_000) {
     throw new Error("--timeout-ms must be at least 1000.");
+  }
+  if (!hasTwilioAuthFile) args.twilioAuthFile = defaultTwilioAuthFilePath();
+  if (!hasPartifulAuthFile) {
+    args.partifulAuthFile = defaultAuthFilePath().replace(
+      /partiful-auth\.json$/,
+      "partiful-auth-twilio.json",
+    );
   }
   return args;
 }

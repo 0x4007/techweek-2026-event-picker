@@ -39,18 +39,21 @@ async function main(): Promise<void> {
   ));
 }
 
-function parseArgs(argv: string[]): Args {
+export function parseArgs(argv: string[]): Args {
   const args: Args = {
-    authFile: defaultTwilioAuthFilePath(),
+    authFile: "",
     limit: 20,
     sinceMinutes: 0,
   };
+  let hasAuthFile = false;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--twilio-auth-file") {
       args.authFile = requiredValue(argv[++index], arg);
+      hasAuthFile = true;
     } else if (arg.startsWith("--twilio-auth-file=")) {
       args.authFile = arg.slice("--twilio-auth-file=".length);
+      hasAuthFile = true;
     } else if (arg === "--limit") {
       args.limit = Number(requiredValue(argv[++index], arg));
     } else if (arg.startsWith("--limit=")) {
@@ -67,6 +70,7 @@ function parseArgs(argv: string[]): Args {
   if (!Number.isFinite(args.sinceMinutes) || args.sinceMinutes < 0) {
     throw new Error("--since-minutes must be non-negative.");
   }
+  if (!hasAuthFile) args.authFile = defaultTwilioAuthFilePath();
   return args;
 }
 

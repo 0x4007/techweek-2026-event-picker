@@ -100,17 +100,20 @@ function parseAgentBrowserEvalOutput(stdout: string): unknown {
   return typeof parsed === "string" ? JSON.parse(parsed) : parsed;
 }
 
-function parseArgs(argv: string[]): Args {
+export function parseArgs(argv: string[]): Args {
   const args: Args = {
-    authFile: defaultAuthFilePath(),
+    authFile: "",
     session: DEFAULT_SESSION,
   };
+  let hasAuthFile = false;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--auth-file") {
       args.authFile = requiredValue(argv[++index], arg);
+      hasAuthFile = true;
     } else if (arg.startsWith("--auth-file=")) {
       args.authFile = arg.slice("--auth-file=".length);
+      hasAuthFile = true;
     } else if (arg === "--session") {
       args.session = requiredValue(argv[++index], arg);
     } else if (arg.startsWith("--session=")) {
@@ -119,6 +122,7 @@ function parseArgs(argv: string[]): Args {
       throw new Error(`Unknown argument: ${arg}`);
     }
   }
+  if (!hasAuthFile) args.authFile = defaultAuthFilePath();
   return args;
 }
 

@@ -1,4 +1,6 @@
+import { parseArgs as parseCapturePartifulAuthArgs } from "./capture_partiful_auth_from_browser.ts";
 import { parseArgs } from "./login_partiful_with_twilio.ts";
+import { parseArgs as parseListTwilioCodesArgs } from "./list_twilio_partiful_codes.ts";
 
 function assertEquals(actual: unknown, expected: unknown) {
   const actualJson = JSON.stringify(actual);
@@ -37,5 +39,36 @@ Deno.test("parseArgs does not copy phone from default Twilio auth when auth file
       Deno.env.set("HOME", originalHome);
     }
     await Deno.remove(home, { recursive: true });
+  }
+});
+
+Deno.test("parseArgs accepts explicit auth files when HOME is unset", () => {
+  const originalHome = Deno.env.get("HOME");
+  try {
+    Deno.env.delete("HOME");
+
+    assertEquals(
+      parseListTwilioCodesArgs(["--twilio-auth-file", "./twilio.json"]).authFile,
+      "./twilio.json",
+    );
+    assertEquals(
+      parseCapturePartifulAuthArgs(["--auth-file", "./partiful.json"]).authFile,
+      "./partiful.json",
+    );
+
+    const loginArgs = parseArgs([
+      "--twilio-auth-file",
+      "./twilio.json",
+      "--partiful-auth-file",
+      "./partiful.json",
+    ]);
+    assertEquals(loginArgs.twilioAuthFile, "./twilio.json");
+    assertEquals(loginArgs.partifulAuthFile, "./partiful.json");
+  } finally {
+    if (originalHome === undefined) {
+      Deno.env.delete("HOME");
+    } else {
+      Deno.env.set("HOME", originalHome);
+    }
   }
 });
