@@ -632,19 +632,25 @@ export async function routeBetween(
     return walkingRoute(directWalk);
   }
 
-  const stations = options.stations ??
-    await loadStations({
-      cache: options.cache,
-      endpoint: options.stationEndpoint,
-      fetcher: options.fetcher,
-      limit: options.stationLimit,
-      routingVersion: options.routingVersion,
-      userAgent: options.userAgent,
-    });
   const originPoint = normalizePoint(origin);
   const destinationPoint = normalizePoint(destination);
-  const originStation = nearestStation(originPoint, stations);
-  const destinationStation = nearestStation(destinationPoint, stations);
+  let originStation: SubwayStation;
+  let destinationStation: SubwayStation;
+  try {
+    const stations = options.stations ??
+      await loadStations({
+        cache: options.cache,
+        endpoint: options.stationEndpoint,
+        fetcher: options.fetcher,
+        limit: options.stationLimit,
+        routingVersion: options.routingVersion,
+        userAgent: options.userAgent,
+      });
+    originStation = nearestStation(originPoint, stations);
+    destinationStation = nearestStation(destinationPoint, stations);
+  } catch (error) {
+    return transitUnavailableRoute(directWalk, error);
+  }
   const walkToStation = await walkingEstimate(originPoint, pointFromStation(originStation), {
     cache: options.cache,
     fetcher: options.fetcher,

@@ -47,3 +47,17 @@ Deno.test("routeBetween uses a conservative transit fallback when SubwayInfo is 
   assert(route.risk === "transit_estimated", `Expected estimated transit risk; got ${route.risk}.`);
   assert(route.minutes >= 30, `Expected a conservative travel reserve; got ${route.minutes}.`);
 });
+
+Deno.test("routeBetween uses a conservative transit fallback when station loading is rate-limited", async () => {
+  const route = await routeBetween(
+    { name: "Home", lat: 40.7084297, lon: -74.0056635 },
+    { name: "Bryant Park", lat: 40.7537509, lon: -73.9835428 },
+    {
+      fetcher: () => Promise.resolve(new Response("Too Many Requests", { status: 429 })),
+    },
+  );
+
+  assert(route.mode === "subway+walk", `Expected transit fallback; got ${route.mode}.`);
+  assert(route.risk === "transit_estimated", `Expected estimated transit risk; got ${route.risk}.`);
+  assert(route.minutes >= 30, `Expected a conservative travel reserve; got ${route.minutes}.`);
+});
