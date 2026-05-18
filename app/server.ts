@@ -801,6 +801,14 @@ async function requireAdminAccountSession(request: Request): Promise<Response | 
   return null;
 }
 
+async function authorizeApiRoute(request: Request, url: URL): Promise<Response | null> {
+  if (!url.pathname.startsWith("/api/")) return null;
+  if (request.method === "GET" && url.pathname === "/api/health") return null;
+  if (request.method === "GET" && url.pathname === "/api/account/session") return null;
+  if (request.method === "POST" && url.pathname === "/api/account/session/handoff") return null;
+  return await requireAdminAccountSession(request);
+}
+
 async function handleAccountSessionHandoff(request: Request): Promise<Response> {
   const raw = await request.json().catch(() => null);
   const body = recordValue(raw);
@@ -5246,6 +5254,9 @@ export async function router(request: Request): Promise<Response> {
     ) {
       return await proxyPiAgentRequest(request, url);
     }
+    const authorizationError = await authorizeApiRoute(request, url);
+    if (authorizationError) return authorizationError;
+
     if (request.method === "GET" && url.pathname === "/api/health") return await handleHealth();
     if (request.method === "GET" && url.pathname === "/api/account/session") {
       return await handleAccountSession(request);

@@ -239,7 +239,11 @@ Deno.test("Partiful sync endpoint ingests browser response snapshots and exposes
   assertEquals(getPath(synced, ["ingestion", "snapshotCount"]), 1);
   assertEquals(getPath(synced, ["sync", "errors"]), []);
 
-  const readback = await router(new Request("http://localhost/api/sync/partiful"));
+  const readback = await router(
+    new Request("http://localhost/api/sync/partiful", {
+      headers: ADMIN_STATE_HEADERS,
+    }),
+  );
   if (readback.status !== 200) {
     throw new Error(`Expected Partiful readback status 200, got ${readback.status}`);
   }
@@ -280,11 +284,50 @@ Deno.test("Partiful sync POST endpoints reject unauthenticated requests", async 
   }
 });
 
-Deno.test("Google Calendar write sync endpoint is removed", async () => {
-  const response = await router(
-    new Request("http://localhost/api/sync/google", { method: "POST" }),
+Deno.test("sensitive API routes reject unauthenticated requests at the router", async () => {
+  setPiAgentSessionFetchForTest(() =>
+    Promise.reject(new Error("Pi session endpoint should not be called without a cookie."))
   );
-  assertEquals(response.status, 404);
+  try {
+    const requests = [
+      new Request("http://localhost/api/schedule"),
+      new Request("http://localhost/api/ics/operational"),
+      new Request("http://localhost/api/debug/agent/test"),
+      new Request("http://localhost/api/agent", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: "hello" }),
+      }),
+      new Request("http://localhost/api/leads/ocr", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ imageDataUrl: "data:image/jpeg;base64,AA==" }),
+      }),
+    ];
+    for (const request of requests) {
+      const response = await router(request);
+      assertEquals(response.status, 401);
+      const body = await response.json() as Record<string, unknown>;
+      assertEquals(getPath(body, ["error", "message"]), "Authentication required.");
+    }
+  } finally {
+    setPiAgentSessionFetchForTest(null);
+  }
+});
+
+Deno.test("Google Calendar write sync endpoint is removed", async () => {
+  useAdminSessionFetchForTest();
+  try {
+    const response = await router(
+      new Request("http://localhost/api/sync/google", {
+        method: "POST",
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(response.status, 404);
+  } finally {
+    setPiAgentSessionFetchForTest(null);
+  }
 });
 
 Deno.test("account session reports unauthenticated without a Pi session cookie", async () => {
@@ -377,11 +420,13 @@ Deno.test("account handoff sets a local Pi session cookie", async () => {
 });
 
 Deno.test("agenda recalculation rejects unauthenticated activation without changing active agenda", async () => {
-  setPiAgentSessionFetchForTest(() =>
-    Promise.reject(new Error("Pi session endpoint should not be called without a cookie."))
-  );
+  useAdminSessionFetchForTest();
   try {
-    const before = await router(new Request("http://localhost/api/schedule"));
+    const before = await router(
+      new Request("http://localhost/api/schedule", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
     if (before.status !== 200) {
       throw new Error(`Expected schedule status 200, got ${before.status}`);
     }
@@ -407,7 +452,11 @@ Deno.test("agenda recalculation rejects unauthenticated activation without chang
       throw new Error("Unauthenticated recalculation should not return an agenda run.");
     }
 
-    const after = await router(new Request("http://localhost/api/schedule"));
+    const after = await router(
+      new Request("http://localhost/api/schedule", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
     if (after.status !== 200) {
       throw new Error(`Expected schedule status 200, got ${after.status}`);
     }
@@ -500,7 +549,11 @@ Deno.test("lead creation persists compact OCR provenance metadata", async () => 
   try {
     if (!createdId) throw new Error("Expected lead id in create response.");
 
-    const schedule = await router(new Request("http://localhost/api/schedule"));
+    const schedule = await router(
+      new Request("http://localhost/api/schedule", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
     if (schedule.status !== 200) {
       throw new Error(`Expected schedule status 200, got ${schedule.status}`);
     }
@@ -584,7 +637,11 @@ Deno.test("lead creation ignores invalid OCR metadata payloads", async () => {
   try {
     if (!createdId) throw new Error("Expected lead id in create response.");
 
-    const schedule = await router(new Request("http://localhost/api/schedule"));
+    const schedule = await router(
+      new Request("http://localhost/api/schedule", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
     if (schedule.status !== 200) {
       throw new Error(`Expected schedule status 200, got ${schedule.status}`);
     }
