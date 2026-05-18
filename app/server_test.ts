@@ -23,6 +23,29 @@ function assertEquals(actual: unknown, expected: unknown) {
   }
 }
 
+const ADMIN_STATE_HEADERS = {
+  "content-type": "application/json",
+  cookie: "pi_codex_session=test-session",
+};
+
+function useAdminSessionFetchForTest() {
+  setPiAgentSessionFetchForTest((_request, cookieHeader) => {
+    if (!cookieHeader.includes("pi_codex_session=test-session")) {
+      throw new Error(`Expected admin session cookie, got ${cookieHeader}`);
+    }
+    return Promise.resolve(jsonResponse({
+      authenticated: true,
+      auth: "passkey",
+      user: {
+        id: "admin_123",
+        handle: "admin",
+        isAdmin: true,
+        credentialCount: 1,
+      },
+    }));
+  });
+}
+
 Deno.test("parseCsv handles quoted multiline fields", () => {
   const rows = parseCsv(
     'id,title,note\n1,"Hello, NYC","line one\nline two"\n2,Plain,"A ""quote"""',
@@ -366,6 +389,36 @@ Deno.test("agenda recalculation rejects unauthenticated activation without chang
   }
 });
 
+Deno.test("state lead creation rejects unauthenticated follow-up email mutation", async () => {
+  setPiAgentSessionFetchForTest(() =>
+    Promise.reject(new Error("Pi session endpoint should not be called without a cookie."))
+  );
+  try {
+    const response = await router(
+      new Request("http://localhost/api/state", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          type: "lead_create",
+          calendarBlockId: "TW-5978-SCHEDULE",
+          name: "Unauthenticated Lead",
+          company: "Blocked Labs",
+          email: "blocked@example.com",
+          sendFollowUpEmail: true,
+        }),
+      }),
+    );
+    assertEquals(response.status, 401);
+    const body = await response.json() as Record<string, unknown>;
+    assertEquals(getPath(body, ["error", "message"]), "Authentication required.");
+    if (getPath(body, ["lead"]) !== undefined) {
+      throw new Error("Unauthenticated lead creation should not return a lead.");
+    }
+  } finally {
+    setPiAgentSessionFetchForTest(null);
+  }
+});
+
 Deno.test({
   name: "sends Resend test email to test@pavlovcik.com",
   async fn() {
@@ -382,11 +435,12 @@ Deno.test({
 });
 
 Deno.test("lead creation persists compact OCR provenance metadata", async () => {
+  useAdminSessionFetchForTest();
   const leadName = `OCR Metadata ${crypto.randomUUID().slice(0, 8)}`;
   const create = await router(
     new Request("http://localhost/api/state", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: ADMIN_STATE_HEADERS,
       body: JSON.stringify({
         type: "lead_create",
         calendarBlockId: "TW-5978-SCHEDULE",
@@ -461,20 +515,22 @@ Deno.test("lead creation persists compact OCR provenance metadata", async () => 
       await router(
         new Request("http://localhost/api/state", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: ADMIN_STATE_HEADERS,
           body: JSON.stringify({ type: "lead_delete", id: createdId }),
         }),
       );
     }
+    setPiAgentSessionFetchForTest(null);
   }
 });
 
 Deno.test("lead creation ignores invalid OCR metadata payloads", async () => {
+  useAdminSessionFetchForTest();
   const leadName = `OCR Metadata Invalid ${crypto.randomUUID().slice(0, 8)}`;
   const create = await router(
     new Request("http://localhost/api/state", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: ADMIN_STATE_HEADERS,
       body: JSON.stringify({
         type: "lead_create",
         calendarBlockId: "TW-5978-SCHEDULE",
@@ -520,11 +576,12 @@ Deno.test("lead creation ignores invalid OCR metadata payloads", async () => {
       await router(
         new Request("http://localhost/api/state", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: ADMIN_STATE_HEADERS,
           body: JSON.stringify({ type: "lead_delete", id: createdId }),
         }),
       );
     }
+    setPiAgentSessionFetchForTest(null);
   }
 });
 

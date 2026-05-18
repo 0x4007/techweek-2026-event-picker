@@ -2109,6 +2109,9 @@ async function handleIcs(headOnly = false): Promise<Response> {
 async function handleStateAction(request: Request): Promise<Response> {
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") return badRequest("Expected a JSON body.");
+  const authorizationError = await requireAdminAccountSession(request);
+  if (authorizationError) return authorizationError;
+
   const state = await readState();
   const now = new Date().toISOString();
   const type = String(body.type ?? "");
