@@ -22,3 +22,5 @@ outputs/sync/sync_google_personal_june_*.applescript
 
 # Large raw Partiful page cache. The derived CSV/JSON/XLSX files are the stable project artifacts.
 data/source/event_pages/
+
+.clawpatch

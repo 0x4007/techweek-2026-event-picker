@@ -6,8 +6,8 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     >
-    <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#111112" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f7f9fa" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#050707" media="(prefers-color-scheme: dark)">
     <title>Tech Week Copilot</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
@@ -101,30 +101,30 @@
       <section>
         <section data-title-block>
           <p>NYC Tech Week</p>
-          <h1 data-page-title>Route (agent test)</h1>
+          <h1 data-page-title>Agenda</h1>
         </section>
+        <nav aria-label="Tech Week views">
+          <button type="button" data-view-button="route" aria-current="page">
+            <svg><use href="#icon-calendar"></use></svg><span>Agenda</span>
+          </button>
+          <button type="button" data-view-button="backup">
+            <svg><use href="#icon-layers"></use></svg><span>Events</span>
+          </button>
+          <button type="button" data-view-button="crm">
+            <svg><use href="#icon-user-plus"></use></svg><span>CRM</span>
+          </button>
+        </nav>
         <button type="button" data-account-button>
           <svg><use href="#icon-user-plus"></use></svg><span data-account-label>Sign in</span>
         </button>
       </section>
-      <nav aria-label="Schedule views">
-        <button type="button" data-view-button="route" aria-current="page">
-          <svg><use href="#icon-calendar"></use></svg><span>Route</span>
-        </button>
-        <button type="button" data-view-button="backup">
-          <svg><use href="#icon-layers"></use></svg><span>Backups</span>
-        </button>
-        <button type="button" data-view-button="crm">
-          <svg><use href="#icon-user-plus"></use></svg><span>CRM</span>
-        </button>
-      </nav>
     </header>
 
     <main>
       <section data-panel="route">
         <article data-next-card>
           <p>Next</p>
-          <h2 data-next-title>Loading route...</h2>
+          <h2 data-next-title>Loading agenda...</h2>
           <dl>
             <div>
               <dt>Time</dt>
@@ -135,32 +135,18 @@
               <dd data-next-place></dd>
             </div>
           </dl>
-          <menu>
-            <button
-              type="button"
-              data-ask="Give me a bullet list with the next block and opening line."
-            >
-              <svg><use href="#icon-sparkles"></use></svg><span>Ask</span>
-            </button>
-            <a href="/api/ics/operational">
-              <svg><use href="#icon-download"></use></svg><span>ICS</span>
-            </a>
-            <button type="button" data-partiful-sync>
-              <svg><use href="#icon-refresh"></use></svg><span>Partiful</span>
-            </button>
-          </menu>
           <p data-agenda-status></p>
         </article>
 
         <section aria-label="Day picker" data-day-tabs></section>
-        <section aria-label="Route entries" data-route-list></section>
+        <section aria-label="Agenda entries" data-route-list></section>
       </section>
 
       <section data-panel="backup" hidden>
         <section>
-          <h2>Backups</h2>
+          <h2>Events</h2>
         </section>
-        <section aria-label="Reference entries" data-reference-list></section>
+        <section aria-label="Event entries" data-reference-list></section>
       </section>
 
       <section data-panel="crm" hidden>
@@ -279,7 +265,7 @@
           <dd data-event-place></dd>
         </div>
       </dl>
-      <p data-event-detail></p>
+      <section data-event-detail></section>
       <menu data-event-actions></menu>
     </aside>
 
@@ -315,6 +301,12 @@
           <button type="button" data-agenda-recalculate data-variant="primary">
             <svg><use href="#icon-sparkles"></use></svg><span>Optimize</span>
           </button>
+          <a href="/api/ics/operational">
+            <svg><use href="#icon-download"></use></svg><span>ICS</span>
+          </a>
+          <button type="button" data-partiful-sync>
+            <svg><use href="#icon-refresh"></use></svg><span>Partiful</span>
+          </button>
           <button type="button" data-ask="What should I do next?">
             <svg><use href="#icon-calendar"></use></svg><span>Next</span>
           </button>
@@ -323,9 +315,9 @@
           </button>
           <button
             type="button"
-            data-ask="Which backup should I use tonight if the primary falls through?"
+            data-ask="Which event option should I use tonight if the primary falls through?"
           >
-            <svg><use href="#icon-layers"></use></svg><span>Backup</span>
+            <svg><use href="#icon-layers"></use></svg><span>Options</span>
           </button>
           <button type="button" data-ask="Give me the opening line and ask for the next event.">
             <svg><use href="#icon-sparkles"></use></svg><span>Pitch</span>
@@ -352,7 +344,7 @@
       data-agent-side="left"
       data-dev-agent-drawer
       data-agent-api="/__pi-agent"
-      data-agent-auth="https://agent.pavlovcik.com"
+      data-agent-auth="/__pi-agent"
       data-repo-id="0x4007/techweek-2026-event-picker"
       data-repo-label="techweek-2026-event-picker"
       data-deploy="true"
@@ -417,6 +409,8 @@
       </section>
     </aside>
 
+    <script src="/vendor/markdown-it-14.1.1.min.js"></script>
+    <script src="/vendor/dompurify-3.4.5.min.js"></script>
     <script type="module" src="/app.js"></script>
   </body>
 </html>

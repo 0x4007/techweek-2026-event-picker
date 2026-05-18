@@ -1424,6 +1424,120 @@ Deno.test({
 });
 
 Deno.test({
+  name: "agent stream remains visible when the schedule refreshes mid-response",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withEnv({
+        UOS_AI_TOKEN: "e2e-token",
+        OPENAI_API_KEY: null,
+        OPENAI_BASE_URL: `${baseUrl}/mock/v1`,
+        UOS_AI_BASE_URL: null,
+      }, async () => {
+        const rows = Array.from(
+          { length: 16 },
+          (_, index) => `- Schedule refresh survivor row ${index + 1}\n`,
+        );
+        const stream = gatewayStreamingEventStream(
+          [...rows.map(gatewayDeltaEvent), "data: [DONE]\n\n"],
+          30,
+        );
+
+        await withMockGatewayReplies([
+          {
+            status: 200,
+            body: stream,
+            headers: { "content-type": "text/event-stream" },
+          },
+        ], async () => {
+          await withIphonePage(async (page) => {
+            let releaseAutoSync = () => {};
+            const autoSyncCanReturn = new Promise<void>((resolve) => {
+              releaseAutoSync = resolve;
+            });
+            let autoSyncRequests = 0;
+            let scheduleReads = 0;
+
+            await page.addInitScript(() => {
+              const nativeSetTimeout = globalThis.setTimeout;
+              const patchedSetTimeout = (
+                handler: Parameters<typeof setTimeout>[0],
+                timeout?: number,
+                ...args: unknown[]
+              ) => {
+                const delay = timeout === 1_500 || timeout === 20_000 ? 20 : timeout;
+                return nativeSetTimeout(handler, delay, ...args);
+              };
+              globalThis.setTimeout = patchedSetTimeout as typeof setTimeout;
+            });
+
+            await page.route(`${baseUrl}/api/schedule`, async (route) => {
+              scheduleReads += 1;
+              const response = await fetch(`${baseUrl}/api/schedule`);
+              const body = await response.json() as JsonRecord;
+              const sync = body.sync as JsonRecord | undefined;
+              const partifulAuto = sync?.partifulAuto as JsonRecord | undefined;
+              if (partifulAuto) partifulAuto.status = "completed";
+              const appState = body.state as JsonRecord | undefined;
+              const partifulAutoSync = appState?.partifulAutoSync as JsonRecord | undefined;
+              if (partifulAutoSync) partifulAutoSync.status = "completed";
+              await route.fulfill({
+                status: response.status,
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(body),
+              });
+            });
+            await page.route(`${baseUrl}/api/sync/partiful/auto`, async (route) => {
+              autoSyncRequests += 1;
+              await autoSyncCanReturn;
+              await route.fulfill({
+                status: 202,
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ action: "started" }),
+              });
+            });
+
+            await page.goto(baseUrl);
+            await waitForTestCondition(
+              () => autoSyncRequests > 0,
+              "Expected the delayed auto-sync request to start.",
+            );
+            await page.locator("[data-chat-fab]").click({ force: true });
+            const textarea = page.locator("form[data-chat-form] textarea");
+            await textarea.fill("Stream while the route refreshes.");
+            await page.keyboard.press("Enter");
+            await page.locator('[data-message="assistant"][data-streaming="true"]').waitFor();
+
+            releaseAutoSync();
+
+            await page.waitForFunction(() => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelectorAll(selector: string): ArrayLike<{
+                    getAttribute(name: string): string | null;
+                    textContent?: string | null;
+                  }>;
+                };
+              };
+              return Array.from(win.document.querySelectorAll('[data-message="assistant"]')).some(
+                (item) =>
+                  item.getAttribute("data-streaming") === "false" &&
+                  item.textContent?.includes("Schedule refresh survivor row 16"),
+              );
+            });
+            assert(
+              scheduleReads >= 2,
+              "Expected schedule to refresh during the streamed response.",
+            );
+          });
+        });
+      });
+    });
+  },
+});
+
+Deno.test({
   name: "development chat opens from a separate left-side launcher and loads Pi threads",
   sanitizeOps: false,
   sanitizeResources: false,
@@ -2231,6 +2345,110 @@ Deno.test({
 });
 
 Deno.test({
+  name: "agent chat uses the markdown renderer for lists, quotes, rules, and safe links",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withIphonePage(async (page) => {
+        const markdown = [
+          "### During event",
+          "Your conversation structure:",
+          "",
+          "1. Context",
+          '   > "I am building contribution evidence."',
+          "1. Discovery",
+          '   > "How do you currently recognize review work?"',
+          "1. Pain check",
+          '   > "Has AI changed review volume?"',
+          "",
+          "---",
+          "",
+          "[Event link](https://example.com/event)",
+          "[Unsafe link](javascript:alert(1))",
+        ].join("\n");
+
+        await page.addInitScript((content) => {
+          localStorage.setItem(
+            "techweek-chat:anonymous",
+            JSON.stringify([{ role: "assistant", content }]),
+          );
+        }, markdown);
+        await page.goto(baseUrl);
+        await page.locator("[data-chat-fab]").click();
+        await page.locator('[data-message="assistant"] h3', { hasText: "During event" }).waitFor();
+
+        const rendered = await page.evaluate(() => {
+          type QueryNode = {
+            textContent?: string | null;
+            getAttribute(name: string): string | null;
+            getBoundingClientRect(): { top: number; bottom: number };
+            querySelector(selector: string): QueryNode | null;
+            querySelectorAll(selector: string): ArrayLike<QueryNode>;
+          };
+          const win = globalThis as unknown as {
+            document: { querySelector(selector: string): QueryNode | null };
+          };
+          const message = win.document.querySelector('[data-message="assistant"]');
+          const content = message?.querySelector("[data-message-content]");
+          const links = Array.from(content?.querySelectorAll("a") || []);
+          return {
+            h3: content?.querySelector("h3")?.textContent || "",
+            olCount: content?.querySelectorAll("ol").length || 0,
+            liCount: content?.querySelectorAll("ol > li").length || 0,
+            blockquoteCount: content?.querySelectorAll("blockquote").length || 0,
+            hrCount: content?.querySelectorAll("hr").length || 0,
+            firstListGap: (() => {
+              const items = Array.from(content?.querySelectorAll("ol > li") || []);
+              if (items.length < 2) return 0;
+              return items[1].getBoundingClientRect().top - items[0].getBoundingClientRect().bottom;
+            })(),
+            quoteGap: (() => {
+              const firstItem = content?.querySelector("ol > li");
+              const quote = firstItem?.querySelector("blockquote");
+              if (!firstItem || !quote) return 0;
+              return quote.getBoundingClientRect().top - firstItem.getBoundingClientRect().top;
+            })(),
+            safeLinkTarget: links[0]?.getAttribute("target") || "",
+            safeLinkRel: links[0]?.getAttribute("rel") || "",
+            unsafeHref: links.find((link) => link.textContent?.includes("Unsafe"))
+              ?.getAttribute("href") || "",
+            text: content?.textContent || "",
+          };
+        });
+
+        assert(
+          rendered.h3 === "During event" &&
+            rendered.olCount === 1 &&
+            rendered.liCount === 3 &&
+            rendered.blockquoteCount === 3 &&
+            rendered.hrCount === 1,
+          `Expected mature markdown block rendering, got ${JSON.stringify(rendered)}`,
+        );
+        assert(
+          rendered.firstListGap <= 8 && rendered.quoteGap > 0 && rendered.quoteGap <= 36,
+          `Expected compact markdown vertical spacing, got ${JSON.stringify(rendered)}`,
+        );
+        assert(
+          rendered.safeLinkTarget === "_blank" && rendered.safeLinkRel === "noreferrer",
+          `Expected rendered links to be safe external links, got ${JSON.stringify(rendered)}`,
+        );
+        assert(
+          !rendered.unsafeHref.startsWith("javascript:"),
+          `Expected unsafe markdown link to be sanitized, got ${JSON.stringify(rendered)}`,
+        );
+        assert(
+          !rendered.text.includes("---"),
+          `Expected horizontal rule not to render as literal markdown, got ${
+            JSON.stringify(rendered)
+          }`,
+        );
+      });
+    });
+  },
+});
+
+Deno.test({
   name: "agent streaming renders completed rows with final markdown before stream end",
   sanitizeOps: false,
   sanitizeResources: false,
@@ -2706,8 +2924,8 @@ Deno.test({
           "Expected dot pseudo-element to align without wrapping.",
         );
         assert(
-          metrics.every((item) => item.headingGap >= 14),
-          "Expected response headings to have extra spacing above them.",
+          metrics.every((item) => item.headingGap >= 10 && item.headingGap <= 14),
+          "Expected response headings to have compact section spacing above them.",
         );
         assert(
           metrics.every((item) => item.scrollWidth <= item.innerWidth),

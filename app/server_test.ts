@@ -9,7 +9,9 @@ import {
   type ScheduleEntry,
   sendResendTestEmail,
   setPiAgentSessionFetchForTest,
+  setPiAgentSessionHandoffFetchForTest,
   statusLabelForScheduleStatus,
+  visibleAgentGatewayError,
 } from "./server.ts";
 
 function assertEquals(actual: unknown, expected: unknown) {
@@ -43,7 +45,10 @@ Deno.test("extractEmailAddress returns the first email from a mixed contact fiel
 });
 
 Deno.test("lead OCR normalization is conservative and stable for email + phone", () => {
-  assertEquals(normalizeLeadEmail(" Email: ADA.LOVELACE@Example.COM. "), "ada.lovelace@example.com");
+  assertEquals(
+    normalizeLeadEmail(" Email: ADA.LOVELACE@Example.COM. "),
+    "ada.lovelace@example.com",
+  );
   assertEquals(normalizeLeadEmail("e-mail: lead@example.com,"), "lead@example.com");
   assertEquals(normalizeLeadPhone(" (555) 333-4444 "), "+1 555 333 4444");
   assertEquals(normalizeLeadPhone("+1 (555) 333-4444"), "+1 555 333 4444");
@@ -111,6 +116,46 @@ Deno.test("fallbackAgentAnswer gives local event coaching when the prompt names 
   }
   if (answer.includes("Next block")) {
     throw new Error(`Expected event-specific fallback instead of route fallback, got ${answer}`);
+  }
+});
+
+Deno.test("visibleAgentGatewayError renders upstream debug details instead of local route fallback", () => {
+  const response = new Response(
+    JSON.stringify({ error: { message: "upstream exploded" }, code: "bad_gateway" }),
+    {
+      status: 502,
+      statusText: "Bad Gateway",
+      headers: {
+        "x-uos-request-id": "req_test_123",
+        "x-deno-trace-id": "trace_test_456",
+      },
+    },
+  );
+
+  const answer = visibleAgentGatewayError(response, "gpt-5.5", {
+    error: { message: "upstream exploded" },
+    code: "bad_gateway",
+  });
+
+  for (
+    const expected of [
+      "AI gateway error",
+      "HTTP 502 Bad Gateway",
+      "gpt-5.5",
+      "upstream exploded",
+      "req_test_123",
+      "trace_test_456",
+      "bad_gateway",
+    ]
+  ) {
+    if (!answer.includes(expected)) {
+      throw new Error(`Expected gateway error answer to include ${expected}, got ${answer}`);
+    }
+  }
+  for (const forbidden of ["Next block", "local schedule answer", "local event coaching"]) {
+    if (answer.includes(forbidden)) {
+      throw new Error(`Expected gateway error answer not to include ${forbidden}, got ${answer}`);
+    }
   }
 });
 
@@ -220,6 +265,46 @@ Deno.test("account session proxies authenticated Pi passkey identity", async () 
   }
 });
 
+Deno.test("account handoff sets a local Pi session cookie", async () => {
+  setPiAgentSessionHandoffFetchForTest((_request, handoffToken, targetOrigin) => {
+    assertEquals(handoffToken, "handoff_123");
+    assertEquals(targetOrigin, "http://localhost");
+    return Promise.resolve(jsonResponse({
+      sessionToken: "test-session",
+      session: {
+        authenticated: true,
+        auth: "passkey",
+        user: {
+          id: "user_123",
+          handle: "nik",
+          isAdmin: false,
+          credentialCount: 1,
+        },
+        expiresAt: "2026-06-01T12:00:00.000Z",
+      },
+    }));
+  });
+  try {
+    const response = await router(
+      new Request("http://localhost/api/account/session/handoff", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handoffToken: "handoff_123" }),
+      }),
+    );
+    assertEquals(response.status, 200);
+    const body = await response.json() as Record<string, unknown>;
+    assertEquals(getPath(body, ["session", "authenticated"]), true);
+    assertEquals(getPath(body, ["session", "user", "id"]), "user_123");
+    const cookie = response.headers.get("set-cookie") ?? "";
+    if (!cookie.includes("pi_codex_session=test-session") || !cookie.includes("HttpOnly")) {
+      throw new Error(`Expected local session cookie, got ${cookie}`);
+    }
+  } finally {
+    setPiAgentSessionHandoffFetchForTest(null);
+  }
+});
+
 Deno.test({
   name: "sends Resend test email to test@pavlovcik.com",
   async fn() {
@@ -311,12 +396,15 @@ Deno.test("lead creation persists compact OCR provenance metadata", async () => 
       );
     }
   } finally {
-    if (!createdId) return;
-    await router(new Request("http://localhost/api/state", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ type: "lead_delete", id: createdId }),
-    }));
+    if (createdId) {
+      await router(
+        new Request("http://localhost/api/state", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ type: "lead_delete", id: createdId }),
+        }),
+      );
+    }
   }
 });
 
@@ -362,15 +450,20 @@ Deno.test("lead creation ignores invalid OCR metadata payloads", async () => {
       | undefined;
     if (!lead) throw new Error("Expected persisted lead.");
     if (lead.ocr !== undefined) {
-      throw new Error(`Expected no OCR provenance for invalid input, got ${JSON.stringify(lead.ocr)}`);
+      throw new Error(
+        `Expected no OCR provenance for invalid input, got ${JSON.stringify(lead.ocr)}`,
+      );
     }
   } finally {
-    if (!createdId) return;
-    await router(new Request("http://localhost/api/state", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ type: "lead_delete", id: createdId }),
-    }));
+    if (createdId) {
+      await router(
+        new Request("http://localhost/api/state", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ type: "lead_delete", id: createdId }),
+        }),
+      );
+    }
   }
 });
 
