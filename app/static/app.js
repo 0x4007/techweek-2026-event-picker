@@ -2,6 +2,9 @@ const CHAT_STORAGE_KEY = "techweek-chat";
 const CHAT_HISTORY_KEY = "techweek-chat-history";
 const ACTIVE_CHAT_KEY = "techweek-chat-active-id";
 const MODEL_CONTEXT_CACHE_KEY = "techweek-model-context";
+const ACCOUNT_AUTH_BASE = "https://agent.pavlovcik.com";
+const ACCOUNT_ANONYMOUS_STORAGE_ID = "anonymous";
+const ACCOUNT_AUTH_MESSAGE_TYPE = "pi-codex-auth-complete";
 const CHAT_MESSAGE_LIMIT = 24;
 const CHAT_SESSION_LIMIT = 18;
 const MODEL_CONTEXT_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -99,9 +102,22 @@ const state = {
   activeView: "route",
   activeDay: "",
   entriesByBlock: new Map(),
-  messages: readJsonStorage(CHAT_STORAGE_KEY, []),
-  sessions: readJsonStorage(CHAT_HISTORY_KEY, []),
-  activeSessionId: localStorage.getItem(ACTIVE_CHAT_KEY) || createSessionId(),
+  accountSession: null,
+  accountLoading: false,
+  accountError: "",
+  accountAuthPopupTimer: 0,
+  accountStorageId: ACCOUNT_ANONYMOUS_STORAGE_ID,
+  messages: readJsonStorage(
+    scopedStorageKey(CHAT_STORAGE_KEY, ACCOUNT_ANONYMOUS_STORAGE_ID),
+    readJsonStorage(CHAT_STORAGE_KEY, []),
+  ),
+  sessions: readJsonStorage(
+    scopedStorageKey(CHAT_HISTORY_KEY, ACCOUNT_ANONYMOUS_STORAGE_ID),
+    readJsonStorage(CHAT_HISTORY_KEY, []),
+  ),
+  activeSessionId: localStorage.getItem(
+    scopedStorageKey(ACTIVE_CHAT_KEY, ACCOUNT_ANONYMOUS_STORAGE_ID),
+  ) || localStorage.getItem(ACTIVE_CHAT_KEY) || createSessionId(),
   activeSessionMeta: null,
   modelContext: readCachedModelContext(),
   historyOpen: false,
@@ -115,6 +131,7 @@ const state = {
   routeTransitionDirection: "none",
   leadEventManuallySelected: false,
   followUpEmailTouched: false,
+  ocrMetadata: null,
 };
 const initialNavigation = readHashNavigation();
 state.activeView = initialNavigation.view || state.activeView;
@@ -152,6 +169,8 @@ const eventModal = document.querySelector("[data-event-modal]");
 const eventBackdrop = document.querySelector("[data-event-backdrop]");
 const eventCloseButton = document.querySelector("[data-event-close]");
 const pageTitle = document.querySelector("[data-page-title]");
+const accountButton = document.querySelector("[data-account-button]");
+const accountLabel = document.querySelector("[data-account-label]");
 const leadForm = document.querySelector("[data-lead-form]");
 const leadEventSelect = document.querySelector("[data-lead-event]");
 const leadsList = document.querySelector("[data-leads-list]");
@@ -200,7 +219,9 @@ devDeployCheckbox.addEventListener("change", () => {
   devAgent.deploy = devDeployCheckbox.checked;
   updateDevComposerState();
 });
+accountButton.addEventListener("click", handleAccountButton);
 globalThis.addEventListener("message", handleDevAuthMessage);
+globalThis.addEventListener("message", handleAccountAuthMessage);
 renderDevAgent();
 eventCloseButton.addEventListener("click", closeEventModal);
 eventBackdrop.addEventListener("click", closeEventModal);
@@ -230,6 +251,8 @@ globalThis.addEventListener("hashchange", () => {
 });
 
 hydrateChatHistory();
+renderAccountButton();
+void loadAccountSession();
 
 promptButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -295,6 +318,139 @@ function updateDevComposerState() {
   devDeployCheckbox.disabled = devAgent.sending;
   devComposerError.hidden = !devAgent.composerError;
   devComposerError.textContent = devAgent.composerError;
+}
+
+async function loadAccountSession() {
+  state.accountLoading = true;
+  state.accountError = "";
+  renderAccountButton();
+  try {
+    const response = await fetch("/api/account/session", {
+      cache: "no-store",
+      credentials: "include",
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body?.error?.message || "Could not check account session.");
+    }
+    applyAccountSession(body.session || null);
+  } catch (error) {
+    state.accountError = error instanceof Error
+      ? error.message
+      : "Could not check account session.";
+    applyAccountSession(null);
+  } finally {
+    state.accountLoading = false;
+    renderAccountButton();
+  }
+}
+
+function applyAccountSession(session) {
+  const normalized = normalizeAccountSession(session);
+  const nextStorageId = normalized?.authenticated && normalized.user?.id
+    ? normalized.user.id
+    : ACCOUNT_ANONYMOUS_STORAGE_ID;
+  const changed = nextStorageId !== state.accountStorageId;
+  if (changed) persistMessages();
+
+  state.accountSession = normalized;
+  if (changed) loadChatStorageForAccount(nextStorageId);
+  renderAccountButton();
+}
+
+function normalizeAccountSession(session) {
+  if (!session || typeof session !== "object") {
+    return { authenticated: false, auth: "passkey" };
+  }
+  const user = session.user && typeof session.user === "object"
+    ? {
+      id: String(session.user.id || ""),
+      handle: String(session.user.handle || ""),
+      isAdmin: session.user.isAdmin === true,
+    }
+    : null;
+  return {
+    authenticated: session.authenticated === true && Boolean(user?.id),
+    auth: String(session.auth || "passkey"),
+    user,
+    expiresAt: String(session.expiresAt || ""),
+    setupRequired: session.setupRequired === true,
+    bootstrapConfigured: session.bootstrapConfigured === true,
+    registrationAllowed: session.registrationAllowed === true,
+  };
+}
+
+function handleAccountButton() {
+  if (state.accountLoading) return;
+  if (state.accountSession?.authenticated) {
+    void loadAccountSession();
+    return;
+  }
+  openAccountAuth("login");
+}
+
+function renderAccountButton() {
+  const authenticated = state.accountSession?.authenticated === true;
+  const handle = state.accountSession?.user?.handle || "Account";
+  accountButton.dataset.authState = state.accountLoading
+    ? "loading"
+    : authenticated
+    ? "authenticated"
+    : "unauthenticated";
+  accountButton.disabled = state.accountLoading;
+  accountButton.setAttribute(
+    "aria-label",
+    authenticated ? `Signed in as ${handle}` : "Sign in with passkey",
+  );
+  accountLabel.textContent = state.accountLoading ? "Checking" : authenticated ? handle : "Sign in";
+}
+
+function openAccountAuth(mode) {
+  clearAccountAuthPopupWatcher();
+  const url = accountAuthUrl("/auth.html");
+  url.searchParams.set("mode", mode);
+  url.searchParams.set("embedOrigin", globalThis.location.origin);
+  url.searchParams.set("returnUrl", globalThis.location.href);
+  state.accountError = "";
+  renderAccountButton();
+  const popup = globalThis.open(
+    url.toString(),
+    "techweek-account-auth",
+    "popup,width=460,height=720",
+  );
+  if (!popup) {
+    globalThis.location.href = url.toString();
+    return;
+  }
+  popup.focus?.();
+  const openedAt = Date.now();
+  state.accountAuthPopupTimer = globalThis.setInterval(() => {
+    if (popup.closed) {
+      clearAccountAuthPopupWatcher();
+      void loadAccountSession();
+      return;
+    }
+    if (Date.now() - openedAt > DEV_AUTH_POPUP_TIMEOUT_MS) {
+      clearAccountAuthPopupWatcher();
+    }
+  }, DEV_AUTH_POPUP_POLL_MS);
+}
+
+function handleAccountAuthMessage(event) {
+  if (event.origin !== new URL(ACCOUNT_AUTH_BASE).origin) return;
+  if (event.data?.type !== ACCOUNT_AUTH_MESSAGE_TYPE) return;
+  clearAccountAuthPopupWatcher();
+  void loadAccountSession();
+}
+
+function clearAccountAuthPopupWatcher() {
+  if (!state.accountAuthPopupTimer) return;
+  globalThis.clearInterval(state.accountAuthPopupTimer);
+  state.accountAuthPopupTimer = 0;
+}
+
+function accountAuthUrl(path) {
+  return devBaseUrl(ACCOUNT_AUTH_BASE, path);
 }
 
 function setView(view, options = {}) {
@@ -2034,6 +2190,7 @@ async function handleLeadSubmit(event) {
     email: String(formData.get("email") || ""),
     phone: String(formData.get("phone") || ""),
     followUp: String(formData.get("followUp") || ""),
+    ocr: state.ocrMetadata,
     notes: String(formData.get("notes") || ""),
     sendFollowUpEmail: Boolean(
       leadForm.elements.sendFollowUpEmail.checked &&
@@ -2066,6 +2223,7 @@ async function handleLeadSubmit(event) {
     state.followUpEmailTouched = false;
     renderFollowUpEmailControl();
     renderCRM();
+    state.ocrMetadata = null;
     leadForm.elements.name.focus();
   } catch (error) {
     setLeadError(error instanceof Error ? error.message : "Could not save lead.");
@@ -2091,6 +2249,7 @@ async function handleCardInput() {
   });
 
   try {
+    state.ocrMetadata = null;
     const image = await imageFileToDataUrl(file);
     await logClientEvent("ocr_image_prepared", {
       requestId,
@@ -2127,8 +2286,9 @@ async function handleCardInput() {
     cardPreview.hidden = false;
     setCardScanStatus(`Extracting with AI... ${requestId}`);
 
-    const body = await requestOcrDraft({ requestId, file, image, eventTitle });
-    applyLeadDraft(body.draft || {});
+      const body = await requestOcrDraft({ requestId, file, image, eventTitle });
+      state.ocrMetadata = body?.ocrMetadata ?? null;
+      applyLeadDraft(body.draft || {});
     setCardScanStatus(`Card scanned. Review and save. ${requestId}`);
   } catch (error) {
     await logClientEvent("ocr_client_error", {
@@ -2237,7 +2397,13 @@ async function requestOcrDraft({ requestId, file, image, eventTitle }) {
     });
 
     if (response.ok) {
-      if (leadDraftHasUsableFields(body?.draft)) return body;
+      if (leadDraftHasUsableFields(body?.draft)) {
+        return {
+          ...body,
+          ocrMetadata: coerceLeadOcrMetadata(body?.ocrMetadata) ??
+            inferOcrMetadataFromAttempt({ attemptIndex, payload }),
+        };
+      }
       lastBody = {
         error: {
           message: "Business card OCR did not find any lead fields.",
@@ -2260,6 +2426,58 @@ async function requestOcrDraft({ requestId, file, image, eventTitle }) {
 
   const debugId = lastBody?.error?.requestId || requestId;
   throw new Error(`${lastBody?.error?.message || "Could not scan card."} Debug: ${debugId}`);
+}
+
+function inferOcrMetadataFromAttempt({ attemptIndex, payload }) {
+  const metadata = payload?.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
+  const rawOcrDataUrlCharacters = metadata.ocrDataUrlCharacters ?? metadata.compressedDataUrlCharacters ??
+    metadata.dataUrlCharacters;
+  return coerceLeadOcrMetadata({
+    ocrSource: typeof metadata.ocrSource === "string" ? metadata.ocrSource : "",
+    attemptIndex: Number.isFinite(Number(metadata.retryIndex ?? attemptIndex))
+      ? Number(metadata.retryIndex ?? attemptIndex)
+      : Number(attemptIndex),
+    outputWidth: Number.isFinite(Number(metadata.outputWidth)) ? Number(metadata.outputWidth) : undefined,
+    outputHeight: Number.isFinite(Number(metadata.outputHeight)) ? Number(metadata.outputHeight) : undefined,
+    dataUrlCharacters: Number.isFinite(Number(rawOcrDataUrlCharacters))
+      ? Number(rawOcrDataUrlCharacters)
+      : undefined,
+  });
+}
+
+function coerceLeadOcrMetadata(value) {
+  if (!value || typeof value !== "object") return null;
+  const raw = value;
+  const ocrSource = typeof raw.ocrSource === "string" && raw.ocrSource.trim()
+    ? raw.ocrSource.trim()
+    : "";
+  const attemptIndex = Number.isFinite(Number(raw.attemptIndex))
+    ? Math.max(0, Math.round(Number(raw.attemptIndex)))
+    : undefined;
+  const outputWidth = Number.isFinite(Number(raw.outputWidth))
+    ? Math.max(0, Math.round(Number(raw.outputWidth)))
+    : undefined;
+  const outputHeight = Number.isFinite(Number(raw.outputHeight))
+    ? Math.max(0, Math.round(Number(raw.outputHeight)))
+    : undefined;
+  const dataUrlCharacters = Number.isFinite(Number(raw.dataUrlCharacters))
+    ? Math.max(0, Math.round(Number(raw.dataUrlCharacters)))
+    : undefined;
+  const normalized = {
+    ...(ocrSource ? { ocrSource } : {}),
+    ...(attemptIndex !== undefined ? { attemptIndex } : {}),
+    ...(outputWidth !== undefined ? { outputWidth } : {}),
+    ...(outputHeight !== undefined ? { outputHeight } : {}),
+    ...(dataUrlCharacters !== undefined ? { dataUrlCharacters } : {}),
+    ...(raw.localOcrUsed === true || raw.localOcrUsed === "true"
+      ? { localOcrUsed: true }
+      : {}),
+    ...(Number.isFinite(Number(raw.localOcrMeanConfidence))
+      ? { localOcrMeanConfidence: Math.round(Number(raw.localOcrMeanConfidence)) }
+      : {}),
+  };
+  if (Object.keys(normalized).length) return normalized;
+  return null;
 }
 
 async function fetchWithTimeout(url, options, timeoutMs) {
@@ -4087,6 +4305,37 @@ function readJsonStorage(key, fallback) {
   }
 }
 
+function scopedStorageKey(base, scope) {
+  const normalized = String(scope || ACCOUNT_ANONYMOUS_STORAGE_ID)
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "_") || ACCOUNT_ANONYMOUS_STORAGE_ID;
+  return `${base}:${normalized}`;
+}
+
+function chatStorageKey() {
+  return scopedStorageKey(CHAT_STORAGE_KEY, state.accountStorageId);
+}
+
+function chatHistoryKey() {
+  return scopedStorageKey(CHAT_HISTORY_KEY, state.accountStorageId);
+}
+
+function activeChatKey() {
+  return scopedStorageKey(ACTIVE_CHAT_KEY, state.accountStorageId);
+}
+
+function loadChatStorageForAccount(storageId) {
+  state.accountStorageId = storageId || ACCOUNT_ANONYMOUS_STORAGE_ID;
+  state.messages = readJsonStorage(chatStorageKey(), []);
+  state.sessions = readJsonStorage(chatHistoryKey(), []);
+  state.activeSessionId = localStorage.getItem(activeChatKey()) || createSessionId();
+  state.activeSessionMeta = null;
+  state.historyOpen = false;
+  chatHistoryToggle.setAttribute("aria-expanded", "false");
+  hydrateChatHistory();
+  renderChat();
+}
+
 function readCachedModelContext() {
   const cached = readJsonStorage(MODEL_CONTEXT_CACHE_KEY, null);
   if (!cached || typeof cached !== "object") return null;
@@ -4144,7 +4393,7 @@ function hydrateChatHistory() {
   } else {
     persistSessions();
   }
-  localStorage.setItem(ACTIVE_CHAT_KEY, state.activeSessionId);
+  localStorage.setItem(activeChatKey(), state.activeSessionId);
 }
 
 function normalizeSessions(sessions) {
@@ -4198,8 +4447,8 @@ function startNewChat(options = {}) {
   state.activeSessionId = options.id || createSessionId();
   state.activeSessionMeta = normalizeSessionMeta(options.meta);
   state.historyOpen = false;
-  localStorage.setItem(ACTIVE_CHAT_KEY, state.activeSessionId);
-  localStorage.setItem(CHAT_STORAGE_KEY, "[]");
+  localStorage.setItem(activeChatKey(), state.activeSessionId);
+  localStorage.setItem(chatStorageKey(), "[]");
   chatHistoryToggle.setAttribute("aria-expanded", "false");
   renderChat();
   renderChatHistory();
@@ -4227,7 +4476,7 @@ function upsertCurrentSession() {
 }
 
 function persistSessions() {
-  localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(state.sessions));
+  localStorage.setItem(chatHistoryKey(), JSON.stringify(state.sessions));
 }
 
 function chatTitle(messages) {
@@ -4255,8 +4504,8 @@ function loadChatSession(id) {
   state.activeSessionMeta = session.meta || null;
   state.messages = session.messages.slice(-CHAT_MESSAGE_LIMIT);
   state.historyOpen = false;
-  localStorage.setItem(ACTIVE_CHAT_KEY, state.activeSessionId);
-  localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(state.messages));
+  localStorage.setItem(activeChatKey(), state.activeSessionId);
+  localStorage.setItem(chatStorageKey(), JSON.stringify(state.messages));
   chatHistoryToggle.setAttribute("aria-expanded", "false");
   renderChat();
   renderChatHistory();
@@ -4334,8 +4583,8 @@ function resetEmptyChat() {
   state.activeSessionId = createSessionId();
   state.activeSessionMeta = null;
   state.historyOpen = false;
-  localStorage.setItem(ACTIVE_CHAT_KEY, state.activeSessionId);
-  localStorage.setItem(CHAT_STORAGE_KEY, "[]");
+  localStorage.setItem(activeChatKey(), state.activeSessionId);
+  localStorage.setItem(chatStorageKey(), "[]");
   chatHistoryToggle.setAttribute("aria-expanded", "false");
   renderChat();
   renderChatHistory();
@@ -4401,8 +4650,8 @@ async function applyAction(action) {
 
 function persistMessages() {
   state.messages = state.messages.slice(-CHAT_MESSAGE_LIMIT);
-  localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(state.messages));
-  localStorage.setItem(ACTIVE_CHAT_KEY, state.activeSessionId);
+  localStorage.setItem(chatStorageKey(), JSON.stringify(state.messages));
+  localStorage.setItem(activeChatKey(), state.activeSessionId);
   upsertCurrentSession();
 }
 

@@ -833,7 +833,7 @@ Deno.test({
             "Expected OCR to use the chat-completions image endpoint.",
           );
           assert(
-            gatewayBodies[0].reasoning_effort === null,
+            gatewayBodies[0].reasoning_effort === undefined,
             "Expected OCR to disable reasoning for the chat-completions call.",
           );
           const ocrLogs = jsonLogs(logs, "ocr_context");

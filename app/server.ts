@@ -77,7 +77,9 @@ const OPERATIONAL_ICS = new URL(
 const LOCAL_OCR_DIR = new URL("../.codex/ocr-local/", import.meta.url);
 const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
 const PARTIFUL_AUTH_JSON_ENV = "TECHWEEK_PARTIFUL_AUTH_JSON";
-const PORT = 8788;
+const PI_SESSION_COOKIE_NAME = "pi_codex_session";
+const PI_AGENT_SESSION_URL = "https://agent.pavlovcik.com/api/session";
+const PORT = 8787;
 const TIME_ZONE = "America/New_York";
 const AGENT_MODEL = "gpt-5.5";
 const PI_AGENT_PUBLIC_ORIGIN = "https://agent.pavlovcik.com";
@@ -86,6 +88,7 @@ const PI_AGENT_PROXY_PREFIX = "/__pi-agent";
 const LOCAL_OCR_TIMEOUT_MS = 7_000;
 const LOCAL_OCR_ROTATIONS = [0, 90, 180, 270] as const;
 const LOCAL_OCR_HIGH_CONFIDENCE_SCORE = 8;
+const LOCAL_OCR_MIN_MEAN_CONFIDENCE = 74;
 const TOKEN_ENCODING_NAME = "o200k_base";
 const CHAT_MESSAGE_OVERHEAD_TOKENS = 4;
 const CHAT_REQUEST_OVERHEAD_TOKENS = 3;
@@ -385,9 +388,20 @@ type Lead = {
   notes: string;
   priority: "A" | "B" | "C";
   followUp: string;
+  ocr?: OcrDraftMetadata;
   followUpEmail: LeadFollowUpEmail | null;
   createdAt: string;
   updatedAt: string;
+};
+
+type OcrDraftMetadata = {
+  ocrSource?: string;
+  attemptIndex?: number;
+  outputWidth?: number;
+  outputHeight?: number;
+  dataUrlCharacters?: number;
+  localOcrUsed?: boolean;
+  localOcrMeanConfidence?: number;
 };
 
 type AppState = {
@@ -452,6 +466,23 @@ type AgentMessage = {
 type ChatMessage = {
   role: "system" | "developer" | "user" | "assistant";
   content: string;
+};
+
+type AccountSessionUser = {
+  id: string;
+  handle: string;
+  isAdmin: boolean;
+  credentialCount: number;
+};
+
+type AccountSessionState = {
+  authenticated: boolean;
+  auth: string;
+  user?: AccountSessionUser;
+  expiresAt?: string;
+  setupRequired?: boolean;
+  bootstrapConfigured?: boolean;
+  registrationAllowed?: boolean;
 };
 
 type GatewayConfig = {
@@ -541,7 +572,7 @@ type AgentDebugPayload = {
 
 type OcrRequestBody = {
   model: string;
-  reasoning_effort: null;
+  reasoning_effort?: string;
   stream: false;
   messages: Array<{
     role: "user";
@@ -560,6 +591,7 @@ type LeadDraft = {
   phone: string;
   notes: string;
   followUp: string;
+  ocr?: OcrDraftMetadata;
 };
 
 type LocalOcrOrientation = {
@@ -567,6 +599,7 @@ type LocalOcrOrientation = {
   raw: string;
   score: number;
   rotation: number;
+  meanConfidence: number;
 };
 
 type LocalOcrVariantText = {
@@ -624,6 +657,10 @@ type ClientContext = {
     devicePixelRatio?: unknown;
   };
 };
+
+let fetchPiAgentSessionForTest:
+  | ((request: Request, cookieHeader: string) => Promise<Response>)
+  | null = null;
 
 class ServerRoutingCache implements RoutingCacheAdapter {
   async get<T>(key: CacheKey): Promise<T | null> {
@@ -729,6 +766,87 @@ function json(data: unknown, init: ResponseInit = {}): Response {
   headers.set("content-type", "application/json; charset=utf-8");
   headers.set("cache-control", "no-store");
   return new Response(JSON.stringify(data, null, 2), { ...init, headers });
+}
+
+export function setPiAgentSessionFetchForTest(
+  fetcher: ((request: Request, cookieHeader: string) => Promise<Response>) | null,
+): void {
+  fetchPiAgentSessionForTest = fetcher;
+}
+
+async function handleAccountSession(request: Request): Promise<Response> {
+  const session = await readPiAgentSession(request);
+  return json({ session });
+}
+
+async function readPiAgentSession(request: Request): Promise<AccountSessionState> {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  if (!cookieHeaderIncludes(cookieHeader, PI_SESSION_COOKIE_NAME)) {
+    return { authenticated: false, auth: "passkey" };
+  }
+
+  const upstream = await fetchPiAgentSession(request, cookieHeader).catch(() => null);
+  if (!upstream) {
+    return { authenticated: false, auth: "unavailable" };
+  }
+  const body = await readJsonOrText(upstream);
+  if (!upstream.ok) {
+    return { authenticated: false, auth: "unavailable" };
+  }
+  const session = normalizeAccountSessionState(body);
+  return session ?? { authenticated: false, auth: "passkey" };
+}
+
+async function fetchPiAgentSession(request: Request, cookieHeader: string): Promise<Response> {
+  if (fetchPiAgentSessionForTest) {
+    return await fetchPiAgentSessionForTest(request, cookieHeader);
+  }
+  return await fetch(PI_AGENT_SESSION_URL, {
+    headers: {
+      accept: "application/json",
+      cookie: cookieHeader,
+      "user-agent": request.headers.get("user-agent") ?? "techweek-agenda-app",
+    },
+  });
+}
+
+function normalizeAccountSessionState(value: unknown): AccountSessionState | null {
+  const raw = recordValue(value);
+  if (!raw) return null;
+  const auth = textField(raw.auth, 80) || "passkey";
+  const user = normalizeAccountSessionUser(raw.user);
+  const authenticated = raw.authenticated === true && Boolean(user?.id);
+  return {
+    authenticated,
+    auth,
+    ...(user ? { user } : {}),
+    ...(textField(raw.expiresAt, 120) ? { expiresAt: textField(raw.expiresAt, 120) } : {}),
+    ...(raw.setupRequired === true ? { setupRequired: true } : {}),
+    ...(raw.bootstrapConfigured === true ? { bootstrapConfigured: true } : {}),
+    ...(raw.registrationAllowed === true ? { registrationAllowed: true } : {}),
+  };
+}
+
+function normalizeAccountSessionUser(value: unknown): AccountSessionUser | undefined {
+  const raw = recordValue(value);
+  if (!raw) return undefined;
+  const id = textField(raw.id, 160);
+  if (!id) return undefined;
+  return {
+    id,
+    handle: textField(raw.handle, 120),
+    isAdmin: raw.isAdmin === true,
+    credentialCount: Number.isFinite(Number(raw.credentialCount))
+      ? Math.max(0, Math.round(Number(raw.credentialCount)))
+      : 0,
+  };
+}
+
+function cookieHeaderIncludes(cookieHeader: string, cookieName: string): boolean {
+  return cookieHeader.split(";").some((part) => {
+    const [name, value = ""] = part.trim().split("=", 2);
+    return name === cookieName && value.trim() !== "";
+  });
 }
 
 function textResponse(body: string, contentType: string, init: ResponseInit = {}): Response {
@@ -1169,6 +1287,43 @@ function normalizeLeadFollowUpEmail(value: unknown): LeadFollowUpEmail | null {
   };
 }
 
+function normalizeLeadOcrMetadata(value: unknown): OcrDraftMetadata | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Record<string, unknown>;
+  const ocrSource = normalizeOcrContactField(raw.ocrSource, 120);
+  const attemptIndex = normalizeOcrInteger(raw.attemptIndex);
+  const outputWidth = normalizeOcrInteger(raw.outputWidth);
+  const outputHeight = normalizeOcrInteger(raw.outputHeight);
+  const dataUrlCharacters = normalizeOcrInteger(raw.dataUrlCharacters);
+  const localOcrUsed = raw.localOcrUsed === true || raw.localOcrUsed === "true";
+  const localOcrMeanConfidence = Number.isFinite(Number(raw.localOcrMeanConfidence))
+    ? Number(raw.localOcrMeanConfidence)
+    : undefined;
+  const normalized = {
+    ocrSource: ocrSource || undefined,
+    attemptIndex,
+    outputWidth,
+    outputHeight,
+    dataUrlCharacters,
+    localOcrUsed: localOcrUsed || undefined,
+    localOcrMeanConfidence: Number.isFinite(localOcrMeanConfidence)
+      ? Math.round(localOcrMeanConfidence as number)
+      : undefined,
+  };
+  if (normalized.ocrSource || normalized.attemptIndex !== undefined ||
+    normalized.outputWidth !== undefined || normalized.outputHeight !== undefined ||
+    normalized.dataUrlCharacters !== undefined || normalized.localOcrUsed !== undefined ||
+    normalized.localOcrMeanConfidence !== undefined) {
+    return normalized;
+  }
+  return undefined;
+}
+
+function normalizeOcrInteger(value: unknown): number | undefined {
+  if (!Number.isFinite(Number(value))) return undefined;
+  return Math.max(0, Math.round(Number(value)));
+}
+
 function normalizeLeads(value: unknown): Lead[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -1186,6 +1341,7 @@ function normalizeLeads(value: unknown): Lead[] {
         email: String(lead.email || ""),
         phone: String(lead.phone || ""),
         notes: String(lead.notes || ""),
+        ocr: normalizeLeadOcrMetadata(lead.ocr),
         priority: normalizeLeadPriority(lead.priority),
         followUp: String(lead.followUp || ""),
         followUpEmail: normalizeLeadFollowUpEmail(lead.followUpEmail),
@@ -1201,6 +1357,54 @@ function normalizeLeads(value: unknown): Lead[] {
 
 function textField(value: unknown, maxLength = 1200): string {
   return String(value ?? "").trim().slice(0, maxLength);
+}
+
+function normalizeOcrPlaceholder(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  return normalized === "" || [
+    "na",
+    "n/a",
+    "none",
+    "no",
+    "nil",
+    "n/a.",
+    "not provided",
+    "unknown",
+    "-",
+  ].includes(normalized)
+    ? ""
+    : value.trim();
+}
+
+function normalizeOcrContactField(value: unknown, maxLength = 320): string {
+  return normalizeOcrPlaceholder(textField(value, maxLength));
+}
+
+function normalizeOcrEmail(value: unknown): string {
+  const compact = normalizeOcrContactField(value, 320)
+    .replace(/^(?:e-?mail|email)\s*[:=\-]?\s*/i, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*([@.])\s*/g, "$1")
+    .trim();
+  return extractEmailAddress(compact).toLowerCase();
+}
+
+function normalizeOcrPhone(value: unknown): string {
+  const compact = normalizeOcrContactField(value, 120)
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!compact) return "";
+  const match = compact.match(/(?:ext|x|extension)\s*:?\s*(\d{1,6})/i);
+  const extension = match?.[1] ? ` ext ${match[1]}` : "";
+  const digits = compact.replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.length === 10) {
+    return `+1 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}${extension}`;
+  }
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+1 ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}${extension}`;
+  }
+  return `+${digits}${extension}`.trim();
 }
 
 function positiveIntegerField(value: unknown, fallback: number): number {
@@ -1835,10 +2039,13 @@ async function handleStateAction(request: Request): Promise<Response> {
       name: textField(body.name, 160),
       company: textField(body.company, 180),
       role: textField(body.role, 180),
-      email: textField(body.email, 220),
-      phone: textField(body.phone, 80),
+      email: normalizeLeadEmail(textField(body.email, 220)),
+      phone: normalizeLeadPhone(textField(body.phone, 80)),
       notes: textField(body.notes, 2000),
-      priority: deriveLeadPriorityFromEvent(entry),
+      ocr: normalizeLeadOcrMetadata(body.ocr),
+      priority: body.priority === undefined
+        ? deriveLeadPriorityFromEvent(entry)
+        : normalizeLeadPriority(body.priority),
       followUp: textField(body.followUp, 300),
       followUpEmail: null,
       createdAt: now,
@@ -3181,7 +3388,6 @@ function cardOcrPrompt(): string {
 function cardOcrChatBody(imageDataUrl: string): OcrRequestBody {
   return {
     model: AGENT_MODEL,
-    reasoning_effort: null,
     stream: false,
     messages: [
       {
@@ -3198,7 +3404,6 @@ function cardOcrChatBody(imageDataUrl: string): OcrRequestBody {
 function cardOcrTranscriptBody(transcript: string): OcrRequestBody {
   return {
     model: AGENT_MODEL,
-    reasoning_effort: null,
     stream: false,
     messages: [
       {
@@ -3216,6 +3421,38 @@ function cardOcrTranscriptBody(transcript: string): OcrRequestBody {
               transcript.slice(0, 4000),
             ].join("\n"),
           },
+        ],
+      },
+    ],
+  };
+}
+
+function cardOcrVisionAndTranscriptBody(
+  imageDataUrl: string,
+  transcript: string,
+): OcrRequestBody {
+  return {
+    model: AGENT_MODEL,
+    stream: false,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: [
+              "Read this business card image. It may be rotated, skewed, cropped, or partially obscured.",
+              "A local OCR engine also produced a transcript. Use the transcript as supporting evidence only;",
+              "trust the image when they conflict. Return only JSON with name, company, role, email, phone,",
+              "and notes.",
+              "Put websites, LinkedIn, or extra visible contact details in notes.",
+              "Do not add commentary. Use null or an empty string for fields that are not present.",
+              "",
+              "OCR transcript:",
+              transcript.slice(0, 4000),
+            ].join("\n"),
+          },
+          { type: "image_url", image_url: { url: imageDataUrl } },
         ],
       },
     ],
@@ -3444,6 +3681,7 @@ async function localOcrOrientationFromImageDataUrl(
         raw: parsed.transcript,
         score: parsed.score,
         rotation: variant.rotation,
+        meanConfidence: parsed.meanConfidence,
         path: variant.path,
       };
       if (!best || candidate.score > best.score) best = candidate;
@@ -3455,6 +3693,7 @@ async function localOcrOrientationFromImageDataUrl(
       raw: best.raw,
       score: best.score,
       rotation: best.rotation,
+      meanConfidence: best.meanConfidence,
     };
   } finally {
     for (const path of pathsToRemove) {
@@ -3689,6 +3928,8 @@ async function tryOcrTranscriptFallback(
   chatUrl: string,
   token: string,
   transcript: string,
+  rawBody: Record<string, unknown>,
+  localOrientation: LocalOcrOrientation | null,
 ): Promise<Response | null> {
   if (!transcript.trim()) return null;
 
@@ -3750,7 +3991,13 @@ async function tryOcrTranscriptFallback(
       draft: draftDebug(draft),
       rawCharacters: content.length,
     });
-    return json({ requestId, draft, raw: content, source: "local_ocr_transcript_fallback" }, {
+    return json({
+      requestId,
+      draft,
+      raw: content,
+      source: "local_ocr_transcript_fallback",
+      ocrMetadata: buildLeadOcrMetadata(rawBody, transcript, localOrientation),
+    }, {
       headers: responseDebugHeaders(result.upstream.headers, requestId),
     });
   } catch (error) {
@@ -3762,6 +4009,53 @@ async function tryOcrTranscriptFallback(
     });
     return null;
   }
+}
+
+function buildLeadOcrMetadata(
+  rawBody: Record<string, unknown>,
+  localTranscript: string,
+  localOrientation: LocalOcrOrientation | null,
+): OcrDraftMetadata | null {
+  const clientMetadata = recordValue(rawBody.clientMetadata);
+  const imageMetadata = recordValue(clientMetadata?.image);
+  const ocrSource = normalizeOcrContactField(imageMetadata?.ocrSource, 120);
+  const attemptIndex = normalizeOcrInteger(
+    clientMetadata?.attemptIndex ?? imageMetadata?.attemptIndex ?? imageMetadata?.retryIndex,
+  );
+  const outputWidth = normalizeOcrInteger(
+    imageMetadata?.outputWidth,
+  );
+  const outputHeight = normalizeOcrInteger(
+    imageMetadata?.outputHeight,
+  );
+  const dataUrlCharacters = normalizeOcrInteger(
+    imageMetadata?.ocrDataUrlCharacters ??
+      imageMetadata?.compressedDataUrlCharacters ??
+      imageMetadata?.dataUrlCharacters ??
+      imageMetadata?.originalDataUrlCharacters,
+  );
+  const localOcrMeanConfidenceValue = localOrientation?.meanConfidence;
+  const localOcrMeanConfidence = Number.isFinite(Number(localOcrMeanConfidenceValue))
+    ? Math.round(Number(localOcrMeanConfidenceValue))
+    : undefined;
+  const normalized: OcrDraftMetadata = {
+    ocrSource: ocrSource || undefined,
+    attemptIndex,
+    outputWidth,
+    outputHeight,
+    dataUrlCharacters,
+    localOcrUsed: Boolean(localTranscript?.trim()) || undefined,
+    localOcrMeanConfidence,
+  };
+  if (
+    normalized.ocrSource || normalized.attemptIndex !== undefined ||
+    normalized.outputWidth !== undefined || normalized.outputHeight !== undefined ||
+    normalized.dataUrlCharacters !== undefined || normalized.localOcrUsed !== undefined ||
+    normalized.localOcrMeanConfidence !== undefined
+  ) {
+    return normalized;
+  }
+  return null;
 }
 
 async function handleLeadOcr(request: Request): Promise<Response> {
@@ -3816,7 +4110,14 @@ async function handleLeadOcr(request: Request): Promise<Response> {
   const localOrientation = await tryLocalOcrOrientation(requestId, imageDataUrl, rawBody);
   const gatewayImageDataUrl = localOrientation?.imageDataUrl ?? imageDataUrl;
   const gatewayImage = imageDebugSummary(gatewayImageDataUrl);
-  const ocrBody = cardOcrChatBody(gatewayImageDataUrl);
+  const localTranscript = localOrientation?.meanConfidence &&
+    localOrientation.meanConfidence >= LOCAL_OCR_MIN_MEAN_CONFIDENCE ? localOrientation.raw : "";
+  const ocrBody = localTranscript
+    ? cardOcrVisionAndTranscriptBody(gatewayImageDataUrl, localTranscript)
+    : cardOcrChatBody(gatewayImageDataUrl);
+  if (localTranscript) {
+    logOcrTranscriptContext(requestId, ocrBody, localTranscript);
+  }
   logOcrContext(requestId, ocrBody, gatewayImageDataUrl);
 
   const { token, chatUrl } = gatewayConfig();
@@ -3863,6 +4164,8 @@ async function handleLeadOcr(request: Request): Promise<Response> {
         chatUrl,
         token,
         localOrientation?.raw ?? "",
+        rawBody,
+        localOrientation,
       );
       if (textFallback) return textFallback;
     }
@@ -3945,10 +4248,18 @@ async function handleLeadOcr(request: Request): Promise<Response> {
   logJson("ocr_success", {
     requestId,
     model: result.model,
+    source: localTranscript ? "vision_with_local_ocr_transcript" : "vision_only",
+    localOcrUsed: Boolean(localTranscript),
     draft: draftDebug(draft),
     rawCharacters: content.length,
   });
-  return json({ requestId, draft, raw: content }, {
+  return json({
+    requestId,
+    draft,
+    raw: content,
+    source: localTranscript ? "vision_with_local_ocr_transcript" : "vision_only",
+    ocrMetadata: buildLeadOcrMetadata(rawBody, localTranscript, localOrientation),
+  }, {
     headers: responseDebugHeaders(result.upstream.headers, requestId),
   });
 }
@@ -3984,14 +4295,22 @@ function normalizeLeadDraft(value: unknown): LeadDraft {
     contact.url,
   ]);
   return {
-    name: textField(raw.name, 160),
+    name: normalizeOcrContactField(raw.name, 160),
     company,
     role,
-    email: textField(raw.email ?? contact.email, 220),
-    phone: textField(raw.phone ?? contact.phone, 80),
+    email: normalizeOcrEmail(raw.email ?? contact.email),
+    phone: normalizeOcrPhone(raw.phone ?? contact.phone),
     notes,
     followUp: textField(raw.followUp ?? raw.follow_up, 300),
   };
+}
+
+export function normalizeLeadEmail(value: string): string {
+  return normalizeOcrEmail(value);
+}
+
+export function normalizeLeadPhone(value: string): string {
+  return normalizeOcrPhone(value);
 }
 
 function leadNotesText(values: unknown[]): string {
@@ -4929,6 +5248,9 @@ export async function router(request: Request): Promise<Response> {
       return await proxyPiAgentRequest(request, url);
     }
     if (request.method === "GET" && url.pathname === "/api/health") return await handleHealth();
+    if (request.method === "GET" && url.pathname === "/api/account/session") {
+      return await handleAccountSession(request);
+    }
     if (request.method === "GET" && url.pathname === "/api/schedule") return await handleSchedule();
     if (request.method === "POST" && url.pathname === "/api/agenda/recalculate") {
       return await handleAgendaRecalculate(request);
