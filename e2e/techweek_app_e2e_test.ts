@@ -529,6 +529,40 @@ async function waitForCardScanResult(page: Page) {
 }
 
 Deno.test({
+  name: "app ignores malformed hash navigation while loading agenda",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withIphonePage(async (page) => {
+        const pageErrors: string[] = [];
+        page.on("pageerror", (error) => pageErrors.push(error.message));
+
+        await page.goto(`${baseUrl}/#%`);
+        const nextTitle = page.locator("[data-next-title]");
+        await nextTitle.waitFor({ state: "visible" });
+        await page.waitForFunction(() => {
+          const win = globalThis as unknown as {
+            document: { querySelector(selector: string): { textContent?: string | null } | null };
+          };
+          const title = win.document.querySelector("[data-next-title]")?.textContent ?? "";
+          return title && title !== "Loading agenda...";
+        });
+
+        assert(
+          pageErrors.length === 0,
+          `Expected malformed hash not to throw, got ${pageErrors.join("; ")}`,
+        );
+        assert(
+          (await nextTitle.textContent()) !== "No agenda loaded",
+          "Expected agenda to load after ignoring malformed hash.",
+        );
+      });
+    });
+  },
+});
+
+Deno.test({
   name: "CRM event selector uses current route event or previous event only",
   sanitizeOps: false,
   sanitizeResources: false,

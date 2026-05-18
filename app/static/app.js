@@ -1503,7 +1503,12 @@ function devTitleFromPrompt(prompt) {
 }
 
 function readHashNavigation() {
-  const hash = decodeURIComponent(globalThis.location.hash.replace(/^#\/?/, "")).trim();
+  let hash = "";
+  try {
+    hash = decodeURIComponent(globalThis.location.hash.replace(/^#\/?/, "")).trim();
+  } catch {
+    return {};
+  }
   if (!hash) return {};
   const [viewPart = "", dayPart = ""] = hash.split("/").map((part) => part.trim());
   return {
