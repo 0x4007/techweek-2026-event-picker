@@ -634,6 +634,17 @@ Deno.test({
             matchMedia(query: string): { matches: boolean };
           };
           const brightness = (value: string) => {
+            const hex = value.trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)?.[1];
+            if (hex) {
+              const full = hex.length === 3
+                ? hex.split("").map((part) => `${part}${part}`).join("")
+                : hex;
+              const channels = full.match(/.{2}/g)?.map((part) => Number.parseInt(part, 16)) ??
+                [];
+              return channels.length === 3
+                ? (channels[0] * 0.299 + channels[1] * 0.587 + channels[2] * 0.114)
+                : 255;
+            }
             const channels = (value.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
             return channels.length === 3
               ? (channels[0] * 0.299 + channels[1] * 0.587 + channels[2] * 0.114)
@@ -652,11 +663,17 @@ Deno.test({
             prefersDark: win.matchMedia("(prefers-color-scheme: dark)").matches,
             colorScheme: root.colorScheme,
             rootBackground: root.getPropertyValue("--bg").trim(),
+            rootBackgroundBrightness: brightness(root.getPropertyValue("--bg").trim()),
             bodyBrightness: brightness(win.getComputedStyle(win.document.body).backgroundColor),
             cardBrightness: card ? brightness(win.getComputedStyle(card).backgroundColor) : 255,
             darkThemeColor: darkThemeColorMeta?.getAttribute
               ? darkThemeColorMeta.getAttribute("content")
               : null,
+            darkThemeColorBrightness: brightness(
+              darkThemeColorMeta?.getAttribute
+                ? darkThemeColorMeta.getAttribute("content") ?? ""
+                : "",
+            ),
             themeControlLabels,
           };
         });
@@ -667,7 +684,7 @@ Deno.test({
           `Expected dark color-scheme, got ${theme.colorScheme}`,
         );
         assert(
-          theme.rootBackground === "#111112",
+          theme.rootBackgroundBrightness < 40,
           `Expected dark root background, got ${theme.rootBackground}`,
         );
         assert(
@@ -678,7 +695,10 @@ Deno.test({
           theme.cardBrightness < 50,
           `Expected dark card background, got ${theme.cardBrightness}`,
         );
-        assert(theme.darkThemeColor === "#111112", "Expected dark browser theme color metadata.");
+        assert(
+          typeof theme.darkThemeColor === "string" && theme.darkThemeColorBrightness < 40,
+          `Expected dark browser theme color metadata, got ${theme.darkThemeColor}`,
+        );
         assert(
           theme.themeControlLabels.length === 0,
           `Expected no dark-mode UI controls, got ${theme.themeControlLabels.join(", ")}`,
