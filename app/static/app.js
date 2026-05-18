@@ -96,6 +96,7 @@ const HASH_VIEW_ALIASES = {
   backups: "backup",
   crm: "crm",
 };
+const MARKDOWN_RENDERER = createMarkdownRenderer();
 
 const state = {
   payload: null,
@@ -251,6 +252,7 @@ globalThis.addEventListener("hashchange", () => {
 });
 
 hydrateChatHistory();
+renderChat();
 renderAccountButton();
 void loadAccountSession();
 
@@ -440,6 +442,13 @@ function handleAccountAuthMessage(event) {
   if (event.origin !== new URL(ACCOUNT_AUTH_BASE).origin) return;
   if (event.data?.type !== ACCOUNT_AUTH_MESSAGE_TYPE) return;
   clearAccountAuthPopupWatcher();
+  const handoffToken = typeof event.data?.handoffToken === "string"
+    ? event.data.handoffToken.trim()
+    : "";
+  if (handoffToken) {
+    void completeAccountAuthHandoff(handoffToken);
+    return;
+  }
   void loadAccountSession();
 }
 
@@ -447,6 +456,37 @@ function clearAccountAuthPopupWatcher() {
   if (!state.accountAuthPopupTimer) return;
   globalThis.clearInterval(state.accountAuthPopupTimer);
   state.accountAuthPopupTimer = 0;
+}
+
+async function completeAccountAuthHandoff(handoffToken) {
+  state.accountLoading = true;
+  state.accountError = "";
+  renderAccountButton();
+  try {
+    const response = await fetch("/api/account/session/handoff", {
+      method: "POST",
+      cache: "no-store",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ handoffToken }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body?.error?.message || "Could not complete account sign-in.");
+    }
+    applyAccountSession(body.session || null);
+  } catch (error) {
+    state.accountError = error instanceof Error
+      ? error.message
+      : "Could not complete account sign-in.";
+    await loadAccountSession();
+  } finally {
+    state.accountLoading = false;
+    renderAccountButton();
+  }
 }
 
 function accountAuthUrl(path) {
@@ -1778,7 +1818,6 @@ function render() {
   renderRouteList();
   renderReferenceList();
   renderCRM();
-  renderChat();
 }
 
 function renderNext() {
@@ -2286,9 +2325,9 @@ async function handleCardInput() {
     cardPreview.hidden = false;
     setCardScanStatus(`Extracting with AI... ${requestId}`);
 
-      const body = await requestOcrDraft({ requestId, file, image, eventTitle });
-      state.ocrMetadata = body?.ocrMetadata ?? null;
-      applyLeadDraft(body.draft || {});
+    const body = await requestOcrDraft({ requestId, file, image, eventTitle });
+    state.ocrMetadata = body?.ocrMetadata ?? null;
+    applyLeadDraft(body.draft || {});
     setCardScanStatus(`Card scanned. Review and save. ${requestId}`);
   } catch (error) {
     await logClientEvent("ocr_client_error", {
@@ -2429,16 +2468,23 @@ async function requestOcrDraft({ requestId, file, image, eventTitle }) {
 }
 
 function inferOcrMetadataFromAttempt({ attemptIndex, payload }) {
-  const metadata = payload?.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
-  const rawOcrDataUrlCharacters = metadata.ocrDataUrlCharacters ?? metadata.compressedDataUrlCharacters ??
+  const metadata = payload?.metadata && typeof payload.metadata === "object"
+    ? payload.metadata
+    : {};
+  const rawOcrDataUrlCharacters = metadata.ocrDataUrlCharacters ??
+    metadata.compressedDataUrlCharacters ??
     metadata.dataUrlCharacters;
   return coerceLeadOcrMetadata({
     ocrSource: typeof metadata.ocrSource === "string" ? metadata.ocrSource : "",
     attemptIndex: Number.isFinite(Number(metadata.retryIndex ?? attemptIndex))
       ? Number(metadata.retryIndex ?? attemptIndex)
       : Number(attemptIndex),
-    outputWidth: Number.isFinite(Number(metadata.outputWidth)) ? Number(metadata.outputWidth) : undefined,
-    outputHeight: Number.isFinite(Number(metadata.outputHeight)) ? Number(metadata.outputHeight) : undefined,
+    outputWidth: Number.isFinite(Number(metadata.outputWidth))
+      ? Number(metadata.outputWidth)
+      : undefined,
+    outputHeight: Number.isFinite(Number(metadata.outputHeight))
+      ? Number(metadata.outputHeight)
+      : undefined,
     dataUrlCharacters: Number.isFinite(Number(rawOcrDataUrlCharacters))
       ? Number(rawOcrDataUrlCharacters)
       : undefined,
@@ -2469,9 +2515,7 @@ function coerceLeadOcrMetadata(value) {
     ...(outputWidth !== undefined ? { outputWidth } : {}),
     ...(outputHeight !== undefined ? { outputHeight } : {}),
     ...(dataUrlCharacters !== undefined ? { dataUrlCharacters } : {}),
-    ...(raw.localOcrUsed === true || raw.localOcrUsed === "true"
-      ? { localOcrUsed: true }
-      : {}),
+    ...(raw.localOcrUsed === true || raw.localOcrUsed === "true" ? { localOcrUsed: true } : {}),
     ...(Number.isFinite(Number(raw.localOcrMeanConfidence))
       ? { localOcrMeanConfidence: Math.round(Number(raw.localOcrMeanConfidence)) }
       : {}),
@@ -4185,102 +4229,40 @@ async function copyText(value) {
 }
 
 function renderMarkdown(markdown) {
-  const parts = String(markdown || "").replace(/\r\n/g, "\n").split(/```([\w-]*)\n([\s\S]*?)```/g);
-  let html = "";
-  for (let index = 0; index < parts.length; index += 3) {
-    html += renderMarkdownBlocks(parts[index] || "");
-    if (index + 2 < parts.length) {
-      const language = parts[index + 1] ? ` data-language="${escapeHtml(parts[index + 1])}"` : "";
-      html += `<pre${language}><code>${escapeHtml(parts[index + 2] || "")}</code></pre>`;
-    }
-  }
-  return html || "<p></p>";
+  const source = String(markdown || "").replace(/\r\n/g, "\n");
+  if (!source.trim()) return "<p></p>";
+  if (!MARKDOWN_RENDERER) return `<p>${escapeHtml(source)}</p>`;
+  return sanitizeMarkdownHtml(MARKDOWN_RENDERER.render(source)) || "<p></p>";
 }
 
-function renderMarkdownBlocks(text) {
-  const lines = text.split("\n");
-  const blocks = [];
-  let paragraph = [];
-  let list = null;
+function createMarkdownRenderer() {
+  const factory = globalThis.markdownit;
+  if (typeof factory !== "function") return null;
 
-  const flushParagraph = () => {
-    if (!paragraph.length) return;
-    blocks.push(`<p>${inlineMarkdown(paragraph.join(" "))}</p>`);
-    paragraph = [];
+  const renderer = factory({
+    html: false,
+    linkify: true,
+    breaks: false,
+    typographer: false,
+  });
+  const defaultLinkOpen = renderer.renderer.rules.link_open ||
+    ((tokens, index, options, _env, self) => self.renderToken(tokens, index, options));
+  renderer.renderer.rules.link_open = (tokens, index, options, env, self) => {
+    const token = tokens[index];
+    token.attrSet("target", "_blank");
+    token.attrSet("rel", "noreferrer");
+    return defaultLinkOpen(tokens, index, options, env, self);
   };
-  const flushList = () => {
-    if (!list) return;
-    blocks.push(
-      `<${list.tag}>${
-        list.items.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")
-      }</${list.tag}>`,
-    );
-    list = null;
-  };
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) {
-      flushParagraph();
-      flushList();
-      continue;
-    }
-
-    const heading = line.match(/^(#{1,3})\s+(.+)$/);
-    if (heading) {
-      flushParagraph();
-      flushList();
-      const level = Math.min(heading[1].length + 2, 4);
-      blocks.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
-      continue;
-    }
-
-    const quote = line.match(/^>\s+(.+)$/);
-    if (quote) {
-      flushParagraph();
-      flushList();
-      blocks.push(`<blockquote>${inlineMarkdown(quote[1])}</blockquote>`);
-      continue;
-    }
-
-    const unordered = line.match(/^[-*]\s+(.+)$/);
-    const ordered = line.match(/^\d+[.)]\s+(.+)$/);
-    if (unordered || ordered) {
-      flushParagraph();
-      const tag = ordered ? "ol" : "ul";
-      if (!list || list.tag !== tag) {
-        flushList();
-        list = { tag, items: [] };
-      }
-      list.items.push((unordered || ordered)[1]);
-      continue;
-    }
-
-    flushList();
-    paragraph.push(line);
-  }
-
-  flushParagraph();
-  flushList();
-  return blocks.join("");
+  return renderer;
 }
 
-function inlineMarkdown(text) {
-  const code = [];
-  let value = escapeHtml(text).replace(/`([^`]+)`/g, (_, body) => {
-    const token = `@@CODE${code.length}@@`;
-    code.push(`<code>${body}</code>`);
-    return token;
+function sanitizeMarkdownHtml(html) {
+  const purifier = globalThis.DOMPurify;
+  if (!purifier?.sanitize) return html;
+  return purifier.sanitize(html, {
+    ADD_ATTR: ["target", "rel"],
+    FORBID_TAGS: ["script", "style"],
   });
-
-  value = value.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) => {
-    const safeUrl = escapeAttribute(url);
-    return `<a href="${safeUrl}" target="_blank" rel="noreferrer">${label}</a>`;
-  });
-  value = value.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  value = value.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-
-  return code.reduce((current, item, index) => current.replace(`@@CODE${index}@@`, item), value);
 }
 
 function escapeHtml(value) {
@@ -4290,10 +4272,6 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-function escapeAttribute(value) {
-  return escapeHtml(value).replaceAll("`", "&#096;");
 }
 
 function readJsonStorage(key, fallback) {

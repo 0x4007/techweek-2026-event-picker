@@ -18,7 +18,7 @@
     "sync:partiful": "deno run --allow-net=127.0.0.1:8787,localhost:8787 --allow-run=agent-browser scripts/sync_partiful_from_browser.ts",
     "sync:partiful:headless": "deno run --allow-env=HOME --allow-read=/Users/nv/.codex --allow-write=/Users/nv/.codex --allow-net=127.0.0.1:8787,localhost:8787,api.partiful.com,securetoken.googleapis.com,agent-origin.pavlovcik.com scripts/sync_partiful_headless.ts",
     "twilio:partiful-codes": "deno run --allow-env=HOME --allow-read=/Users/nv/.codex --allow-net=api.twilio.com scripts/list_twilio_partiful_codes.ts",
-    "check": "deno fmt --check app e2e scripts/build_signed_up_calendar.ts scripts/build_signed_up_calendar_test.ts scripts/sync_partiful_from_browser.ts scripts/capture_partiful_auth_from_browser.ts scripts/sync_partiful_headless.ts scripts/list_twilio_partiful_codes.ts scripts/login_partiful_with_twilio.ts scripts/lib && deno lint app e2e scripts/build_signed_up_calendar.ts scripts/build_signed_up_calendar_test.ts scripts/sync_partiful_from_browser.ts scripts/capture_partiful_auth_from_browser.ts scripts/sync_partiful_headless.ts scripts/list_twilio_partiful_codes.ts scripts/login_partiful_with_twilio.ts scripts/lib && deno test --allow-env=DATABASE_URL --allow-read=outputs,.codex,data,docs,/Users/nv/repos/ubiquity-os-marketplace/text-conversation-rewards app && deno test scripts/build_signed_up_calendar_test.ts scripts/lib/partiful_headless_test.ts scripts/lib/twilio_sms_test.ts",
+    "check": "deno fmt --check app e2e scripts/build_signed_up_calendar.ts scripts/build_signed_up_calendar_test.ts scripts/sync_partiful_from_browser.ts scripts/capture_partiful_auth_from_browser.ts scripts/sync_partiful_headless.ts scripts/list_twilio_partiful_codes.ts scripts/login_partiful_with_twilio.ts scripts/lib && deno lint app e2e scripts/build_signed_up_calendar.ts scripts/build_signed_up_calendar_test.ts scripts/sync_partiful_from_browser.ts scripts/capture_partiful_auth_from_browser.ts scripts/sync_partiful_headless.ts scripts/list_twilio_partiful_codes.ts scripts/login_partiful_with_twilio.ts scripts/lib && deno test --allow-env=DATABASE_URL,RESEND_API_KEY,RESEND_EMAIL_FROM --allow-read=outputs,.codex,data,docs,/Users/nv/repos/ubiquity-os-marketplace/text-conversation-rewards --allow-write=.codex app && deno test scripts/build_signed_up_calendar_test.ts scripts/lib/partiful_headless_test.ts scripts/lib/twilio_sms_test.ts",
     "e2e": "deno test --env-file=.env --allow-read --allow-write --allow-net --allow-env --allow-run --allow-sys e2e",
     "logs": "tail -f .codex/techweek_app_server.log | rg --line-buffered 'agent_context|ocr_|client_log|requestId|Business card OCR|x-uos|x-deno'"
   },
@@ -26,9 +26,15 @@
     "lineWidth": 100,
     "indentWidth": 2,
     "semiColons": true,
-    "singleQuote": false
+    "singleQuote": false,
+    "exclude": [
+      "app/static/vendor"
+    ]
   },
   "lint": {
+    "exclude": [
+      "app/static/vendor"
+    ],
     "rules": {
       "exclude": [
         "no-window-prefix"

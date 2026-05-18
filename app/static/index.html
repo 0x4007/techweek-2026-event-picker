@@ -103,21 +103,21 @@
           <p>NYC Tech Week</p>
           <h1 data-page-title>Agenda</h1>
         </section>
+        <nav aria-label="Tech Week views">
+          <button type="button" data-view-button="route" aria-current="page">
+            <svg><use href="#icon-calendar"></use></svg><span>Agenda</span>
+          </button>
+          <button type="button" data-view-button="backup">
+            <svg><use href="#icon-layers"></use></svg><span>Events</span>
+          </button>
+          <button type="button" data-view-button="crm">
+            <svg><use href="#icon-user-plus"></use></svg><span>CRM</span>
+          </button>
+        </nav>
         <button type="button" data-account-button>
           <svg><use href="#icon-user-plus"></use></svg><span data-account-label>Sign in</span>
         </button>
       </section>
-      <nav aria-label="Tech Week views">
-        <button type="button" data-view-button="route" aria-current="page">
-          <svg><use href="#icon-calendar"></use></svg><span>Agenda</span>
-        </button>
-        <button type="button" data-view-button="backup">
-          <svg><use href="#icon-layers"></use></svg><span>Events</span>
-        </button>
-        <button type="button" data-view-button="crm">
-          <svg><use href="#icon-user-plus"></use></svg><span>CRM</span>
-        </button>
-      </nav>
     </header>
 
     <main>
@@ -401,6 +401,8 @@
       </section>
     </aside>
 
+    <script src="/vendor/markdown-it-14.1.1.min.js"></script>
+    <script src="/vendor/dompurify-3.4.5.min.js"></script>
     <script type="module" src="/app.js"></script>
   </body>
 </html>

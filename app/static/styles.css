@@ -275,22 +275,26 @@ body > header {
 }
 
 body > header > section {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 12px;
+  width: 100%;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  align-content: center;
 }
 
 [data-title-block] {
+  flex: 0 0 auto;
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
 [data-account-button] {
-  min-width: 0;
-  max-width: 42%;
+  flex: 0 1 auto;
+  min-width: 36px;
+  max-width: 112px;
   background: var(--soft);
   color: var(--ink);
   box-shadow: none;
@@ -348,9 +352,11 @@ body > header p {
 }
 
 body > header nav {
+  flex: 1 1 auto;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
+  min-width: 0;
   padding: 2px;
   background: var(--soft);
   border-radius: var(--radius);
@@ -1727,6 +1733,10 @@ article[data-entry] > p {
 }
 
 [data-message-content] {
+  --markdown-flow-gap: 8px;
+  --markdown-section-gap: 12px;
+  --markdown-list-gap: 4px;
+  --markdown-nested-list-gap: 3px;
   min-width: 0;
 }
 
@@ -1781,37 +1791,70 @@ article[data-entry] > p {
 [data-message] ul,
 [data-message] ol,
 [data-message] blockquote,
-[data-message] pre {
+[data-message] pre,
+[data-message] hr {
   margin: 0;
 }
 
 [data-message-content] > * + * {
-  margin-top: 10px;
+  margin-top: var(--markdown-flow-gap);
 }
 
-[data-message-content] > :not(h3, h4) + h3,
-[data-message-content] > :not(h3, h4) + h4 {
-  margin-top: 16px;
+[data-message-content] > :not(h1, h2, h3, h4, h5, h6) + h1,
+[data-message-content] > :not(h1, h2, h3, h4, h5, h6) + h2,
+[data-message-content] > :not(h1, h2, h3, h4, h5, h6) + h3,
+[data-message-content] > :not(h1, h2, h3, h4, h5, h6) + h4,
+[data-message-content] > :not(h1, h2, h3, h4, h5, h6) + h5,
+[data-message-content] > :not(h1, h2, h3, h4, h5, h6) + h6 {
+  margin-top: var(--markdown-section-gap);
 }
 
 [data-message] ul,
 [data-message] ol {
   display: grid;
-  gap: 6px;
+  gap: var(--markdown-list-gap);
   padding-left: 18px;
 }
 
 [data-message] li {
-  line-height: 1.42;
+  line-height: 1.38;
+}
+
+[data-message] li > * + * {
+  margin-top: var(--markdown-nested-list-gap);
+}
+
+[data-message] li > ul,
+[data-message] li > ol {
+  gap: var(--markdown-nested-list-gap);
+  padding-left: 16px;
+}
+
+[data-message] h1,
+[data-message] h2,
+[data-message] h3,
+[data-message] h4,
+[data-message] h5,
+[data-message] h6 {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 760;
+  line-height: 1.32;
+}
+
+[data-message] h1 {
+  font-size: 17px;
+}
+
+[data-message] h2 {
+  font-size: 15px;
 }
 
 [data-message] h3,
-[data-message] h4 {
-  margin: 0;
-  color: var(--ink);
+[data-message] h4,
+[data-message] h5,
+[data-message] h6 {
   font-size: 13px;
-  font-weight: 760;
-  line-height: 1.32;
 }
 
 [data-message] strong {
@@ -1820,9 +1863,15 @@ article[data-entry] > p {
 }
 
 [data-message] blockquote {
-  padding-left: 9px;
+  padding-left: 8px;
   border-left: 2px solid var(--line);
   color: var(--muted);
+  line-height: 1.36;
+}
+
+[data-message] hr {
+  border: 0;
+  border-top: 1px solid var(--line);
 }
 
 [data-message] code {
@@ -1995,11 +2044,42 @@ form[data-dev-chat-form] textarea:focus {
 }
 
 [data-prompts] {
+  --prompt-fade-width: 20px;
+  position: relative;
   display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
   gap: 6px;
+  padding: 2px var(--prompt-fade-width);
   overflow-x: auto;
-  padding-bottom: 2px;
+  overflow-y: hidden;
+  -ms-overflow-style: none;
   scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  white-space: nowrap;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--prompt-fade-width);
+}
+
+[data-prompts]::before,
+[data-prompts]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 2px;
+  width: var(--prompt-fade-width);
+  pointer-events: none;
+  z-index: 1;
+}
+
+[data-prompts]::before {
+  left: 0;
+  background: linear-gradient(to right, var(--agent-glass-strong) 0, transparent);
+}
+
+[data-prompts]::after {
+  right: 0;
+  background: linear-gradient(to left, var(--agent-glass-strong) 0, transparent);
 }
 
 [data-prompts]::-webkit-scrollbar {
@@ -2009,6 +2089,8 @@ form[data-dev-chat-form] textarea:focus {
 [data-prompts] button,
 [data-prompts] a {
   flex: 0 0 auto;
+  min-width: 0;
+  justify-content: center;
   background: var(--accent);
   color: var(--accent-ink);
   box-shadow: var(--primary-shadow);
@@ -2086,12 +2168,11 @@ form[data-dev-chat-form] textarea:focus {
 
 @media (min-width: 760px) {
   body > header {
-    grid-template-columns: 1fr auto;
     align-items: center;
   }
 
   body > header nav {
-    width: 330px;
+    max-width: 330px;
   }
 
   main {

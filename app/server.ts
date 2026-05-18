@@ -79,7 +79,8 @@ const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
 const PARTIFUL_AUTH_JSON_ENV = "TECHWEEK_PARTIFUL_AUTH_JSON";
 const PI_SESSION_COOKIE_NAME = "pi_codex_session";
 const PI_AGENT_SESSION_URL = "https://agent.pavlovcik.com/api/session";
-const PORT = 8787;
+const PI_AGENT_HANDOFF_URL = "https://agent.pavlovcik.com/api/auth/handoff/consume";
+const PORT = 8788;
 const TIME_ZONE = "America/New_York";
 const AGENT_MODEL = "gpt-5.5";
 const PI_AGENT_PUBLIC_ORIGIN = "https://agent.pavlovcik.com";
@@ -661,6 +662,9 @@ type ClientContext = {
 let fetchPiAgentSessionForTest:
   | ((request: Request, cookieHeader: string) => Promise<Response>)
   | null = null;
+let fetchPiAgentSessionHandoffForTest:
+  | ((request: Request, handoffToken: string, targetOrigin: string) => Promise<Response>)
+  | null = null;
 
 class ServerRoutingCache implements RoutingCacheAdapter {
   async get<T>(key: CacheKey): Promise<T | null> {
@@ -774,9 +778,53 @@ export function setPiAgentSessionFetchForTest(
   fetchPiAgentSessionForTest = fetcher;
 }
 
+export function setPiAgentSessionHandoffFetchForTest(
+  fetcher:
+    | ((request: Request, handoffToken: string, targetOrigin: string) => Promise<Response>)
+    | null,
+): void {
+  fetchPiAgentSessionHandoffForTest = fetcher;
+}
+
 async function handleAccountSession(request: Request): Promise<Response> {
   const session = await readPiAgentSession(request);
   return json({ session });
+}
+
+async function handleAccountSessionHandoff(request: Request): Promise<Response> {
+  const raw = await request.json().catch(() => null);
+  const body = recordValue(raw);
+  const handoffToken = textField(body?.handoffToken, 2000);
+  if (!handoffToken) return badRequest("handoffToken is required.");
+
+  const targetOrigin = requestOrigin(request);
+  const upstream = await consumePiAgentSessionHandoff(request, handoffToken, targetOrigin).catch(
+    () => null,
+  );
+  if (!upstream) {
+    return json({ error: { message: "Could not complete account sign-in." } }, { status: 502 });
+  }
+  const upstreamBody = await readJsonOrText(upstream);
+  if (!upstream.ok) {
+    return json(
+      { error: { message: upstreamErrorMessage(upstreamBody) || "Account sign-in was rejected." } },
+      { status: upstream.status },
+    );
+  }
+  const result = recordValue(upstreamBody);
+  const sessionToken = textField(result?.sessionToken, 2000);
+  const session = normalizeAccountSessionState(result?.session);
+  if (!sessionToken || !session?.authenticated) {
+    return json({ error: { message: "Account sign-in did not return a valid session." } }, {
+      status: 502,
+    });
+  }
+
+  return json({ session }, {
+    headers: {
+      "set-cookie": accountSessionCookie(sessionToken, session.expiresAt, request),
+    },
+  });
 }
 
 async function readPiAgentSession(request: Request): Promise<AccountSessionState> {
@@ -810,6 +858,25 @@ async function fetchPiAgentSession(request: Request, cookieHeader: string): Prom
   });
 }
 
+async function consumePiAgentSessionHandoff(
+  request: Request,
+  handoffToken: string,
+  targetOrigin: string,
+): Promise<Response> {
+  if (fetchPiAgentSessionHandoffForTest) {
+    return await fetchPiAgentSessionHandoffForTest(request, handoffToken, targetOrigin);
+  }
+  return await fetch(PI_AGENT_HANDOFF_URL, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      "user-agent": request.headers.get("user-agent") ?? "techweek-agenda-app",
+    },
+    body: JSON.stringify({ handoffToken, origin: targetOrigin }),
+  });
+}
+
 function normalizeAccountSessionState(value: unknown): AccountSessionState | null {
   const raw = recordValue(value);
   if (!raw) return null;
@@ -825,6 +892,39 @@ function normalizeAccountSessionState(value: unknown): AccountSessionState | nul
     ...(raw.bootstrapConfigured === true ? { bootstrapConfigured: true } : {}),
     ...(raw.registrationAllowed === true ? { registrationAllowed: true } : {}),
   };
+}
+
+function requestOrigin(request: Request): string {
+  const url = new URL(request.url);
+  return `${url.protocol}//${url.host}`;
+}
+
+function accountSessionCookie(
+  token: string,
+  expiresAt: string | undefined,
+  request: Request,
+): string {
+  const parts = [
+    `${PI_SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+  ];
+  const expires = expiresAt ? new Date(expiresAt) : null;
+  if (expires && Number.isFinite(expires.getTime())) {
+    parts.push(`Expires=${expires.toUTCString()}`);
+    const maxAge = Math.max(0, Math.floor((expires.getTime() - Date.now()) / 1000));
+    parts.push(`Max-Age=${maxAge}`);
+  }
+  if (new URL(request.url).protocol === "https:") {
+    parts.push("Secure");
+  }
+  return parts.join("; ");
+}
+
+function upstreamErrorMessage(value: unknown): string {
+  const body = recordValue(value);
+  return textField(recordValue(body?.error)?.message, 300) || textField(body?.message, 300);
 }
 
 function normalizeAccountSessionUser(value: unknown): AccountSessionUser | undefined {
@@ -1310,10 +1410,12 @@ function normalizeLeadOcrMetadata(value: unknown): OcrDraftMetadata | undefined 
       ? Math.round(localOcrMeanConfidence as number)
       : undefined,
   };
-  if (normalized.ocrSource || normalized.attemptIndex !== undefined ||
+  if (
+    normalized.ocrSource || normalized.attemptIndex !== undefined ||
     normalized.outputWidth !== undefined || normalized.outputHeight !== undefined ||
     normalized.dataUrlCharacters !== undefined || normalized.localOcrUsed !== undefined ||
-    normalized.localOcrMeanConfidence !== undefined) {
+    normalized.localOcrMeanConfidence !== undefined
+  ) {
     return normalized;
   }
   return undefined;
@@ -1362,16 +1464,16 @@ function textField(value: unknown, maxLength = 1200): string {
 function normalizeOcrPlaceholder(value: string): string {
   const normalized = value.trim().toLowerCase();
   return normalized === "" || [
-    "na",
-    "n/a",
-    "none",
-    "no",
-    "nil",
-    "n/a.",
-    "not provided",
-    "unknown",
-    "-",
-  ].includes(normalized)
+      "na",
+      "n/a",
+      "none",
+      "no",
+      "nil",
+      "n/a.",
+      "not provided",
+      "unknown",
+      "-",
+    ].includes(normalized)
     ? ""
     : value.trim();
 }
@@ -3893,6 +3995,45 @@ function gatewayErrorMessage(body: unknown): string {
   return "Upstream error";
 }
 
+function parsedGatewayErrorBody(body: unknown): unknown {
+  if (typeof body !== "string") return body;
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
+}
+
+function gatewayDebugLine(headers: Headers, key: string, label: string): string {
+  const value = headers.get(key);
+  return value ? `- **${label}:** \`${value}\`` : "";
+}
+
+export function visibleAgentGatewayError(upstream: Response, model: string, body: unknown): string {
+  const parsedBody = parsedGatewayErrorBody(body);
+  const message = gatewayErrorMessage(parsedBody);
+  const debugBody = truncateDebug(parsedBody, 1600);
+  const bodyText = typeof debugBody === "string" ? debugBody : JSON.stringify(debugBody, null, 2);
+  const bodyFence = typeof parsedBody === "string" ? "text" : "json";
+  const lines = [
+    "AI gateway error.",
+    "",
+    `- **Status:** HTTP ${upstream.status}${upstream.statusText ? ` ${upstream.statusText}` : ""}`,
+    `- **Model:** \`${model}\``,
+    message ? `- **Message:** ${message}` : "",
+    gatewayDebugLine(upstream.headers, "x-uos-request-id", "UOS request ID"),
+    gatewayDebugLine(upstream.headers, "x-deno-trace-id", "Deno trace ID"),
+    gatewayDebugLine(upstream.headers, "x-uos-warning", "UOS warning"),
+    gatewayDebugLine(upstream.headers, "x-uos-router-revision", "Router revision"),
+  ].filter(Boolean);
+
+  if (bodyText.trim()) {
+    lines.push("", "**Upstream Body**", `\`\`\`${bodyFence}`, bodyText, "```");
+  }
+
+  return lines.join("\n");
+}
+
 function responseOutputText(body: unknown): string {
   if (!body || typeof body !== "object") return "";
   const response = body as {
@@ -4111,7 +4252,9 @@ async function handleLeadOcr(request: Request): Promise<Response> {
   const gatewayImageDataUrl = localOrientation?.imageDataUrl ?? imageDataUrl;
   const gatewayImage = imageDebugSummary(gatewayImageDataUrl);
   const localTranscript = localOrientation?.meanConfidence &&
-    localOrientation.meanConfidence >= LOCAL_OCR_MIN_MEAN_CONFIDENCE ? localOrientation.raw : "";
+      localOrientation.meanConfidence >= LOCAL_OCR_MIN_MEAN_CONFIDENCE
+    ? localOrientation.raw
+    : "";
   const ocrBody = localTranscript
     ? cardOcrVisionAndTranscriptBody(gatewayImageDataUrl, localTranscript)
     : cardOcrChatBody(gatewayImageDataUrl);
@@ -5061,10 +5204,11 @@ async function handleAgent(request: Request): Promise<Response> {
   }
 
   if (!result.upstream.ok) {
+    const message = visibleAgentGatewayError(result.upstream, result.model, body);
     return json({
-      message: fallbackAgentAnswer(prompt, entries),
+      message,
       actions: [],
-      fallback: true,
+      fallback: false,
       gatewayError: body,
       model: result.model,
     }, {
@@ -5117,7 +5261,7 @@ async function handleAgentStream(request: Request): Promise<Response> {
   const result = await callChatModel(config.chatUrl, config.token, messages, true);
   if (!result.upstream.ok || !result.upstream.body) {
     const detail = await result.upstream.text().catch(() => "");
-    return streamFallback(prompt, entries, result.model, detail);
+    return streamGatewayError(result.upstream, result.model, detail);
   }
 
   const headers = new Headers(copyDebugHeaders(result.upstream.headers));
@@ -5185,22 +5329,17 @@ function sse(event: string, data: unknown): Uint8Array {
   return new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
-function streamFallback(
-  prompt: string,
-  entries: ScheduleEntry[],
-  model: string,
-  detail: unknown,
-): Response {
-  const text = fallbackAgentAnswer(prompt, entries);
+function streamGatewayError(upstream: Response, model: string, detail: unknown): Response {
+  const text = visibleAgentGatewayError(upstream, model, detail);
   const words = text.split(/(\s+)/);
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      controller.enqueue(sse("meta", { model, fallback: true, gatewayError: detail }));
+      controller.enqueue(sse("meta", { model, fallback: false, gatewayError: detail }));
       for (const word of words) {
         controller.enqueue(sse("delta", { text: word }));
         await new Promise((resolve) => setTimeout(resolve, 8));
       }
-      controller.enqueue(sse("done", { text, actions: [], model, fallback: true }));
+      controller.enqueue(sse("done", { text, actions: [], model, fallback: false }));
       controller.close();
     },
   });
@@ -5250,6 +5389,9 @@ export async function router(request: Request): Promise<Response> {
     if (request.method === "GET" && url.pathname === "/api/health") return await handleHealth();
     if (request.method === "GET" && url.pathname === "/api/account/session") {
       return await handleAccountSession(request);
+    }
+    if (request.method === "POST" && url.pathname === "/api/account/session/handoff") {
+      return await handleAccountSessionHandoff(request);
     }
     if (request.method === "GET" && url.pathname === "/api/schedule") return await handleSchedule();
     if (request.method === "POST" && url.pathname === "/api/agenda/recalculate") {
