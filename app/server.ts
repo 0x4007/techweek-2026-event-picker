@@ -5178,7 +5178,6 @@ async function handleAgentStream(request: Request): Promise<Response> {
         type: "agent_prompt_debug",
         model: result.model,
         modelContext: debugPayload.modelContext,
-        promptText: agentPromptText(debugPayload.requestBody),
         utilization: debugPayload.utilization,
       }));
       const reader = result.upstream.body!.getReader();

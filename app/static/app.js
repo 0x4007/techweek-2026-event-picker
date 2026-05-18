@@ -4139,9 +4139,6 @@ function logAgentStreamMeta(data) {
     ? `${utilization.estimatedInputTokens}/${effectiveLimit} tokens${percent}${rawContext}`
     : `${utilization.estimatedInputTokens} input tokens; context window unknown`;
   console.log(`[agent] utilization: ${context}`);
-  console.log(
-    `===== AGENT PROMPT SENT TO ${data.model || "MODEL"} =====\n${data.promptText || ""}`,
-  );
 }
 
 function parseSseEvent(block) {
