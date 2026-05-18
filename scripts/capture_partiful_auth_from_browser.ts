@@ -81,18 +81,27 @@ async function main(): Promise<void> {
 }
 
 async function agentBrowser(session: string, args: string[]): Promise<string> {
-  const command = new Deno.Command("agent-browser", {
-    args: ["--session", session, ...args],
-    stdout: "piped",
-    stderr: "piped",
-  });
-  const output = await command.output();
-  const stdout = new TextDecoder().decode(output.stdout);
-  if (!output.success) {
+  const fullArgs = ["--session", session, ...args];
+  let lastMessage = "";
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const command = new Deno.Command("agent-browser", {
+      args: fullArgs,
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const output = await command.output();
+    const stdout = new TextDecoder().decode(output.stdout);
+    if (output.success) return stdout;
     const stderr = new TextDecoder().decode(output.stderr);
-    throw new Error(stderr.trim() || stdout.trim() || `agent-browser ${args[0]} failed.`);
+    lastMessage = stderr.trim() || stdout.trim() || `agent-browser ${args[0]} failed.`;
+    if (!/Resource temporarily unavailable|Daemon failed to start/i.test(lastMessage)) break;
+    await delay(750 * attempt);
   }
-  return stdout;
+  throw new Error(`agent-browser ${fullArgs.join(" ")} failed: ${lastMessage}`);
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 }
 
 function parseAgentBrowserEvalOutput(stdout: string): unknown {
