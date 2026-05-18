@@ -804,13 +804,19 @@ export async function buildOperationalRoute(
           (previousEventEntry.end.getTime() - travelStart.getTime()) / 60_000,
         );
         const previousActualEnd = previousEventEntry.actualEnd;
-        previousEventEntry.end = travelStart;
+        const shortenedEnd = travelStart.getTime() > previousEventEntry.start.getTime()
+          ? travelStart
+          : previousEventEntry.start;
+        previousEventEntry.end = shortenedEnd;
+        const infeasibleNote = shortenedEnd.getTime() === previousEventEntry.start.getTime()
+          ? " Required travel would start before this event begins; route overlap is infeasible."
+          : "";
         previousEventEntry.note = joinParts([
           previousEventEntry.note,
           `Route calendar shortens this from the event's scheduled ${
             formatLocalTime(previousActualEnd)
           } end; ` +
-          `leave ${minutesEarly} min early for transit.`,
+          `leave ${minutesEarly} min early for transit.${infeasibleNote}`,
         ]);
         leaveNote = `Leave previous event ${minutesEarly} min before its scheduled end.`;
       }

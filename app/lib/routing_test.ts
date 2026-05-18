@@ -1,4 +1,10 @@
-import { routeBetween, type RoutePoint, type SubwayStation } from "./routing.ts";
+import {
+  buildOperationalRoute,
+  type OperationalRouteEvent,
+  routeBetween,
+  type RoutePoint,
+  type SubwayStation,
+} from "./routing.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -60,4 +66,45 @@ Deno.test("routeBetween uses a conservative transit fallback when station loadin
   assert(route.mode === "subway+walk", `Expected transit fallback; got ${route.mode}.`);
   assert(route.risk === "transit_estimated", `Expected estimated transit risk; got ${route.risk}.`);
   assert(route.minutes >= 30, `Expected a conservative travel reserve; got ${route.minutes}.`);
+});
+
+Deno.test("buildOperationalRoute keeps shortened overlapping events valid", async () => {
+  const events: OperationalRouteEvent[] = [
+    {
+      id: "first",
+      name: "First event",
+      point: { name: "Home", lat: 40.7084297, lon: -74.0056635 },
+      start: "2026-06-01 10:00",
+      end: "2026-06-01 11:00",
+      location: "Home",
+    },
+    {
+      id: "second",
+      name: "Second event",
+      point: { name: "Bryant Park", lat: 40.7537509, lon: -73.9835428 },
+      start: "2026-06-01 10:10",
+      end: "2026-06-01 11:10",
+      location: "Bryant Park",
+    },
+  ];
+
+  const rows = await buildOperationalRoute(events, {
+    routeIds: ["first", "second"],
+    includeMeals: false,
+    includeSleep: false,
+    stations: [],
+  });
+  const firstEvent = rows.find((row) => row.entryType === "event" && row.techweekId === "TW-first");
+
+  assert(firstEvent, "Expected first event row.");
+  for (const row of rows) {
+    assert(
+      row.end.getTime() >= row.start.getTime(),
+      `${row.title} has end before start.`,
+    );
+  }
+  assert(
+    firstEvent.note.includes("route overlap is infeasible"),
+    `Expected infeasible overlap note; got ${firstEvent.note}.`,
+  );
 });
