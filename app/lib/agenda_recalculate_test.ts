@@ -493,6 +493,49 @@ Deno.test("recalculateAgenda preserves hard fixed blocks over return-home travel
   }
 });
 
+Deno.test("recalculateAgenda keeps generated routes consistent with a non-default time zone", async () => {
+  const agenda = await recalculateAgenda({
+    scheduleEntries: [
+      eventEntry(
+        "TW-la",
+        "AI Agents Workshop",
+        "2026-06-01 14:00",
+        "2026-06-01 15:00",
+      ),
+    ],
+    timeZone: "America/Los_Angeles",
+    overrides: {
+      generateLogisticsBlocks: false,
+      includeReturnHome: false,
+    },
+    routeEstimator: () => ({
+      mode: "estimated",
+      minutes: 30,
+      details: "test route",
+    }),
+    generatedAt: "2026-05-14T12:00:00Z",
+  });
+
+  const event = agenda.selectedEvents.find((block) => block.techweekId === "TW-la");
+  assert(event, "Expected LA event to be selected.");
+  assert(event.start === "2026-06-01 14:00", "Expected event to display in LA local time.");
+  assert(
+    event.startEpochMs === Date.parse("2026-06-01T21:00:00Z"),
+    "Expected LA 14:00 to parse as 21:00 UTC during daylight time.",
+  );
+
+  const travel = agenda.travelBlocks.find((block) => block.techweekId === "TW-la");
+  assert(travel, "Expected generated travel to the LA event.");
+  assert(
+    travel.end === event.start,
+    `Expected travel to end at event local start, got ${travel.end}.`,
+  );
+  assert(
+    travel.endEpochMs === event.startEpochMs,
+    "Expected travel end epoch to match event start epoch.",
+  );
+});
+
 function eventEntry(
   techweekId: string,
   title: string,

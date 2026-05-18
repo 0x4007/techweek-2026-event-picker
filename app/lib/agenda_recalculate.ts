@@ -5,7 +5,6 @@ import {
 } from "./agenda_preferences.ts";
 
 const DEFAULT_TIME_ZONE = "America/New_York";
-const DEFAULT_UTC_OFFSET = "-04:00";
 const DEFAULT_TRAVEL_MINUTES = 30;
 const DEFAULT_MAX_CANDIDATES_PER_DAY = 60;
 const MINUTE_MS = 60_000;
@@ -1034,7 +1033,8 @@ async function buildDayBlocks(
       if (conflict) {
         context.warnings.push({
           code: "return_home_fixed_block_conflict",
-          message: `Skipped return-home travel because it overlaps hard fixed block "${conflict.title}".`,
+          message:
+            `Skipped return-home travel because it overlaps hard fixed block "${conflict.title}".`,
           dayKey,
           blockId: conflict.calendarBlockId,
         });
@@ -2055,7 +2055,7 @@ function epochMsForMinuteOfDay(dayKey: string, minute: number, timeZone: string)
 
 function preferredBedtimeMs(dayKey: string, time: string, timeZone: string): number {
   const minutes = timeStringMinutes(time);
-  const sleepDayKey = minutes < 12 * 60 ? addDays(dayKey, 1) : dayKey;
+  const sleepDayKey = minutes < 12 * 60 ? addDays(dayKey, 1, timeZone) : dayKey;
   return localDateTimeMs(sleepDayKey, time, timeZone);
 }
 
@@ -2072,9 +2072,9 @@ function epochMsForRelativeMinutes(
   return localDateTimeMs(dayKey, "00:00", timeZone) + relativeMinutes * MINUTE_MS;
 }
 
-function addDays(dayKey: string, days: number): string {
-  const start = Date.parse(`${dayKey}T12:00:00${DEFAULT_UTC_OFFSET}`);
-  return formatLocalDate(start + days * 24 * 60 * MINUTE_MS, DEFAULT_TIME_ZONE);
+function addDays(dayKey: string, days: number, timeZone: string = DEFAULT_TIME_ZONE): string {
+  const start = parseLocalDateTime(`${dayKey} 12:00`, timeZone);
+  return formatLocalDate(start + days * 24 * 60 * MINUTE_MS, timeZone);
 }
 
 function buildStoredRouteEstimates(entries: AgendaScheduleEntry[]): StoredRouteEstimate[] {
@@ -2908,13 +2908,51 @@ function epochField(entry: AgendaScheduleEntry, keys: string[]): number {
   return 0;
 }
 
-function parseLocalDateTime(value: string, _timeZone: string): number {
+function parseLocalDateTime(value: string, timeZone: string): number {
   if (!value) return Number.NaN;
   const normalized = value.trim().replace(" ", "T");
-  const withSeconds = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(normalized)
-    ? `${normalized}:00`
-    : normalized;
-  return Date.parse(`${withSeconds}${DEFAULT_UTC_OFFSET}`);
+  const match = normalized.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/,
+  );
+  if (!match) return Date.parse(normalized);
+  const [, year, month, day, hour, minute, second = "00"] = match;
+  const target = {
+    year: Number(year),
+    month: Number(month),
+    day: Number(day),
+    hour: Number(hour),
+    minute: Number(minute),
+    second: Number(second),
+  };
+  let epochMs = Date.UTC(
+    target.year,
+    target.month - 1,
+    target.day,
+    target.hour,
+    target.minute,
+    target.second,
+  );
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const actual = localDateTimeParts(epochMs, timeZone);
+    const deltaMs = Date.UTC(
+      target.year,
+      target.month - 1,
+      target.day,
+      target.hour,
+      target.minute,
+      target.second,
+    ) - Date.UTC(
+      actual.year,
+      actual.month - 1,
+      actual.day,
+      actual.hour,
+      actual.minute,
+      actual.second,
+    );
+    if (deltaMs === 0) return epochMs;
+    epochMs += deltaMs;
+  }
+  return epochMs;
 }
 
 function formatLocalDate(epochMs: number, timeZone: string): string {
@@ -2923,6 +2961,20 @@ function formatLocalDate(epochMs: number, timeZone: string): string {
 
 function formatLocalDateTime(epochMs: number, timeZone: string): string {
   if (!Number.isFinite(epochMs)) return "";
+  const parts = localDateTimeParts(epochMs, timeZone);
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${
+    String(parts.day).padStart(2, "0")
+  } ${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}`;
+}
+
+function localDateTimeParts(epochMs: number, timeZone: string): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
@@ -2930,10 +2982,18 @@ function formatLocalDateTime(epochMs: number, timeZone: string): string {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     hourCycle: "h23",
   }).formatToParts(new Date(epochMs));
-  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}`;
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute"),
+    second: get("second"),
+  };
 }
 
 function stripStatusPrefix(title: string): string {
