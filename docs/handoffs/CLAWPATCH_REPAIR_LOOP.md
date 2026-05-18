@@ -10,6 +10,29 @@ Use this when continuing Clawpatch audit repairs in this repository.
 - Commit each focused fix separately.
 - Keep the working tree clean between findings.
 
+## Agent role
+
+Future agents should act as Clawpatch orchestrators, not independent refactoring agents.
+
+Default behavior:
+
+- Let Clawpatch choose the next finding.
+- Let the finding define the scope.
+- Do not browse the codebase looking for unrelated improvements.
+- Do not manually redesign features or opportunistically clean nearby code.
+- Do not implement code changes that are not tied to a Clawpatch finding.
+- Do not change product behavior beyond the finding's minimum fix scope.
+- Do not mark a finding fixed unless the committed change directly addresses that finding.
+
+Manual implementation is only acceptable when Clawpatch's automated provider path is blocked or hung, and even then the agent should implement only the minimum fix described by the Clawpatch finding.
+
+When manual fallback is used:
+
+- Quote the finding ID in the work notes.
+- Keep edits limited to the files implicated by evidence or the smallest required regression test.
+- Commit the fix before moving to the next finding.
+- Mark the finding fixed with the exact commit SHA and rationale.
+
 Check state:
 
 ```bash
