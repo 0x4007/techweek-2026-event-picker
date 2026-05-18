@@ -35,7 +35,7 @@ python3 scripts/sync_google_personal_day_batches.py --dry-run
 python3 scripts/check_techweek_acceptance_emails.py
 ```
 
-The Deno app runs at `http://localhost:8787` and serves a mobile route/backup/agent interface from
+The Deno app runs at `http://localhost:8788` and serves a mobile route/backup/agent interface from
 `app/`. It reads `outputs/signed_up/techweek_signed_up_transport_schedule.csv`, stores mutable
 backend state in Postgres when `DATABASE_URL` is available, and uses the ignored `.env` gateway
 token for AI requests.

@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-net=127.0.0.1:8787,localhost:8787 --allow-run=agent-browser
+#!/usr/bin/env -S deno run --allow-net=127.0.0.1:8788,localhost:8788 --allow-run=agent-browser
 
 type ScheduleEntry = {
   blockType: string;
@@ -27,7 +27,7 @@ type BrowserSnapshot = {
   nextData: unknown;
 };
 
-const DEFAULT_BASE_URL = "http://127.0.0.1:8787";
+const DEFAULT_BASE_URL = "http://127.0.0.1:8788";
 const DEFAULT_SESSION = "techweek";
 
 const EXTRACTION_JS = String.raw`

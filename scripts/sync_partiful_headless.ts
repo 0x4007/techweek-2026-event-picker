@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-env=HOME --allow-read=/Users/nv/.codex --allow-write=/Users/nv/.codex --allow-net=127.0.0.1:8787,localhost:8787,api.partiful.com,securetoken.googleapis.com
+#!/usr/bin/env -S deno run --allow-env=HOME --allow-read=/Users/nv/.codex --allow-write=/Users/nv/.codex --allow-net=127.0.0.1:8788,localhost:8788,api.partiful.com,securetoken.googleapis.com
 
 import {
   buildCallableSnapshot,
@@ -30,7 +30,7 @@ type Args = {
   limit: number;
 };
 
-const DEFAULT_BASE_URL = "http://127.0.0.1:8787";
+const DEFAULT_BASE_URL = "http://127.0.0.1:8788";
 
 async function main(): Promise<void> {
   const args = parseArgs(Deno.args);
