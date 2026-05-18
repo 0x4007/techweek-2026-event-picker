@@ -16,9 +16,17 @@ type Queryable = {
   query<T = JsonRecord>(text: string, values?: unknown[]): Promise<QueryResult<T>>;
 };
 
+type MemoryCacheRecord = {
+  kind: "cache";
+  value: unknown;
+  metadata: JsonRecord;
+  updatedAt: string;
+  expiresAtMs: number | null;
+};
+
 let poolPromise: Promise<Pool | null> | null = null;
 let schemaPromise: Promise<void> | null = null;
-const memoryStore = new Map<string, JsonRecord>();
+const memoryStore = new Map<string, unknown>();
 
 async function getPool(): Promise<Pool | null> {
   poolPromise ??= Promise.resolve().then(() => {
@@ -108,7 +116,7 @@ export async function writeStateValue<T>(key: string, value: T): Promise<void> {
 
 export async function readCacheValue<T>(namespace: string, cacheId: string): Promise<T | null> {
   const db = await getQueryable();
-  if (!db) return memoryGet<T>(memoryCacheKey(namespace, cacheId));
+  if (!db) return memoryGetCache<T>(namespace, cacheId);
   const result = await db.query<{ value: T }>(
     `
       select value
@@ -130,7 +138,7 @@ export async function writeCacheValue<T>(
 ): Promise<void> {
   const db = await getQueryable();
   if (!db) {
-    memorySet(memoryCacheKey(namespace, cacheId), value);
+    memorySetCache(namespace, cacheId, value, options);
     return;
   }
   await db.query(
@@ -178,14 +186,18 @@ export async function listCacheValues<T>(
 ): Promise<Array<{ cacheId: string; value: T; metadata: JsonRecord; updatedAt: string }>> {
   const db = await getQueryable();
   if (!db) {
+    pruneExpiredMemoryCache(namespace);
     return [...memoryStore.entries()]
-      .filter(([key]) => key.startsWith(`cache:${namespace}:`))
+      .filter((entry): entry is [string, MemoryCacheRecord] =>
+        entry[0].startsWith(`cache:${namespace}:`) && isMemoryCacheRecord(entry[1])
+      )
+      .sort((a, b) => Date.parse(b[1].updatedAt) - Date.parse(a[1].updatedAt))
       .slice(0, limit)
-      .map(([key, value]) => ({
+      .map(([key, record]) => ({
         cacheId: key.replace(`cache:${namespace}:`, ""),
-        value: value as T,
-        metadata: {},
-        updatedAt: new Date().toISOString(),
+        value: record.value as T,
+        metadata: record.metadata,
+        updatedAt: record.updatedAt,
       }));
   }
   const result = await db.query<{
@@ -215,10 +227,13 @@ export async function listCacheValues<T>(
 export async function cacheCounts(namespaces: readonly string[]): Promise<Record<string, number>> {
   const db = await getQueryable();
   if (!db) {
+    for (const namespace of namespaces) pruneExpiredMemoryCache(namespace);
     return Object.fromEntries(
       namespaces.map((namespace) => [
         namespace,
-        [...memoryStore.keys()].filter((key) => key.startsWith(`cache:${namespace}:`)).length,
+        [...memoryStore.entries()].filter(([key, value]) =>
+          key.startsWith(`cache:${namespace}:`) && isMemoryCacheRecord(value)
+        ).length,
       ]),
     );
   }
@@ -246,5 +261,51 @@ function memoryGet<T>(key: string): T | null {
 }
 
 function memorySet<T>(key: string, value: T): void {
-  memoryStore.set(key, value as JsonRecord);
+  memoryStore.set(key, value);
+}
+
+function memorySetCache<T>(
+  namespace: string,
+  cacheId: string,
+  value: T,
+  options: { ttlMs?: number; metadata?: JsonRecord },
+): void {
+  const nowMs = Date.now();
+  memoryStore.set(memoryCacheKey(namespace, cacheId), {
+    kind: "cache",
+    value,
+    metadata: options.metadata ?? {},
+    updatedAt: new Date(nowMs).toISOString(),
+    expiresAtMs: options.ttlMs === undefined ? null : nowMs + options.ttlMs,
+  } satisfies MemoryCacheRecord);
+}
+
+function memoryGetCache<T>(namespace: string, cacheId: string): T | null {
+  const key = memoryCacheKey(namespace, cacheId);
+  const record = memoryStore.get(key);
+  if (!isMemoryCacheRecord(record)) return null;
+  if (memoryCacheExpired(record)) {
+    memoryStore.delete(key);
+    return null;
+  }
+  return record.value as T;
+}
+
+function pruneExpiredMemoryCache(namespace: string): void {
+  const prefix = `cache:${namespace}:`;
+  for (const [key, value] of memoryStore.entries()) {
+    if (key.startsWith(prefix) && isMemoryCacheRecord(value) && memoryCacheExpired(value)) {
+      memoryStore.delete(key);
+    }
+  }
+}
+
+function isMemoryCacheRecord(value: unknown): value is MemoryCacheRecord {
+  return Boolean(
+    value && typeof value === "object" && (value as { kind?: unknown }).kind === "cache",
+  );
+}
+
+function memoryCacheExpired(record: MemoryCacheRecord): boolean {
+  return record.expiresAtMs !== null && record.expiresAtMs <= Date.now();
 }
