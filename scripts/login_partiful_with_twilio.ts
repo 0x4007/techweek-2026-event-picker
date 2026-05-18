@@ -211,16 +211,15 @@ function phoneForPartifulInput(phoneE164: string): string {
   return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
 }
 
-async function parseArgs(argv: string[]): Promise<Args> {
+export function parseArgs(argv: string[]): Args {
   const twilioAuthFile = defaultTwilioAuthFilePath();
-  const twilioAuth = await readStoredTwilioAuth(twilioAuthFile).catch(() => null);
   const defaultPartifulAuthFile = defaultAuthFilePath().replace(
     /partiful-auth\.json$/,
     "partiful-auth-twilio.json",
   );
   const args: Args = {
     partifulAuthFile: defaultPartifulAuthFile,
-    phone: twilioAuth?.phoneE164 ?? "",
+    phone: "",
     session: DEFAULT_SESSION,
     timeoutMs: 120_000,
     twilioAuthFile,
