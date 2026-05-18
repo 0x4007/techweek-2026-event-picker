@@ -1,9 +1,51 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root="${1:-.deploy-root}"
+fail() {
+  printf 'prepare_deno_deploy_root: %s\n' "$*" >&2
+  exit 2
+}
 
-rm -rf "$root"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+repo_root="$(cd -- "$script_dir/.." && pwd -P)"
+home_root="$(cd -- "${HOME:-/}" && pwd -P)"
+tmp_root="$(cd -- "${TMPDIR:-/tmp}" && pwd -P)"
+
+requested_root="${1:-.deploy-root}"
+[ -n "$requested_root" ] || fail "deploy root path is required"
+
+case "$requested_root" in
+  "." | ".." | "/" | "$repo_root" | "$home_root")
+    fail "refusing dangerous deploy root: $requested_root"
+    ;;
+esac
+
+root_parent="$(dirname -- "$requested_root")"
+root_name="$(basename -- "$requested_root")"
+case "$root_name" in
+  .deploy-root | deploy-root | *deploy*)
+    ;;
+  *)
+    fail "deploy root must be a dedicated deploy-named directory, got: $requested_root"
+    ;;
+esac
+
+[ -d "$root_parent" ] || fail "deploy root parent does not exist: $root_parent"
+root_parent_abs="$(cd -- "$root_parent" && pwd -P)"
+root="$root_parent_abs/$root_name"
+
+case "$root" in
+  "$repo_root" | "$home_root" | "/")
+    fail "refusing dangerous deploy root: $root"
+    ;;
+  "$repo_root"/* | "$tmp_root"/*)
+    ;;
+  *)
+    fail "deploy root must live under the repository or temp directory: $root"
+    ;;
+esac
+
+rm -rf -- "$root"
 mkdir -p \
   "$root/app" \
   "$root/outputs/signed_up" \
