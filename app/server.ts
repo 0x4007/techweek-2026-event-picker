@@ -664,6 +664,7 @@ let fetchPiAgentSessionForTest:
 let fetchPiAgentSessionHandoffForTest:
   | ((request: Request, handoffToken: string, targetOrigin: string) => Promise<Response>)
   | null = null;
+let stateMutationQueue: Promise<unknown> = Promise.resolve();
 
 class ServerRoutingCache implements RoutingCacheAdapter {
   async get<T>(key: CacheKey): Promise<T | null> {
@@ -1826,6 +1827,15 @@ async function writeState(state: AppState): Promise<AppState> {
   return state;
 }
 
+async function mutateState<T>(operation: (state: AppState) => Promise<T>): Promise<T> {
+  const run = stateMutationQueue.catch(() => undefined).then(async () => {
+    const state = await readState();
+    return await operation(state);
+  });
+  stateMutationQueue = run.then(() => undefined, () => undefined);
+  return await run;
+}
+
 async function readLocalAppState(): Promise<Partial<AppState> | null> {
   return await readJsonFile<Partial<AppState>>(APP_STATE_JSON);
 }
@@ -2120,28 +2130,31 @@ async function handleStateAction(request: Request): Promise<Response> {
   const authorizationError = await requireAdminAccountSession(request);
   if (authorizationError) return authorizationError;
 
-  const state = await readState();
   const now = new Date().toISOString();
   const type = String(body.type ?? "");
 
   if (type === "event_note") {
     const calendarBlockId = String(body.calendarBlockId ?? body.calendar_block_id ?? "").trim();
     if (!calendarBlockId) return badRequest("calendarBlockId is required.");
-    state.eventNotes[calendarBlockId] = {
-      note: String(body.note ?? "").trim(),
-      updatedAt: now,
-    };
-    return json({ state: await writeState(state) });
+    return await mutateState(async (state) => {
+      state.eventNotes[calendarBlockId] = {
+        note: String(body.note ?? "").trim(),
+        updatedAt: now,
+      };
+      return json({ state: await writeState(state) });
+    });
   }
 
   if (type === "dismiss_block") {
     const calendarBlockId = String(body.calendarBlockId ?? body.calendar_block_id ?? "").trim();
     if (!calendarBlockId) return badRequest("calendarBlockId is required.");
     const dismissed = Boolean(body.dismissed ?? true);
-    state.dismissedBlocks = dismissed
-      ? [...new Set([...state.dismissedBlocks, calendarBlockId])]
-      : state.dismissedBlocks.filter((item) => item !== calendarBlockId);
-    return json({ state: await writeState(state) });
+    return await mutateState(async (state) => {
+      state.dismissedBlocks = dismissed
+        ? [...new Set([...state.dismissedBlocks, calendarBlockId])]
+        : state.dismissedBlocks.filter((item) => item !== calendarBlockId);
+      return json({ state: await writeState(state) });
+    });
   }
 
   if (type === "lead_create") {
@@ -2183,15 +2196,19 @@ async function handleStateAction(request: Request): Promise<Response> {
       lead.followUpEmail = await sendLeadFollowUpEmail(lead, entry, now);
     }
 
-    state.leads = [lead, ...state.leads].slice(0, 250);
-    return json({ state: await writeState(state), lead });
+    return await mutateState(async (state) => {
+      state.leads = [lead, ...state.leads].slice(0, 250);
+      return json({ state: await writeState(state), lead });
+    });
   }
 
   if (type === "lead_delete") {
     const id = textField(body.id, 160);
     if (!id) return badRequest("id is required.");
-    state.leads = state.leads.filter((lead) => lead.id !== id);
-    return json({ state: await writeState(state) });
+    return await mutateState(async (state) => {
+      state.leads = state.leads.filter((lead) => lead.id !== id);
+      return json({ state: await writeState(state) });
+    });
   }
 
   return badRequest("Unsupported state action.");

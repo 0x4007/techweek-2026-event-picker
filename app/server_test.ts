@@ -497,6 +497,63 @@ Deno.test("state lead creation rejects unauthenticated follow-up email mutation"
   }
 });
 
+Deno.test("concurrent lead creation preserves both state updates", async () => {
+  useAdminSessionFetchForTest();
+  const firstLead = `Concurrent Lead A ${crypto.randomUUID().slice(0, 8)}`;
+  const secondLead = `Concurrent Lead B ${crypto.randomUUID().slice(0, 8)}`;
+  const createdIds: string[] = [];
+  try {
+    const [first, second] = await Promise.all([firstLead, secondLead].map((name) =>
+      router(
+        new Request("http://localhost/api/state", {
+          method: "POST",
+          headers: ADMIN_STATE_HEADERS,
+          body: JSON.stringify({
+            type: "lead_create",
+            calendarBlockId: "TW-5978-SCHEDULE",
+            name,
+            company: "Concurrent Labs",
+            email: `${name.toLowerCase().replaceAll(/[^a-z0-9]+/g, ".")}@example.com`,
+          }),
+        }),
+      )
+    ));
+    for (const response of [first, second]) {
+      assertEquals(response.status, 200);
+      const body = await response.json() as Record<string, unknown>;
+      const id = String(getPath(body, ["lead", "id"]) || "");
+      if (id) createdIds.push(id);
+    }
+
+    const schedule = await router(
+      new Request("http://localhost/api/schedule", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(schedule.status, 200);
+    const body = await schedule.json() as Record<string, unknown>;
+    const leads = getPath(body, ["state", "leads"]);
+    if (!Array.isArray(leads)) throw new Error("Expected leads array.");
+    for (const name of [firstLead, secondLead]) {
+      assert(
+        leads.some((lead) => getPath(lead, ["name"]) === name),
+        `Expected concurrent lead ${name} to persist.`,
+      );
+    }
+  } finally {
+    for (const id of createdIds) {
+      await router(
+        new Request("http://localhost/api/state", {
+          method: "POST",
+          headers: ADMIN_STATE_HEADERS,
+          body: JSON.stringify({ type: "lead_delete", id }),
+        }),
+      );
+    }
+    setPiAgentSessionFetchForTest(null);
+  }
+});
+
 Deno.test({
   name: "sends Resend test email to test@pavlovcik.com",
   async fn() {
