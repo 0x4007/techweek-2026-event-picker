@@ -54,6 +54,48 @@ Deno.test("extractFirebaseAuthRecord reads Firebase IndexedDB rows", () => {
   );
 });
 
+Deno.test("extractFirebaseAuthRecord reads Firebase Web Storage JSON strings", () => {
+  for (const storageName of ["localStorage", "sessionStorage"]) {
+    const auth = extractFirebaseAuthRecord(
+      {
+        [storageName]: {
+          "firebase:authUser:test-api-key:[DEFAULT]": JSON.stringify({
+            uid: "user-123",
+            appName: "[DEFAULT]",
+            stsTokenManager: {
+              accessToken: `${storageName}-access-token`,
+              refreshToken: `${storageName}-refresh-token`,
+              expirationTime: 1770000000000,
+            },
+          }),
+        },
+        indexedDb: [],
+      },
+      `agent-browser:${storageName}`,
+      new Date("2026-05-14T12:00:00Z"),
+    );
+
+    assertEquals(
+      auth && {
+        source: auth.source,
+        apiKey: auth.apiKey,
+        userId: auth.userId,
+        accessToken: auth.accessToken,
+        refreshToken: auth.refreshToken,
+        expiresAt: auth.expirationTime,
+      },
+      {
+        source: `agent-browser:${storageName}`,
+        apiKey: "test-api-key",
+        userId: "user-123",
+        accessToken: `${storageName}-access-token`,
+        refreshToken: `${storageName}-refresh-token`,
+        expiresAt: 1770000000000,
+      },
+    );
+  }
+});
+
 Deno.test("parseStoredPartifulAuthJson validates deploy secret payloads", () => {
   const auth = parseStoredPartifulAuthJson(JSON.stringify({
     version: 1,

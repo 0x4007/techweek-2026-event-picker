@@ -321,14 +321,38 @@ function looksLikeEvent(value: unknown): boolean {
 function collectCandidates(value: unknown, candidates: unknown[]): void {
   if (value === null || value === undefined) return;
   candidates.push(value);
+  if (typeof value === "string") {
+    const parsed = parseJsonCandidate(value);
+    if (parsed !== null) collectCandidates(parsed, candidates);
+    return;
+  }
   if (Array.isArray(value)) {
     for (const item of value) collectCandidates(item, candidates);
     return;
   }
   const record = asRecord(value);
   if (!record) return;
-  for (const nested of Object.values(record)) {
-    if (nested && typeof nested === "object") collectCandidates(nested, candidates);
+  for (const [key, nested] of Object.entries(record)) {
+    if (typeof nested === "string") {
+      const parsed = parseJsonCandidate(nested);
+      if (parsed === null) continue;
+      collectCandidates(
+        firebaseApiKeyFromStorageKey(key) ? { fbase_key: key, value: parsed } : parsed,
+        candidates,
+      );
+    } else if (nested && typeof nested === "object") {
+      collectCandidates(nested, candidates);
+    }
+  }
+}
+
+function parseJsonCandidate(value: string): unknown | null {
+  const trimmed = value.trim();
+  if (!trimmed || !/^[{[]/.test(trimmed)) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
   }
 }
 
