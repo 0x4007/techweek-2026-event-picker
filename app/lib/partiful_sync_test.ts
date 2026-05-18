@@ -43,6 +43,35 @@ Deno.test("extractPartifulSnapshotPayloads accepts browser response wrappers", (
   assertEquals(normalized.event?.rsvpCount, 2);
 });
 
+Deno.test("extractPartifulSnapshotPayloads preserves browser wrapper RSVP status with nextData", () => {
+  const extracted = extractPartifulSnapshotPayloads({
+    responses: [{
+      eventUrl: "https://partiful.com/e/abc123def",
+      title: "Wrapper Status Event",
+      rsvpStatus: "APPROVED",
+      nextData: {
+        props: {
+          pageProps: {
+            event: {
+              publicShortUrl: "https://partiful.com/e/abc123def",
+              title: "Wrapper Status Event",
+            },
+          },
+        },
+      },
+    }],
+  });
+
+  assertEquals(extracted.warnings, []);
+  assertEquals(extracted.snapshots.length, 1);
+
+  const normalized = normalizePartifulSnapshot(extracted.snapshots[0]);
+  assertEquals(normalized.errors, []);
+  assertEquals(normalized.event?.partifulId, "abc123def");
+  assertEquals(normalized.event?.status, "registered");
+  assertEquals(normalized.event?.rawStatus, "APPROVED");
+});
+
 Deno.test("normalizePartifulSnapshot accepts direct live viewer RSVP state", () => {
   const normalized = normalizePartifulSnapshot({
     event: {

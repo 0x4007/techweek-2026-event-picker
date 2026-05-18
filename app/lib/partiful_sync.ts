@@ -1158,6 +1158,17 @@ function partifulSnapshotMetadata(
       "title",
       "eventName",
       "event_name",
+      "rsvpStatus",
+      "rsvp_status",
+      "guestStatus",
+      "viewerStatus",
+      "viewerRsvpStatus",
+      "viewerRSVPStatus",
+      "attendeeStatus",
+      "attendanceStatus",
+      "approvalStatus",
+      "partifulRawStatus",
+      "partifulStatus",
       "source",
     ]
   ) {
@@ -1181,7 +1192,9 @@ function attachPartifulSnapshotMetadata(
     return parsed.map((item) => attachPartifulSnapshotMetadata(item, metadata));
   }
   const record = asRecord(parsed);
-  if (!record) return parsed;
+  if (!record) {
+    return Object.keys(metadata).length ? { ...metadata, payload: parsed } : parsed;
+  }
 
   const output: Record<string, unknown> = { ...record };
   for (const [key, value] of Object.entries(metadata)) {
