@@ -690,7 +690,12 @@ Deno.test({
       followUp: "Send product framing.",
     };
 
-    await withEnv({ UOS_AI_TOKEN: "e2e-token", OPENAI_API_KEY: null }, async () => {
+    await withEnv({
+      UOS_AI_TOKEN: "e2e-token",
+      OPENAI_API_KEY: null,
+      RESEND_API_KEY: null,
+      RESEND_EMAIL_FROM: null,
+    }, async () => {
       await withMockGateway(draft, async (gatewayBodies) => {
         await collectConsoleLogs(async (logs) => {
           await withApp(async (baseUrl) => {
@@ -804,6 +809,13 @@ Deno.test({
                   "Expected scanned card image to be stored in IndexedDB.",
                 );
 
+                const followUpEmail = page.locator("[name=sendFollowUpEmail]");
+                if (await followUpEmail.isChecked()) await followUpEmail.uncheck();
+                assert(
+                  !(await followUpEmail.isChecked()),
+                  "Expected non-live OCR E2E to save without follow-up email.",
+                );
+
                 await page.getByRole("button", { name: "Save lead" }).click();
                 const leadCard = page.locator("article[data-lead]").filter({ hasText: leadName });
                 await leadCard.waitFor({ state: "visible" });
@@ -903,7 +915,12 @@ Deno.test({
       followUp: "Follow up from fixture card.",
     };
 
-    await withEnv({ UOS_AI_TOKEN: "e2e-token", OPENAI_API_KEY: null }, async () => {
+    await withEnv({
+      UOS_AI_TOKEN: "e2e-token",
+      OPENAI_API_KEY: null,
+      RESEND_API_KEY: null,
+      RESEND_EMAIL_FROM: null,
+    }, async () => {
       await withMockGatewayReplies([
         { status: 502, body: "Upstream error" },
         { status: 200, body: gatewaySuccessBody(draft) },
@@ -1038,7 +1055,12 @@ Deno.test({
       notes: "linkedin.com/in/retry-lead",
     };
 
-    await withEnv({ UOS_AI_TOKEN: "e2e-token", OPENAI_API_KEY: null }, async () => {
+    await withEnv({
+      UOS_AI_TOKEN: "e2e-token",
+      OPENAI_API_KEY: null,
+      RESEND_API_KEY: null,
+      RESEND_EMAIL_FROM: null,
+    }, async () => {
       await withMockGatewayReplies(
         [
           { status: 502, body: "Upstream error" },
@@ -1146,7 +1168,12 @@ Deno.test({
       website: "linkedin.com/in/quota-lead",
     });
 
-    await withEnv({ UOS_AI_TOKEN: "e2e-token", OPENAI_API_KEY: null }, async () => {
+    await withEnv({
+      UOS_AI_TOKEN: "e2e-token",
+      OPENAI_API_KEY: null,
+      RESEND_API_KEY: null,
+      RESEND_EMAIL_FROM: null,
+    }, async () => {
       await withMockGatewayReplies(
         [
           {
@@ -1226,7 +1253,12 @@ Deno.test({
     });
     const emptyDraft = { name: null, company: null, role: null, email: null, phone: null };
 
-    await withEnv({ UOS_AI_TOKEN: "e2e-token", OPENAI_API_KEY: null }, async () => {
+    await withEnv({
+      UOS_AI_TOKEN: "e2e-token",
+      OPENAI_API_KEY: null,
+      RESEND_API_KEY: null,
+      RESEND_EMAIL_FROM: null,
+    }, async () => {
       await withMockGatewayReplies(
         [
           { status: 200, body: gatewaySuccessBody(emptyDraft) },
