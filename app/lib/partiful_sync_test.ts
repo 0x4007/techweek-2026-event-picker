@@ -114,6 +114,32 @@ Deno.test("normalizePartifulSnapshot accepts Firebase callable Partiful response
   assertEquals(normalized.event?.source, "partiful_callable_payload");
 });
 
+Deno.test("normalizePartifulSnapshot does not treat false venue reveal flag as venue text", () => {
+  const normalized = normalizePartifulSnapshot({
+    eventUrl: "https://partiful.com/e/abc123def",
+    title: "Hidden Venue Event",
+    rsvpStatus: "APPROVED",
+    venue_revealed: false,
+  });
+
+  assertEquals(normalized.errors, []);
+  assertEquals(normalized.event?.venue, null);
+});
+
+Deno.test("normalizePartifulSnapshot does not let true venue reveal flag suppress venue text", () => {
+  const normalized = normalizePartifulSnapshot({
+    eventUrl: "https://partiful.com/e/abc123def",
+    title: "Revealed Venue Event",
+    rsvpStatus: "APPROVED",
+    venueRevealed: true,
+    venue: "1155 6th Ave",
+  });
+
+  assertEquals(normalized.errors, []);
+  assertEquals(normalized.event?.venue?.label, "1155 6th Ave");
+  assertEquals(normalized.event?.venue?.address, "1155 6th Ave");
+});
+
 Deno.test("computePartifulSync keeps previous known status when snapshot status is unknown", () => {
   const sync = computePartifulSync(
     [{

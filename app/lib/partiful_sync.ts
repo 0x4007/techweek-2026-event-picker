@@ -895,8 +895,6 @@ function hasMeaningfulUpdate(
 
   const currentVenue = firstString(
     currentEvent.venue,
-    currentEvent.venue_revealed,
-    currentEvent.venueRevealed,
     currentEvent.location,
   );
   if (
@@ -924,8 +922,6 @@ function normalizeVenue(
     getPath(mapsInfo, ["approximateLocation"]),
   );
   const venueText = firstString(
-    getPath(root, ["venue_revealed"]),
-    getPath(root, ["venueRevealed"]),
     getPath(root, ["venue"]),
     getPath(root, ["location"]),
     getPath(eventRecord, ["location"]),
@@ -972,6 +968,9 @@ function venuePrecision(
   if (rawPrecision.includes("EXACT") || rawPrecision === "STRUCTURED") return "exact";
   if (rawPrecision.includes("APPROX")) return "approximate";
   if (rawPrecision.includes("HIDDEN") || rawPrecision.includes("PRIVATE")) return "hidden";
+  if (getPath(root, ["venue_revealed"]) === false || getPath(root, ["venueRevealed"]) === false) {
+    return "hidden";
+  }
   if (mapsAddress) return "exact";
   if (approximateLocation) return "approximate";
   return "unknown";
