@@ -17,7 +17,7 @@ type MockGatewayReply = {
   headers?: Record<string, string>;
 };
 
-const FIXTURE_CARD_HEIC = fileUrlPath(new URL("./fixtures/IMG_8538.HEIC", import.meta.url));
+const FIXTURE_CARD_JPEG = fileUrlPath(new URL("./fixtures/IMG_8538.jpg", import.meta.url));
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -240,20 +240,8 @@ async function writeFakeBusinessCardImage(card: FakeCard): Promise<string> {
   return path;
 }
 
-async function writeFixtureBusinessCardJpeg(): Promise<string> {
-  await Deno.mkdir(".codex", { recursive: true });
-  const jpgPath = `.codex/e2e-fixture-card-${crypto.randomUUID()}.jpg`;
-  const command = new Deno.Command("sips", {
-    args: ["-s", "format", "jpeg", FIXTURE_CARD_HEIC, "--out", jpgPath],
-    stdout: "piped",
-    stderr: "piped",
-  });
-  const result = await command.output();
-  if (!result.success) {
-    const stderr = new TextDecoder().decode(result.stderr).trim();
-    throw new Error(`Could not convert fixture HEIC to JPEG for Chromium upload: ${stderr}`);
-  }
-  return jpgPath;
+function writeFixtureBusinessCardJpeg(): string {
+  return FIXTURE_CARD_JPEG;
 }
 
 async function writeLargeBusinessCardPhoto(card: FakeCard): Promise<string> {
@@ -869,7 +857,6 @@ Deno.test({
               });
             } finally {
               await deleteLeadsByName(baseUrl, leadName);
-              await Deno.remove(cardPath).catch(() => {});
             }
           });
 
@@ -936,7 +923,7 @@ Deno.test({
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
-    const cardPath = await writeFixtureBusinessCardJpeg();
+    const cardPath = writeFixtureBusinessCardJpeg();
     const leadName = `Fixture Lead ${crypto.randomUUID().slice(0, 8)}`;
     const draft = {
       name: leadName,
@@ -1007,7 +994,6 @@ Deno.test({
               });
             } finally {
               await deleteLeadsByName(baseUrl, leadName);
-              await Deno.remove(cardPath).catch(() => {});
             }
           });
 
@@ -1363,69 +1349,65 @@ Deno.test({
       return;
     }
 
-    const cardPath = await writeFixtureBusinessCardJpeg();
+    const cardPath = writeFixtureBusinessCardJpeg();
 
     await collectConsoleLogs(async (logs) => {
       await withApp(async (baseUrl) => {
-        try {
-          await withIphonePage(async (page) => {
-            await page.goto(baseUrl);
-            await page.getByRole("button", { name: "CRM" }).click();
-            await page.locator("[data-card-input]").setInputFiles(cardPath);
-            await page.waitForFunction(
-              () => {
-                const win = globalThis as unknown as {
-                  document: {
-                    querySelector(selector: string): { textContent?: string | null } | null;
-                  };
+        await withIphonePage(async (page) => {
+          await page.goto(baseUrl);
+          await page.getByRole("button", { name: "CRM" }).click();
+          await page.locator("[data-card-input]").setInputFiles(cardPath);
+          await page.waitForFunction(
+            () => {
+              const win = globalThis as unknown as {
+                document: {
+                  querySelector(selector: string): { textContent?: string | null } | null;
                 };
-                const status = win.document.querySelector("[data-card-scan-status]")?.textContent ??
-                  "";
-                return status.startsWith("Card scanned.") || status.startsWith("Scan failed.");
-              },
-              null,
-              { timeout: 75_000 },
-            );
+              };
+              const status = win.document.querySelector("[data-card-scan-status]")?.textContent ??
+                "";
+              return status.startsWith("Card scanned.") || status.startsWith("Scan failed.");
+            },
+            null,
+            { timeout: 75_000 },
+          );
 
-            const status = await page.locator("[data-card-scan-status]").textContent() ?? "";
-            const error = await page.locator("[data-lead-error]").textContent() ?? "";
-            assert(
-              status.startsWith("Card scanned."),
-              `Expected live OCR success, got: ${status} ${error}`,
-            );
+          const status = await page.locator("[data-card-scan-status]").textContent() ?? "";
+          const error = await page.locator("[data-lead-error]").textContent() ?? "";
+          assert(
+            status.startsWith("Card scanned."),
+            `Expected live OCR success, got: ${status} ${error}`,
+          );
 
-            const name = await page.locator("[name=name]").inputValue();
-            const company = await page.locator("[name=company]").inputValue();
-            const role = await page.locator("[name=role]").inputValue();
-            const email = await page.locator("[name=email]").inputValue();
-            const phone = await page.locator("[name=phone]").inputValue();
+          const name = await page.locator("[name=name]").inputValue();
+          const company = await page.locator("[name=company]").inputValue();
+          const role = await page.locator("[name=role]").inputValue();
+          const email = await page.locator("[name=email]").inputValue();
+          const phone = await page.locator("[name=phone]").inputValue();
 
-            assert(
-              `${name} ${company} ${role} ${email} ${phone}`.trim().length > 0,
-              "Expected live fixture OCR to extract at least one visible card field.",
-            );
-            assert(
-              /gfgs|global/i.test(`${name} ${company} ${email}`),
-              `Expected live fixture OCR to identify the visible organization, got ${
-                JSON.stringify({ name, company, email })
-              }`,
-            );
-            assert(
-              /chair/i.test(`${role} ${company} ${email}`),
-              `Expected live fixture OCR to identify the visible role, got ${
-                JSON.stringify({ role, company, email })
-              }`,
-            );
-            assert(
-              /@/.test(email) || /\d{3}/.test(phone),
-              `Expected live fixture OCR email or phone detail, got ${
-                JSON.stringify({ email, phone })
-              }`,
-            );
-          });
-        } finally {
-          await Deno.remove(cardPath).catch(() => {});
-        }
+          assert(
+            `${name} ${company} ${role} ${email} ${phone}`.trim().length > 0,
+            "Expected live fixture OCR to extract at least one visible card field.",
+          );
+          assert(
+            /gfgs|global/i.test(`${name} ${company} ${email}`),
+            `Expected live fixture OCR to identify the visible organization, got ${
+              JSON.stringify({ name, company, email })
+            }`,
+          );
+          assert(
+            /chair/i.test(`${role} ${company} ${email}`),
+            `Expected live fixture OCR to identify the visible role, got ${
+              JSON.stringify({ role, company, email })
+            }`,
+          );
+          assert(
+            /@/.test(email) || /\d{3}/.test(phone),
+            `Expected live fixture OCR email or phone detail, got ${
+              JSON.stringify({ email, phone })
+            }`,
+          );
+        });
       });
 
       const upstream = jsonLogs(logs, "ocr_upstream").at(-1);
