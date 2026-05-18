@@ -8,6 +8,8 @@ export type StoreHealth = {
   error: string;
 };
 
+export const PUBLIC_STORE_HEALTH_ERROR = "state store unavailable";
+
 type QueryResult<T> = {
   rows: T[];
 };
@@ -26,11 +28,17 @@ type MemoryCacheRecord = {
 
 let poolPromise: Promise<Pool | null> | null = null;
 let schemaPromise: Promise<void> | null = null;
+let poolDatabaseUrl: string | null = null;
 const memoryStore = new Map<string, unknown>();
 
 async function getPool(): Promise<Pool | null> {
+  const databaseUrl = Deno.env.get("DATABASE_URL") ?? "";
+  if (poolPromise && poolDatabaseUrl !== databaseUrl) {
+    poolPromise = null;
+    schemaPromise = null;
+  }
   poolPromise ??= Promise.resolve().then(() => {
-    const databaseUrl = Deno.env.get("DATABASE_URL");
+    poolDatabaseUrl = databaseUrl;
     if (!databaseUrl) return null;
     return new Pool({
       connectionString: databaseUrl,
@@ -81,10 +89,11 @@ export async function storeHealth(): Promise<StoreHealth> {
     await db.query("select 1");
     return { backend: "postgres", status: "ready", error: "" };
   } catch (error) {
+    console.error("Postgres state store health check failed:", error);
     return {
       backend: "postgres",
       status: "error",
-      error: error instanceof Error ? error.message : String(error),
+      error: PUBLIC_STORE_HEALTH_ERROR,
     };
   }
 }
@@ -271,13 +280,16 @@ function memorySetCache<T>(
   options: { ttlMs?: number; metadata?: JsonRecord },
 ): void {
   const nowMs = Date.now();
-  memoryStore.set(memoryCacheKey(namespace, cacheId), {
-    kind: "cache",
-    value,
-    metadata: options.metadata ?? {},
-    updatedAt: new Date(nowMs).toISOString(),
-    expiresAtMs: options.ttlMs === undefined ? null : nowMs + options.ttlMs,
-  } satisfies MemoryCacheRecord);
+  memoryStore.set(
+    memoryCacheKey(namespace, cacheId),
+    {
+      kind: "cache",
+      value,
+      metadata: options.metadata ?? {},
+      updatedAt: new Date(nowMs).toISOString(),
+      expiresAtMs: options.ttlMs === undefined ? null : nowMs + options.ttlMs,
+    } satisfies MemoryCacheRecord,
+  );
 }
 
 function memoryGetCache<T>(namespace: string, cacheId: string): T | null {
