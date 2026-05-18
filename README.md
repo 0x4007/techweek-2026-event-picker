@@ -28,7 +28,6 @@ deno task build:signed-up
 deno task build:signed-up:dry-run
 deno task partiful:auth:capture
 deno task partiful:login:twilio
-deno task sync:partiful
 deno task sync:partiful:headless
 deno task twilio:partiful-codes
 python3 scripts/sync_google_personal_day_batches.py --dry-run
@@ -61,13 +60,13 @@ Deploy-ready dynamic planning endpoints:
 - `GET /api/cache/routes` - reports Postgres cache counts for routing, agenda, and Partiful sync
   records.
 
-Partiful latest-state refresh is payload-driven at the backend boundary. For a browser-backed sync,
-use a logged-in browser/session extractor to collect live Partiful page/API JSON and post it to the
-app:
+Partiful latest-state refresh has one supported sync path: headless Partiful callable API access
+using the stored Firebase token. The backend still accepts explicit snapshots for controlled
+debugging:
 
 ```json
 {
-  "source": "agent-browser:techweek",
+  "source": "partiful_headless_callable",
   "recalculate": true,
   "activate": true,
   "responses": [
@@ -92,28 +91,23 @@ Accepted snapshot containers include `snapshots`, `payloads`, `responses`, `targ
 `snapshot`, `payload`, `nextData`, and `__NEXT_DATA__`. RSVP status can come from `guest`,
 `viewerGuest`, `rsvp`, `viewerRsvp`, or equivalent status fields.
 
-For local live refresh, start the app and run `deno task sync:partiful`. It uses the logged-in
-`agent-browser --session techweek` browser session, posts snapshots to `/api/sync/partiful`, and
-activates the recalculated agenda. If the Partiful session has expired, log in again before running
-the sync task.
-
-For headless sync, first capture the current Partiful Firebase auth token from the logged-in
-browser:
+For local live refresh, first capture or refresh the current Partiful Firebase auth token:
 
 ```bash
 deno task partiful:auth:capture
 ```
 
 That writes `~/.codex/secrets/techweek-partiful-auth.json` with file mode `0600`; tokens are not
-stored in the repo. After capture, run:
+stored in the repo. Twilio-backed login automation also writes the same main auth file. After auth
+is current, run:
 
 ```bash
 deno task sync:partiful:headless
 ```
 
 The headless sync refreshes the Firebase ID token when needed, calls Partiful callable endpoints
-(`getEventInfo` and `getGuests`) for the current schedule/reference Partiful IDs, posts normalized
-snapshots to `/api/sync/partiful`, and activates the recalculated agenda.
+(`getMyUpcomingEventsForHomePage`, `getEventInfo`, and `getGuests`), prints current normalized RSVP
+counts, and fails loudly if any fetch fails or any RSVP status cannot be normalized.
 
 Headless sync also calls Partiful's upcoming-events feed and adds newly visible conference-window
 Partiful events into the agenda candidate pool. Unknown live Partiful events are scored from their
@@ -125,9 +119,9 @@ preserving stale logistics placeholders. The default preference profile was reco
 targets 8 hours, and bedtimes should stay as late as workable with no more than 30 minutes of
 nightly variance when the selected route allows it.
 
-The app route view has a local `Sync` action that calls `POST /api/sync/partiful/headless`, reads
-the local Partiful token from `~/.codex/secrets`, syncs upcoming Partiful state, recalculates, and
-activates the new agenda.
+The app route view requests `POST /api/sync/partiful/auto` automatically after load and foreground
+return. The background worker calls the same headless sync core directly, recalculates, activates
+the new agenda, and surfaces Partiful auth/sync failures in the page status line.
 
 Twilio-backed Partiful login automation uses Twilio message logs directly, so it does not need an
 inbound webhook or public tunnel. Store Twilio credentials at
@@ -152,8 +146,7 @@ deno task partiful:login:twilio
 
 It opens Partiful in the separate `techweektwilio` browser session, requests a login code for the
 Twilio number, polls Twilio for the latest Partiful OTP, submits the code, and writes the captured
-Partiful token to `~/.codex/secrets/techweek-partiful-auth-twilio.json`. The existing
-`techweek`/`techweek-partiful-auth.json` path remains the approval-sync account.
+Partiful token to `~/.codex/secrets/techweek-partiful-auth.json`.
 
 CRM follow-up email can send through Resend when these ignored `.env` values are present:
 

@@ -256,10 +256,7 @@ export function parseArgs(argv: string[]): Args {
   }
   if (!hasTwilioAuthFile) args.twilioAuthFile = defaultTwilioAuthFilePath();
   if (!hasPartifulAuthFile) {
-    args.partifulAuthFile = defaultAuthFilePath().replace(
-      /partiful-auth\.json$/,
-      "partiful-auth-twilio.json",
-    );
+    args.partifulAuthFile = defaultAuthFilePath();
   }
   return args;
 }

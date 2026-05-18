@@ -1,36 +1,31 @@
-#!/usr/bin/env -S deno run --allow-env=HOME --allow-read=/Users/nv/.codex --allow-write=/Users/nv/.codex --allow-net=127.0.0.1:8788,localhost:8788,api.partiful.com,securetoken.googleapis.com
+#!/usr/bin/env -S deno run --allow-env=HOME --allow-read=/Users/nv/.codex --allow-write=/Users/nv/.codex --allow-net=api.partiful.com,securetoken.googleapis.com
 
+import { normalizePartifulSnapshot } from "../app/lib/partiful_sync.ts";
 import {
   buildCallableSnapshot,
   callableResult,
+  type CallableSnapshot,
   callPartifulFunction,
   defaultAuthFilePath,
   ensureFreshPartifulAuth,
   partifulIdFromUrl,
+  type PartifulTarget,
   readStoredPartifulAuth,
+  type StoredPartifulAuth,
 } from "./lib/partiful_headless.ts";
-
-type ScheduleEntry = {
-  blockType: string;
-  displayTitle: string;
-  eventUrl: string;
-  partifulId: string;
-};
-
-type SchedulePayload = {
-  days?: Array<{ entries?: ScheduleEntry[] }>;
-  referenceDays?: Array<{ entries?: ScheduleEntry[] }>;
-};
 
 type Args = {
   authFile: string;
-  baseUrl: string;
-  discoverUpcoming: boolean;
-  dryRun: boolean;
   limit: number;
 };
 
-const DEFAULT_BASE_URL = "http://127.0.0.1:8788";
+type SyncFailure = {
+  eventUrl: string;
+  message: string;
+  partifulId: string;
+  stage: string;
+  title: string;
+};
 
 async function main(): Promise<void> {
   const args = parseArgs(Deno.args);
@@ -38,13 +33,16 @@ async function main(): Promise<void> {
     await readStoredPartifulAuth(args.authFile),
     args.authFile,
   );
-  const targets = mergeTargets(
-    await readTargets(args.baseUrl),
-    args.discoverUpcoming ? await readUpcomingPartifulTargets(auth) : [],
-  );
+  const targets = await readUpcomingPartifulTargets(auth);
+  if (targets.length === 0) {
+    throw new Error(
+      "Partiful upcoming-events feed returned zero Tech Week targets. Not falling back to local schedule data.",
+    );
+  }
+
   const selectedTargets = args.limit > 0 ? targets.slice(0, args.limit) : targets;
-  const snapshots = [];
-  const failures = [];
+  const snapshots: CallableSnapshot[] = [];
+  const failures: SyncFailure[] = [];
 
   for (const [index, target] of selectedTargets.entries()) {
     console.error(`[${index + 1}/${selectedTargets.length}] ${target.title}`);
@@ -58,111 +56,60 @@ async function main(): Promise<void> {
           params: { eventId: target.partifulId },
         });
       } catch (error) {
-        failures.push({
-          partifulId: target.partifulId,
-          eventUrl: target.eventUrl,
-          stage: "getGuests",
-          message: error instanceof Error ? error.message : String(error),
-        });
+        failures.push(partifulFailure(target, "getGuests", error));
       }
       snapshots.push(buildCallableSnapshot(target, getEventInfo, getGuests, auth.userId));
     } catch (error) {
-      failures.push({
-        partifulId: target.partifulId,
-        eventUrl: target.eventUrl,
-        stage: "getEventInfo",
-        message: error instanceof Error ? error.message : String(error),
-      });
+      failures.push(partifulFailure(target, "getEventInfo", error));
     }
   }
 
-  if (args.dryRun) {
-    console.log(JSON.stringify(
-      {
-        authUserId: auth.userId,
-        targetCount: selectedTargets.length,
-        snapshotCount: snapshots.length,
-        failureCount: failures.length,
-        failures,
-        snapshots: snapshots.map((snapshot) => ({
-          partifulId: snapshot.partifulId,
-          eventUrl: snapshot.eventUrl,
-          title: snapshot.title,
-          hasEvent: Boolean(snapshot.event),
-          hasGuest: Boolean(snapshot.guest),
-          hasRsvp: Boolean(snapshot.rsvp),
-        })),
-      },
-      null,
-      2,
-    ));
-    return;
-  }
-
-  const response = await fetch(`${args.baseUrl}/api/sync/partiful`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      source: "partiful_headless_callable",
-      recalculate: true,
-      activate: true,
-      responses: snapshots,
-    }),
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(
-      stringValue(getPath(body, ["error", "message"])) ||
-        `Partiful sync failed with HTTP ${response.status}.`,
-    );
-  }
+  const normalized = snapshots.map((snapshot) =>
+    normalizePartifulSnapshot(snapshot, { source: "partiful_headless_callable" })
+  );
+  const rows = normalized.map((result, index) => ({
+    partifulId: result.event?.partifulId || snapshots[index]?.partifulId || "",
+    title: result.event?.title || snapshots[index]?.title || "",
+    status: result.event?.status || "unknown",
+    rawStatus: result.event?.rawStatus || "",
+    eventUrl: result.event?.eventUrl || snapshots[index]?.eventUrl || "",
+    warnings: result.warnings.map((warning) => warning.message),
+    errors: result.errors.map((error) => error.message),
+  }));
+  const statusCounts = rows.reduce<Record<string, number>>((counts, row) => {
+    counts[row.status] = (counts[row.status] ?? 0) + 1;
+    return counts;
+  }, {});
+  const normalizationErrorCount = rows.reduce((sum, row) => sum + row.errors.length, 0);
+  const unknownStatusCount = rows.filter((row) => row.status === "unknown").length;
 
   console.log(JSON.stringify(
     {
+      authFile: args.authFile,
+      authUserId: auth.userId,
       targetCount: selectedTargets.length,
       snapshotCount: snapshots.length,
       failureCount: failures.length,
+      normalizationErrorCount,
+      unknownStatusCount,
+      registeredCount: statusCounts.registered ?? 0,
+      statusCounts,
       failures,
-      updatedEvents: getPath(body, ["sync", "updatedEvents", "length"]) ??
-        arrayLength(getPath(body, ["sync", "updatedEvents"])),
-      statusChanges: getPath(body, ["sync", "statusChanges", "length"]) ??
-        arrayLength(getPath(body, ["sync", "statusChanges"])),
-      agendaRunId: getPath(body, ["agenda", "agendaRunId"]),
-      selectedEvents: getPath(body, ["agenda", "summary", "selectedEvents"]),
+      events: rows,
     },
     null,
     2,
   ));
-}
 
-async function readTargets(baseUrl: string) {
-  const response = await fetch(`${baseUrl}/api/schedule`);
-  if (!response.ok) {
-    throw new Error(`Could not read schedule from ${baseUrl}; HTTP ${response.status}.`);
+  if (failures.length || normalizationErrorCount || unknownStatusCount) {
+    throw new Error(
+      `Partiful headless sync incomplete: ${failures.length} fetch failure(s), ` +
+        `${normalizationErrorCount} normalization error(s), ${unknownStatusCount} unknown status(es).`,
+    );
   }
-  const payload = await response.json() as SchedulePayload;
-  const entries = [
-    ...(payload.days ?? []).flatMap((day) => day.entries ?? []),
-    ...(payload.referenceDays ?? []).flatMap((day) => day.entries ?? []),
-  ];
-  const seen = new Set<string>();
-  return entries.flatMap((entry) => {
-    if (entry.blockType !== "event" || !entry.eventUrl.includes("partiful.com")) return [];
-    const partifulId = entry.partifulId || partifulIdFromUrl(entry.eventUrl);
-    const key = partifulId || entry.eventUrl;
-    if (!key || seen.has(key)) return [];
-    seen.add(key);
-    return [{
-      eventUrl: entry.eventUrl,
-      partifulId,
-      title: entry.displayTitle,
-    }];
-  });
 }
 
-async function readUpcomingPartifulTargets(
-  auth: Awaited<ReturnType<typeof readStoredPartifulAuth>>,
-) {
+async function readUpcomingPartifulTargets(auth: StoredPartifulAuth): Promise<PartifulTarget[]> {
   const response = await callPartifulFunction(auth, "getMyUpcomingEventsForHomePage", {});
   const data = callableResult(response);
   const events = Array.isArray(getPath(data, ["upcomingEvents"]))
@@ -174,29 +121,14 @@ async function readUpcomingPartifulTargets(
     const partifulId = stringValue(record.id) ||
       partifulIdFromUrl(stringValue(record.publicShortUrl));
     if (!partifulId) return [];
-    const startDate = stringValue(record.startDate);
-    if (!isConferenceWindow(startDate, stringValue(record.title))) return [];
+    const title = stringValue(record.title) || `Partiful ${partifulId}`;
+    if (!isConferenceWindow(stringValue(record.startDate), title)) return [];
     return [{
       eventUrl: `https://partiful.com/e/${partifulId}`,
       partifulId,
-      title: stringValue(record.title) || `Partiful ${partifulId}`,
+      title,
     }];
   });
-}
-
-function mergeTargets(
-  primary: Awaited<ReturnType<typeof readTargets>>,
-  discovered: typeof primary,
-) {
-  const merged = [];
-  const seen = new Set<string>();
-  for (const target of [...primary, ...discovered]) {
-    const key = target.partifulId || target.eventUrl;
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    merged.push(target);
-  }
-  return merged;
 }
 
 function isConferenceWindow(startDate: string, title: string): boolean {
@@ -211,12 +143,19 @@ function isConferenceWindow(startDate: string, title: string): boolean {
   return (localDay >= "2026-06-01" && localDay <= "2026-06-07") || /#?nytechweek/i.test(title);
 }
 
+function partifulFailure(target: PartifulTarget, stage: string, error: unknown): SyncFailure {
+  return {
+    eventUrl: target.eventUrl,
+    message: error instanceof Error ? error.message : String(error),
+    partifulId: target.partifulId,
+    stage,
+    title: target.title,
+  };
+}
+
 function parseArgs(argv: string[]): Args {
   const args: Args = {
     authFile: defaultAuthFilePath(),
-    baseUrl: DEFAULT_BASE_URL,
-    discoverUpcoming: true,
-    dryRun: false,
     limit: 0,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -225,18 +164,10 @@ function parseArgs(argv: string[]): Args {
       args.authFile = requiredValue(argv[++index], arg);
     } else if (arg.startsWith("--auth-file=")) {
       args.authFile = arg.slice("--auth-file=".length);
-    } else if (arg === "--base-url") {
-      args.baseUrl = requiredValue(argv[++index], arg);
-    } else if (arg.startsWith("--base-url=")) {
-      args.baseUrl = arg.slice("--base-url=".length);
     } else if (arg === "--limit") {
       args.limit = Number(requiredValue(argv[++index], arg));
     } else if (arg.startsWith("--limit=")) {
       args.limit = Number(arg.slice("--limit=".length));
-    } else if (arg === "--dry-run") {
-      args.dryRun = true;
-    } else if (arg === "--no-discover-upcoming") {
-      args.discoverUpcoming = false;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
@@ -269,10 +200,6 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function arrayLength(value: unknown): number {
-  return Array.isArray(value) ? value.length : 0;
 }
 
 if (import.meta.main) {

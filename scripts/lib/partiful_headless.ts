@@ -152,8 +152,15 @@ export async function ensureFreshPartifulAuth(
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
+    const message = stringValue(getPath(body, ["error", "message"]));
+    if (message === "TOKEN_EXPIRED" || message === "INVALID_REFRESH_TOKEN") {
+      throw new Error(
+        `${message}: stored Partiful Firebase refresh token is expired or revoked. ` +
+          `Re-authenticate with deno task partiful:login:twilio or deno task partiful:auth:capture, then rerun sync.`,
+      );
+    }
     throw new Error(
-      stringValue(getPath(body, ["error", "message"])) ||
+      message ||
         `Firebase token refresh failed with HTTP ${response.status}.`,
     );
   }

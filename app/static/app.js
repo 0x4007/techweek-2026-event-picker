@@ -1574,6 +1574,7 @@ async function loadSchedule() {
   state.activeDay ||= state.payload.days[0]?.date || "";
   normalizeActiveDay();
   render();
+  surfacePartifulAutoSyncStatus();
   writeHashNavigation({ replace: true });
 }
 
@@ -1781,11 +1782,21 @@ async function requestServerPartifulAutoSync() {
   try {
     const response = await fetch("/api/sync/partiful/auto", { method: "POST" });
     const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.error?.message || `Partiful auto-sync request failed with HTTP ${response.status}.`,
+      );
+    }
     if (response.status === 202 || body.action === "started" || body.action === "already_running") {
       schedulePartifulAutoSyncSchedulePoll();
     }
+    if (body.partifulAutoSync?.status === "failed" && body.partifulAutoSync?.lastError) {
+      setAgendaStatus(`Partiful auto-sync failed: ${body.partifulAutoSync.lastError}`);
+    }
   } catch (error) {
-    console.warn(error);
+    const message = error instanceof Error ? error.message : "Partiful auto-sync request failed.";
+    console.error(error);
+    setAgendaStatus(message);
   } finally {
     state.partifulAutoSyncRequestBusy = false;
   }
@@ -1809,11 +1820,25 @@ async function pollPartifulAutoSyncSchedule(attempt = 0) {
   try {
     await loadSchedule();
   } catch (error) {
-    console.warn(error);
+    console.error(error);
+    setAgendaStatus(
+      error instanceof Error ? error.message : "Could not read Partiful auto-sync status.",
+    );
   }
   const autoSync = state.payload?.sync?.partifulAuto;
+  if (autoSync?.status === "failed" && autoSync.lastError) {
+    setAgendaStatus(`Partiful auto-sync failed: ${autoSync.lastError}`);
+    return;
+  }
   if (autoSync?.status === "running" && attempt < PARTIFUL_AUTO_SYNC_MAX_POLLS) {
     schedulePartifulAutoSyncSchedulePoll(PARTIFUL_AUTO_SYNC_STATUS_POLL_MS, attempt + 1);
+  }
+}
+
+function surfacePartifulAutoSyncStatus() {
+  const autoSync = state.payload?.sync?.partifulAuto;
+  if (autoSync?.status === "failed" && autoSync.lastError) {
+    setAgendaStatus(`Partiful auto-sync failed: ${autoSync.lastError}`);
   }
 }
 

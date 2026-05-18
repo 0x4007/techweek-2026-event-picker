@@ -2449,6 +2449,10 @@ async function handlePartifulSync(request: Request): Promise<Response> {
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") return badRequest("Expected a JSON body.");
   const raw = body as Record<string, unknown>;
+  return await runPartifulSnapshotSync(raw);
+}
+
+async function runPartifulSnapshotSync(raw: Record<string, unknown>): Promise<Response> {
   const extracted = extractPartifulSnapshotPayloads(raw);
   const snapshots = extracted.snapshots;
   if (snapshots.length === 0) {
@@ -2518,6 +2522,10 @@ async function handlePartifulHeadlessSync(request: Request): Promise<Response> {
   const raw = body && typeof body === "object" && !Array.isArray(body)
     ? body as Record<string, unknown>
     : {};
+  return await runPartifulHeadlessSync(raw);
+}
+
+async function runPartifulHeadlessSync(raw: Record<string, unknown>): Promise<Response> {
   const requestedAuthFile = textField(raw.authFile, 1000);
   let authSource: PartifulAuthSource;
   try {
@@ -2533,7 +2541,17 @@ async function handlePartifulHeadlessSync(request: Request): Promise<Response> {
     }
     throw error;
   }
-  const auth = await ensureFreshPartifulAuth(authSource.auth, authSource.persistPath);
+  let auth: StoredPartifulAuth;
+  try {
+    auth = await ensureFreshPartifulAuth(authSource.auth, authSource.persistPath);
+  } catch (error) {
+    return json({
+      error: {
+        message: partifulAuthRefreshErrorMessage(error, authSource),
+        type: "partiful_auth_error",
+      },
+    }, { status: 503 });
+  }
   const entries = await readAgendaCandidateEntries();
   const targets = mergePartifulTargets(
     partifulTargetsFromEntries(entries),
@@ -2563,22 +2581,13 @@ async function handlePartifulHeadlessSync(request: Request): Promise<Response> {
     }
   }
 
-  const syncResponse = await handlePartifulSync(
-    new Request("http://localhost/api/sync/partiful", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        cookie: request.headers.get("cookie") ?? "",
-      },
-      body: JSON.stringify({
-        source: "partiful_headless_local",
-        recalculate: raw.recalculate !== false,
-        activate: raw.activate !== false,
-        liveRouting: raw.liveRouting !== false,
-        responses: snapshots,
-      }),
-    }),
-  );
+  const syncResponse = await runPartifulSnapshotSync({
+    source: "partiful_headless_local",
+    recalculate: raw.recalculate !== false,
+    activate: raw.activate !== false,
+    liveRouting: raw.liveRouting !== false,
+    responses: snapshots,
+  });
   const responseBody = await syncResponse.json().catch(() => ({}));
   return json({
     ...responseBody,
@@ -2617,7 +2626,13 @@ async function readPartifulAuthSource(requestedAuthFile = ""): Promise<PartifulA
     }
   }
 
-  const authFile = requestedAuthFile || await defaultPartifulLocalAuthFile();
+  let authFile: string;
+  try {
+    authFile = requestedAuthFile || defaultAuthFilePath();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new PartifulAuthConfigurationError(message);
+  }
   try {
     return {
       auth: await readStoredPartifulAuth(authFile),
@@ -2747,13 +2762,11 @@ function queuePartifulAutoSync(runId: string): void {
 
 async function runPartifulAutoSync(runId: string): Promise<void> {
   try {
-    const syncResponse = await handlePartifulHeadlessSync(
-      new Request("http://localhost/api/sync/partiful/headless", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ liveRouting: false, recalculate: true, activate: true }),
-      }),
-    );
+    const syncResponse = await runPartifulHeadlessSync({
+      liveRouting: false,
+      recalculate: true,
+      activate: true,
+    });
     const syncBody = await syncResponse.json().catch(() => ({}));
     if (!syncResponse.ok) {
       throw new Error(partifulAutoSyncErrorMessage(syncBody, "Automatic Partiful sync failed."));
@@ -2773,6 +2786,7 @@ async function runPartifulAutoSync(runId: string): Promise<void> {
     };
     await writeState(state);
   } catch (error) {
+    console.error("[partiful:auto-sync]", error);
     const state = await readState();
     if (state.partifulAutoSync.lastRunId !== runId) return;
     state.partifulAutoSync = {
@@ -2791,15 +2805,10 @@ function partifulAutoSyncErrorMessage(body: unknown, fallback: string): string {
   return textField(error?.message, 500) || fallback;
 }
 
-async function defaultPartifulLocalAuthFile(): Promise<string> {
-  const home = Deno.env.get("HOME") || "/Users/nv";
-  const twilioAuthFile = `${home}/.codex/secrets/techweek-partiful-auth-twilio.json`;
-  try {
-    await Deno.stat(twilioAuthFile);
-    return twilioAuthFile;
-  } catch {
-    return defaultAuthFilePath();
-  }
+function partifulAuthRefreshErrorMessage(error: unknown, authSource: PartifulAuthSource): string {
+  const base = error instanceof Error ? error.message : String(error);
+  const authFile = authSource.authFile ? ` at ${authSource.authFile}` : "";
+  return `Partiful auth refresh failed for ${authSource.label}${authFile}: ${base}`;
 }
 
 function partifulTargetsFromEntries(entries: ScheduleEntry[]): PartifulTarget[] {
