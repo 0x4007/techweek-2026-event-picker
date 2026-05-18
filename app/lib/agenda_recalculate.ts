@@ -2694,15 +2694,15 @@ function statusForEntry(
 }
 
 function normalizeStatus(status: string, title: string): AgendaNormalizedStatus {
-  const text = `${status} ${title}`.toLowerCase();
+  const text = `${status} ${title}`.toLowerCase().replaceAll(/[_-]+/g, " ");
   if (
-    /(rejected|declined|cancelled|canceled|blocked|unavailable|sold out|payment|required payment)/
+    /\b(not going|not attending|not registered|removed|rejected|declined|cancelled|canceled|blocked|unavailable|sold out|payment|required payment)\b/
       .test(text)
   ) {
     return "excluded";
   }
   if (/(waitlist|waitlisted)/.test(text)) return "waitlisted";
-  if (/(registered|confirmed|going|attending)/.test(text)) return "registered";
+  if (/\b(registered|confirmed|going|attending)\b/.test(text)) return "registered";
   if (/(accepted|approved|you.?re in|you are in)/.test(text)) return "accepted";
   if (/(applied|pending|requested|approval)/.test(text)) return "applied";
   return "unknown";

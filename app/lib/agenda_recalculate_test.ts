@@ -396,6 +396,47 @@ Deno.test("recalculateAgenda labels latest-departure gaps as buffer blocks", asy
   );
 });
 
+Deno.test("recalculateAgenda excludes not-going statuses without blocking going statuses", async () => {
+  const agenda = await recalculateAgenda({
+    scheduleEntries: [
+      eventEntry("TW-going", "Going Status Event", "2026-06-01 14:00", "2026-06-01 15:00", {
+        status: "going",
+      }),
+      eventEntry("TW-not-going", "Declined Event", "2026-06-01 16:00", "2026-06-01 17:00", {
+        status: "not going",
+      }),
+      eventEntry(
+        "TW-not-going-token",
+        "Provider Declined Event",
+        "2026-06-01 18:00",
+        "2026-06-01 19:00",
+        {
+          status: "NOT_GOING",
+        },
+      ),
+    ],
+    overrides: { includeReturnHome: false, generateLogisticsBlocks: false },
+    generatedAt: "2026-05-14T12:00:00Z",
+  });
+
+  assert(
+    agenda.selectedEvents.some((block) => block.techweekId === "TW-going"),
+    "Expected positive going status to remain eligible.",
+  );
+  for (const techweekId of ["TW-not-going", "TW-not-going-token"]) {
+    assert(
+      !agenda.selectedEvents.some((block) => block.techweekId === techweekId),
+      `Expected ${techweekId} to be excluded.`,
+    );
+    assert(
+      agenda.droppedEvents.some((drop) =>
+        drop.event.techweekId === techweekId && drop.reason === "status_excluded"
+      ),
+      `Expected ${techweekId} to be dropped for status exclusion.`,
+    );
+  }
+});
+
 Deno.test("recalculateAgenda preserves hard fixed blocks over return-home travel", async () => {
   const agenda = await recalculateAgenda({
     scheduleEntries: [
