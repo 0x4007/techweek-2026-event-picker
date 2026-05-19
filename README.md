@@ -39,6 +39,22 @@ The Deno app runs at `http://localhost:8788` and serves a mobile route/backup/ag
 backend state in Postgres when `DATABASE_URL` is available, and uses the ignored `.env` gateway
 token for AI requests.
 
+## Standalone Passkey Auth
+
+The app owns its WebAuthn/passkey auth directly. It does not depend on the Raspberry Pi agent auth
+service. Account users, credential metadata, sessions, challenges, and handoffs are stored through
+the existing Postgres-backed app state/cache layer, with in-memory storage as the local fallback.
+
+Auth endpoints:
+
+- `GET /api/account/session` - returns the current passkey session or first-user setup state.
+- `POST /api/auth/register/start` / `POST /api/auth/register/finish` - creates a passkey account.
+- `POST /api/auth/login/start` / `POST /api/auth/login/finish` - signs in with a passkey.
+- `POST /api/auth/logout` - clears the local session cookie.
+
+The first registration becomes the admin account. Later registrations require an authenticated admin
+session. No new environment variables are required.
+
 For Deno Deploy, attach a managed Prisma Postgres database to the app. Generated schedule artifacts
 under `outputs/signed_up/` are treated as read-only deployment inputs; notes, leads, and dismissed
 blocks persist in Postgres across stateless requests. Deno Deploy injects `DATABASE_URL`;

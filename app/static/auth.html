@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tech Week Auth</title>
+    <style>
+      :root {
+        --bg: #f7f8fa;
+        --panel: #ffffff;
+        --soft: #eef2f6;
+        --text: #20242b;
+        --muted: #626b77;
+        --accent: #2f6f73;
+        --danger: #b42318;
+        --border: #d7dde5;
+        color-scheme: light;
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        letter-spacing: 0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        margin: 0;
+        padding: max(18px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
+          max(18px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      main {
+        width: min(420px, 100%);
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: 0 18px 60px rgba(32, 36, 43, 0.12);
+      }
+
+      header,
+      form,
+      [data-actions],
+      [data-field] {
+        display: grid;
+        gap: 8px;
+      }
+
+      h1,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 18px;
+        line-height: 1.2;
+      }
+
+      p,
+      label {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        min-height: 42px;
+        border: 0;
+        border-radius: 8px;
+        padding: 0 12px;
+        background: var(--soft);
+        color: var(--text);
+        font: inherit;
+        letter-spacing: 0;
+        outline: none;
+      }
+
+      input:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      [data-checkbox] {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      [data-checkbox] input {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        accent-color: var(--accent);
+      }
+
+      button {
+        min-height: 40px;
+        border: 0;
+        border-radius: 8px;
+        padding: 0 13px;
+        background: var(--accent);
+        color: #ffffff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 650;
+        letter-spacing: 0;
+      }
+
+      button[type="button"] {
+        background: var(--soft);
+        color: var(--text);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.58;
+      }
+
+      [data-actions] {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      [data-message] {
+        min-height: 20px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      [data-message="error"] {
+        color: var(--danger);
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body data-page="account-auth">
+    <main>
+      <header>
+        <h1 data-title>Passkey sign in</h1>
+        <p data-summary></p>
+      </header>
+
+      <form data-login>
+        <label data-field>
+          <span>Username</span>
+          <input name="handle" type="text" autocomplete="username webauthn" placeholder="Optional">
+        </label>
+        <button type="submit">Sign in</button>
+      </form>
+
+      <form data-register hidden>
+        <label data-field>
+          <span>Username</span>
+          <input name="handle" type="text" autocomplete="username" required>
+        </label>
+        <label data-checkbox>
+          <input name="admin" type="checkbox">
+          <span>Admin passkey</span>
+        </label>
+        <button type="submit">Register passkey</button>
+      </form>
+
+      <div data-actions>
+        <button type="button" data-mode="login">Sign in</button>
+        <button type="button" data-mode="register">Register</button>
+      </div>
+      <p data-message aria-live="polite"></p>
+    </main>
+    <script type="module" src="/auth.js?v=20260519-standalone-auth"></script>
+  </body>
+</html>

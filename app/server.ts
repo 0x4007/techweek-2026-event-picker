@@ -54,6 +54,23 @@ import {
   writeCacheValue,
   writeStateValue,
 } from "./lib/postgres_store.ts";
+import {
+  AccountAuthError,
+  accountSessionCookie,
+  type AccountSessionState,
+  accountSessionState,
+  type AccountSessionUser,
+  clearAccountSessionCookie,
+  consumeAccountSessionHandoff,
+  createAccountSessionHandoff,
+  finishAccountLogin,
+  finishAccountRegistration,
+  logoutAccountSession,
+  requireAccountSession as requireStoredAccountSession,
+  requireAdminAccountSession as requireStoredAdminAccountSession,
+  startAccountLogin,
+  startAccountRegistration,
+} from "./lib/account_auth.ts";
 
 const ROOT = new URL("../", import.meta.url);
 const STATIC_DIR = new URL("./static/", import.meta.url);
@@ -78,15 +95,9 @@ const OPERATIONAL_ICS = new URL(
 const LOCAL_OCR_DIR = new URL("../.codex/ocr-local/", import.meta.url);
 const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
 const PARTIFUL_AUTH_JSON_ENV = "TECHWEEK_PARTIFUL_AUTH_JSON";
-const PI_SESSION_COOKIE_NAME = "pi_codex_session";
-const PI_AGENT_SESSION_URL = "https://agent.pavlovcik.com/api/session";
-const PI_AGENT_HANDOFF_URL = "https://agent.pavlovcik.com/api/auth/handoff/consume";
 const DEFAULT_PORT = 8788;
 const TIME_ZONE = "America/New_York";
 const AGENT_MODEL = "gpt-5.5";
-const PI_AGENT_PUBLIC_ORIGIN = "https://agent.pavlovcik.com";
-const PI_AGENT_BACKEND_ORIGIN = "https://agent-origin.pavlovcik.com";
-const PI_AGENT_PROXY_PREFIX = "/__pi-agent";
 const LOCAL_OCR_TIMEOUT_MS = 7_000;
 const LOCAL_OCR_ROTATIONS = [0, 90, 180, 270] as const;
 const LOCAL_OCR_HIGH_CONFIDENCE_SCORE = 8;
@@ -143,12 +154,12 @@ function resolvePreferredPort(): number {
   return DEFAULT_PORT;
 }
 
-async function findFreePort(startPort: number): Promise<number> {
+function findFreePort(startPort: number): number {
   let candidate = startPort;
   const maxPort = Math.min(65_535, startPort + PORT_SCAN_ATTEMPTS - 1);
   for (; candidate <= maxPort; candidate++) {
     try {
-      const listener = Deno.listen({ hostname: "127.0.0.1", port: candidate });
+      const listener = Deno.listen({ hostname: "0.0.0.0", port: candidate });
       listener.close();
       return candidate;
     } catch (error) {
@@ -523,23 +534,6 @@ type ChatMessage = {
   content: string;
 };
 
-type AccountSessionUser = {
-  id: string;
-  handle: string;
-  isAdmin: boolean;
-  credentialCount: number;
-};
-
-type AccountSessionState = {
-  authenticated: boolean;
-  auth: string;
-  user?: AccountSessionUser;
-  expiresAt?: string;
-  setupRequired?: boolean;
-  bootstrapConfigured?: boolean;
-  registrationAllowed?: boolean;
-};
-
 type GatewayConfig = {
   token: string;
   chatUrl: string;
@@ -713,12 +707,7 @@ type ClientContext = {
   };
 };
 
-let fetchPiAgentSessionForTest:
-  | ((request: Request, cookieHeader: string) => Promise<Response>)
-  | null = null;
-let fetchPiAgentSessionHandoffForTest:
-  | ((request: Request, handoffToken: string, targetOrigin: string) => Promise<Response>)
-  | null = null;
+let accountSessionForTest: AccountSessionState | undefined;
 let stateMutationQueue: Promise<unknown> = Promise.resolve();
 
 class ServerRoutingCache implements RoutingCacheAdapter {
@@ -831,32 +820,37 @@ function normalizeApiPath(pathname: string): string {
   return pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
 }
 
-export function setPiAgentSessionFetchForTest(
-  fetcher: ((request: Request, cookieHeader: string) => Promise<Response>) | null,
+export function setAccountSessionForTest(
+  session: AccountSessionState | null | undefined,
 ): void {
-  fetchPiAgentSessionForTest = fetcher;
-}
-
-export function setPiAgentSessionHandoffFetchForTest(
-  fetcher:
-    | ((request: Request, handoffToken: string, targetOrigin: string) => Promise<Response>)
-    | null,
-): void {
-  fetchPiAgentSessionHandoffForTest = fetcher;
+  accountSessionForTest = session === undefined
+    ? undefined
+    : session ?? { authenticated: false, auth: "passkey" };
 }
 
 async function handleAccountSession(request: Request): Promise<Response> {
-  const session = await readPiAgentSession(request);
+  const session = await readAccountSession(request);
   return json({ session });
 }
 
 async function requireAdminAccountSession(request: Request): Promise<Response | null> {
-  const session = await readPiAgentSession(request);
-  if (!session.authenticated) {
-    return json({ error: { message: "Authentication required." } }, { status: 401 });
-  }
-  if (session.user?.isAdmin !== true) {
-    return json({ error: { message: "Admin access required." } }, { status: 403 });
+  try {
+    if (accountSessionForTest !== undefined) {
+      const session = await readAccountSession(request);
+      if (!session.authenticated) {
+        return json({ error: { message: "Authentication required." } }, { status: 401 });
+      }
+      if (session.user?.isAdmin !== true) {
+        return json({ error: { message: "Admin access required." } }, { status: 403 });
+      }
+      return null;
+    }
+    await requireStoredAdminAccountSession(request);
+  } catch (error) {
+    if (error instanceof AccountAuthError) {
+      return json({ error: { message: error.message } }, { status: error.status });
+    }
+    throw error;
   }
   return null;
 }
@@ -865,6 +859,7 @@ async function authorizeApiRoute(request: Request, url: URL): Promise<Response |
   const pathname = normalizeApiPath(url.pathname);
   if (!url.pathname.startsWith("/api/")) return null;
   if (request.method === "GET" && url.pathname === "/api/health") return null;
+  if (pathname.startsWith("/api/auth/")) return null;
   if (request.method === "GET" && pathname === "/api/account/session") return null;
   if (request.method === "GET" && pathname === "/api/account/invite") return null;
   if (request.method === "POST" && pathname === "/api/account/session/handoff") return null;
@@ -879,36 +874,65 @@ async function handleAccountSessionHandoff(request: Request): Promise<Response> 
   if (!handoffToken) return badRequest("handoffToken is required.");
 
   const targetOrigin = requestOrigin(request);
-  const upstream = await consumePiAgentSessionHandoff(request, handoffToken, targetOrigin).catch(
-    () => null,
-  );
-  if (!upstream) {
-    return json({ error: { message: "Could not complete account sign-in." } }, { status: 502 });
-  }
-  const upstreamBody = await readJsonOrText(upstream);
-  if (!upstream.ok) {
-    return json(
-      { error: { message: upstreamErrorMessage(upstreamBody) || "Account sign-in was rejected." } },
-      { status: upstream.status },
-    );
-  }
-  const result = recordValue(upstreamBody);
-  const sessionToken = textField(result?.sessionToken, 2000);
-  const session = normalizeAccountSessionState(result?.session);
-  if (!sessionToken || !session?.authenticated) {
-    return json({ error: { message: "Account sign-in did not return a valid session." } }, {
-      status: 502,
-    });
-  }
+  const result = await consumeAccountSessionHandoff(request, handoffToken, targetOrigin);
+  const session = result.session;
 
   const referralCode = normalizeInviteCode(textField(raw?.referralCode, 120));
   if (referralCode) {
-    await claimReferralWithSessionReferralCode(session.user?.id || "", session.user?.handle || "", referralCode);
+    await claimReferralWithSessionReferralCode(
+      session.user?.id || "",
+      session.user?.handle || "",
+      referralCode,
+    );
   }
 
   return json({ session }, {
     headers: {
-      "set-cookie": accountSessionCookie(sessionToken, session.expiresAt, request),
+      "set-cookie": accountSessionCookie(result.sessionToken, session.expiresAt, request),
+    },
+  });
+}
+
+async function handleAuthRegisterStart(request: Request): Promise<Response> {
+  return json(await startAccountRegistration(request));
+}
+
+async function handleAuthRegisterFinish(request: Request): Promise<Response> {
+  const result = await finishAccountRegistration(request);
+  return authFinishResponse(result, request);
+}
+
+async function handleAuthLoginStart(request: Request): Promise<Response> {
+  return json(await startAccountLogin(request));
+}
+
+async function handleAuthLoginFinish(request: Request): Promise<Response> {
+  const result = await finishAccountLogin(request);
+  return authFinishResponse(result, request);
+}
+
+async function handleAuthLogout(request: Request): Promise<Response> {
+  await logoutAccountSession(request);
+  return new Response(null, {
+    status: 204,
+    headers: { "set-cookie": clearAccountSessionCookie(request) },
+  });
+}
+
+async function handleAuthHandoff(request: Request): Promise<Response> {
+  const raw = await request.json().catch(() => null);
+  const body = recordValue(raw);
+  const targetOrigin = textField(body?.embedOrigin, 500) || textField(body?.origin, 500);
+  return json(await createAccountSessionHandoff(request, targetOrigin));
+}
+
+function authFinishResponse(
+  result: { session: AccountSessionState; sessionToken: string; expiresAt?: string },
+  request: Request,
+): Response {
+  return json({ session: result.session }, {
+    headers: {
+      "set-cookie": accountSessionCookie(result.sessionToken, result.expiresAt, request),
     },
   });
 }
@@ -919,13 +943,28 @@ async function claimReferralWithSessionReferralCode(
   referralCode: string,
 ): Promise<void> {
   if (!ownerUserId || !referralCode) return;
-  await claimReferralByCode(ownerUserId, ownerHandle || "Unknown", normalizeInviteCode(referralCode));
+  await claimReferralByCode(
+    ownerUserId,
+    ownerHandle || "Unknown",
+    normalizeInviteCode(referralCode),
+  );
 }
 
 async function requireAuthenticatedAccountSession(request: Request): Promise<Response | null> {
-  const session = await readPiAgentSession(request);
-  if (!session.authenticated) {
-    return json({ error: { message: "Authentication required." } }, { status: 401 });
+  try {
+    if (accountSessionForTest !== undefined) {
+      const session = await readAccountSession(request);
+      if (!session.authenticated) {
+        return json({ error: { message: "Authentication required." } }, { status: 401 });
+      }
+      return null;
+    }
+    await requireStoredAccountSession(request);
+  } catch (error) {
+    if (error instanceof AccountAuthError) {
+      return json({ error: { message: error.message } }, { status: error.status });
+    }
+    throw error;
   }
   return null;
 }
@@ -933,7 +972,7 @@ async function requireAuthenticatedAccountSession(request: Request): Promise<Res
 async function handleAccountInviteGet(request: Request): Promise<Response> {
   const authError = await requireAuthenticatedAccountSession(request);
   if (authError) return authError;
-  const session = await readPiAgentSession(request);
+  const session = await readAccountSession(request);
   const user = session.user;
   if (!user) return json({ error: { message: "Account user unavailable." } }, { status: 401 });
 
@@ -944,7 +983,7 @@ async function handleAccountInviteGet(request: Request): Promise<Response> {
 async function handleAccountInviteClaim(request: Request): Promise<Response> {
   const authError = await requireAuthenticatedAccountSession(request);
   if (authError) return authError;
-  const session = await readPiAgentSession(request);
+  const session = await readAccountSession(request);
   const user = session.user;
   if (!user) return json({ error: { message: "Account user unavailable." } }, { status: 401 });
 
@@ -962,13 +1001,6 @@ async function handleAccountInviteClaim(request: Request): Promise<Response> {
   }
   const payload = await buildAccountInvitePayload(request, user);
   return json({ invite: payload, claimed });
-}
-
-async function claimReferral(
-  user: AccountSessionUser,
-  referralCode: string,
-): Promise<{ claimed: boolean; errorMessage?: string }> {
-  return claimReferralByCode(user.id, user.handle || "Unknown", referralCode);
 }
 
 async function claimReferralByCode(
@@ -1091,126 +1123,19 @@ async function setInviteCodeForUser(userId: string, code: string, handle: string
   });
 }
 
-async function readPiAgentSession(request: Request): Promise<AccountSessionState> {
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  if (!cookieHeaderIncludes(cookieHeader, PI_SESSION_COOKIE_NAME)) {
-    return { authenticated: false, auth: "passkey" };
+async function readAccountSession(request: Request): Promise<AccountSessionState> {
+  if (accountSessionForTest !== undefined) {
+    if (!request.headers.get("cookie")?.includes("techweek_session=")) {
+      return { authenticated: false, auth: "passkey" };
+    }
+    return accountSessionForTest;
   }
-
-  const upstream = await fetchPiAgentSession(request, cookieHeader).catch(() => null);
-  if (!upstream) {
-    return { authenticated: false, auth: "unavailable" };
-  }
-  const body = await readJsonOrText(upstream);
-  if (!upstream.ok) {
-    return { authenticated: false, auth: "unavailable" };
-  }
-  const session = normalizeAccountSessionState(body);
-  return session ?? { authenticated: false, auth: "passkey" };
-}
-
-async function fetchPiAgentSession(request: Request, cookieHeader: string): Promise<Response> {
-  if (fetchPiAgentSessionForTest) {
-    return await fetchPiAgentSessionForTest(request, cookieHeader);
-  }
-  return await fetch(PI_AGENT_SESSION_URL, {
-    headers: {
-      accept: "application/json",
-      cookie: cookieHeader,
-      "user-agent": request.headers.get("user-agent") ?? "techweek-agenda-app",
-    },
-  });
-}
-
-async function consumePiAgentSessionHandoff(
-  request: Request,
-  handoffToken: string,
-  targetOrigin: string,
-): Promise<Response> {
-  if (fetchPiAgentSessionHandoffForTest) {
-    return await fetchPiAgentSessionHandoffForTest(request, handoffToken, targetOrigin);
-  }
-  return await fetch(PI_AGENT_HANDOFF_URL, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-      "user-agent": request.headers.get("user-agent") ?? "techweek-agenda-app",
-    },
-    body: JSON.stringify({ handoffToken, origin: targetOrigin }),
-  });
-}
-
-function normalizeAccountSessionState(value: unknown): AccountSessionState | null {
-  const raw = recordValue(value);
-  if (!raw) return null;
-  const auth = textField(raw.auth, 80) || "passkey";
-  const user = normalizeAccountSessionUser(raw.user);
-  const authenticated = raw.authenticated === true && Boolean(user?.id);
-  return {
-    authenticated,
-    auth,
-    ...(user ? { user } : {}),
-    ...(textField(raw.expiresAt, 120) ? { expiresAt: textField(raw.expiresAt, 120) } : {}),
-    ...(raw.setupRequired === true ? { setupRequired: true } : {}),
-    ...(raw.bootstrapConfigured === true ? { bootstrapConfigured: true } : {}),
-    ...(raw.registrationAllowed === true ? { registrationAllowed: true } : {}),
-  };
+  return await accountSessionState(request);
 }
 
 function requestOrigin(request: Request): string {
   const url = new URL(request.url);
   return `${url.protocol}//${url.host}`;
-}
-
-function accountSessionCookie(
-  token: string,
-  expiresAt: string | undefined,
-  request: Request,
-): string {
-  const parts = [
-    `${PI_SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`,
-    "Path=/",
-    "HttpOnly",
-    "SameSite=Lax",
-  ];
-  const expires = expiresAt ? new Date(expiresAt) : null;
-  if (expires && Number.isFinite(expires.getTime())) {
-    parts.push(`Expires=${expires.toUTCString()}`);
-    const maxAge = Math.max(0, Math.floor((expires.getTime() - Date.now()) / 1000));
-    parts.push(`Max-Age=${maxAge}`);
-  }
-  if (new URL(request.url).protocol === "https:") {
-    parts.push("Secure");
-  }
-  return parts.join("; ");
-}
-
-function upstreamErrorMessage(value: unknown): string {
-  const body = recordValue(value);
-  return textField(recordValue(body?.error)?.message, 300) || textField(body?.message, 300);
-}
-
-function normalizeAccountSessionUser(value: unknown): AccountSessionUser | undefined {
-  const raw = recordValue(value);
-  if (!raw) return undefined;
-  const id = textField(raw.id, 160);
-  if (!id) return undefined;
-  return {
-    id,
-    handle: textField(raw.handle, 120),
-    isAdmin: raw.isAdmin === true,
-    credentialCount: Number.isFinite(Number(raw.credentialCount))
-      ? Math.max(0, Math.round(Number(raw.credentialCount)))
-      : 0,
-  };
-}
-
-function cookieHeaderIncludes(cookieHeader: string, cookieName: string): boolean {
-  return cookieHeader.split(";").some((part) => {
-    const [name, value = ""] = part.trim().split("=", 2);
-    return name === cookieName && value.trim() !== "";
-  });
 }
 
 function textResponse(body: string, contentType: string, init: ResponseInit = {}): Response {
@@ -3921,16 +3846,6 @@ function logOcrContext(requestId: string, body: OcrRequestBody, imageDataUrl: st
   });
 }
 
-function logOcrTranscriptContext(requestId: string, body: OcrRequestBody, transcript: string) {
-  logJson("ocr_text_fallback_context", {
-    requestId,
-    endpoint: "/api/leads/ocr",
-    upstreamEndpoint: "/v1/chat/completions",
-    transcript: truncateDebug(transcript, 2000),
-    requestBody: body,
-  });
-}
-
 function debugHeaders(headers: Headers): Record<string, string> {
   const result: Record<string, string> = {};
   for (
@@ -5344,19 +5259,6 @@ async function handleModelContext(): Promise<Response> {
   });
 }
 
-function agentPromptText(requestBody: ReturnType<typeof chatRequestBody>): string {
-  return requestBody.messages
-    .map((message, index) =>
-      [
-        `===== MESSAGE ${
-          index + 1
-        } / ${requestBody.messages.length}: ${message.role.toUpperCase()} =====`,
-        message.content,
-      ].join("\n")
-    )
-    .join("\n\n");
-}
-
 async function callChatModel(
   chatUrl: string,
   token: string,
@@ -5597,16 +5499,28 @@ export async function router(request: Request): Promise<Response> {
     const pathname = normalizeApiPath(url.pathname);
     const sameSiteRedirect = redirectDenoDeployToSameSiteDomain(request, url);
     if (sameSiteRedirect) return sameSiteRedirect;
-    if (
-      url.pathname === PI_AGENT_PROXY_PREFIX ||
-      url.pathname.startsWith(`${PI_AGENT_PROXY_PREFIX}/`)
-    ) {
-      return await proxyPiAgentRequest(request, url);
-    }
     const authorizationError = await authorizeApiRoute(request, url);
     if (authorizationError) return authorizationError;
 
     if (request.method === "GET" && pathname === "/api/health") return await handleHealth();
+    if (request.method === "POST" && pathname === "/api/auth/register/start") {
+      return await handleAuthRegisterStart(request);
+    }
+    if (request.method === "POST" && pathname === "/api/auth/register/finish") {
+      return await handleAuthRegisterFinish(request);
+    }
+    if (request.method === "POST" && pathname === "/api/auth/login/start") {
+      return await handleAuthLoginStart(request);
+    }
+    if (request.method === "POST" && pathname === "/api/auth/login/finish") {
+      return await handleAuthLoginFinish(request);
+    }
+    if (request.method === "POST" && pathname === "/api/auth/logout") {
+      return await handleAuthLogout(request);
+    }
+    if (request.method === "POST" && pathname === "/api/auth/handoff") {
+      return await handleAuthHandoff(request);
+    }
     if (request.method === "GET" && pathname === "/api/account/session") {
       return await handleAccountSession(request);
     }
@@ -5676,6 +5590,9 @@ export async function router(request: Request): Promise<Response> {
     if (request.method !== "GET" && request.method !== "HEAD") return notFound();
     return await serveStatic(url.pathname, request.method);
   } catch (error) {
+    if (error instanceof AccountAuthError) {
+      return json({ error: { message: error.message } }, { status: error.status });
+    }
     console.error(error);
     return serverError(error instanceof Error ? error.message : "Unknown server error.");
   }
@@ -5691,79 +5608,8 @@ function redirectDenoDeployToSameSiteDomain(request: Request, url: URL): Respons
   return Response.redirect(destination, 308);
 }
 
-async function proxyPiAgentRequest(request: Request, incomingUrl: URL): Promise<Response> {
-  const publicOrigin = new URL(PI_AGENT_PUBLIC_ORIGIN);
-  const backendOrigin = new URL(PI_AGENT_BACKEND_ORIGIN);
-  const upstreamUrl = new URL(request.url);
-  upstreamUrl.protocol = backendOrigin.protocol;
-  upstreamUrl.hostname = backendOrigin.hostname;
-  upstreamUrl.port = backendOrigin.port;
-  if (upstreamUrl.pathname.startsWith(PI_AGENT_PROXY_PREFIX)) {
-    upstreamUrl.pathname = upstreamUrl.pathname.slice(PI_AGENT_PROXY_PREFIX.length) || "/";
-  }
-
-  const headers = new Headers(request.headers);
-  headers.delete("host");
-  headers.set("host", publicOrigin.hostname);
-  headers.set("x-forwarded-host", incomingUrl.host);
-  headers.set("x-forwarded-proto", incomingUrl.protocol.replace(":", ""));
-  headers.set(SAME_SITE_PROXY_HEADER, "1");
-
-  const upstreamResponse = await fetch(upstreamUrl, {
-    method: request.method,
-    headers,
-    body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
-    redirect: "manual",
-  });
-  const responseHeaders = new Headers(upstreamResponse.headers);
-  rewritePiAgentLocationHeader(responseHeaders, incomingUrl, publicOrigin);
-  rewritePiAgentSetCookieHeaders(responseHeaders, upstreamResponse.headers);
-
-  return new Response(upstreamResponse.body, {
-    status: upstreamResponse.status,
-    statusText: upstreamResponse.statusText,
-    headers: responseHeaders,
-  });
-}
-
-function rewritePiAgentLocationHeader(
-  headers: Headers,
-  incomingUrl: URL,
-  upstreamOrigin: URL,
-): void {
-  const location = headers.get("location");
-  if (!location) return;
-  let locationUrl: URL;
-  try {
-    locationUrl = new URL(location, upstreamOrigin);
-  } catch {
-    return;
-  }
-  if (locationUrl.origin !== upstreamOrigin.origin) return;
-  locationUrl.protocol = incomingUrl.protocol;
-  locationUrl.host = incomingUrl.host;
-  locationUrl.pathname = `${PI_AGENT_PROXY_PREFIX}${locationUrl.pathname}`;
-  headers.set("location", locationUrl.toString());
-}
-
-function rewritePiAgentSetCookieHeaders(headers: Headers, upstreamHeaders: Headers): void {
-  const getSetCookie = (upstreamHeaders as Headers & { getSetCookie?: () => string[] })
-    .getSetCookie;
-  const cookies = typeof getSetCookie === "function"
-    ? getSetCookie.call(upstreamHeaders)
-    : headers.get("set-cookie")
-    ? [headers.get("set-cookie") as string]
-    : [];
-  if (!cookies.length) return;
-
-  headers.delete("set-cookie");
-  for (const cookie of cookies) {
-    headers.append("set-cookie", cookie.replace(/;\s*Domain=[^;]*/gi, ""));
-  }
-}
-
 if (import.meta.main) {
-  const port = await findFreePort(resolvePreferredPort());
+  const port = findFreePort(resolvePreferredPort());
   Deno.serve({
     port,
     hostname: "0.0.0.0",

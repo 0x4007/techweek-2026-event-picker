@@ -1,5 +1,7 @@
 {
   "imports": {
+    "@simplewebauthn/server": "jsr:@simplewebauthn/server@13.2.2",
+    "@simplewebauthn/server/helpers": "jsr:@simplewebauthn/server@13.2.2/helpers",
     "js-tiktoken": "npm:js-tiktoken@1.0.20",
     "pg": "npm:pg@8.20.0",
     "playwright": "npm:playwright@1.56.1"

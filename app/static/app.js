@@ -5,9 +5,8 @@ const CHAT_STORAGE_KEY = "techweek-chat";
 const CHAT_HISTORY_KEY = "techweek-chat-history";
 const ACTIVE_CHAT_KEY = "techweek-chat-active-id";
 const MODEL_CONTEXT_CACHE_KEY = "techweek-model-context";
-const ACCOUNT_AUTH_BASE = "https://agent.pavlovcik.com";
 const ACCOUNT_ANONYMOUS_STORAGE_ID = "anonymous";
-const ACCOUNT_AUTH_MESSAGE_TYPE = "pi-codex-auth-complete";
+const ACCOUNT_AUTH_MESSAGE_TYPE = "techweek-auth-complete";
 const CHAT_MESSAGE_LIMIT = 24;
 const CHAT_SESSION_LIMIT = 18;
 const MODEL_CONTEXT_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -111,6 +110,7 @@ const HASH_VIEW_ALIASES = {
 const INVITE_QR_IMAGE_URL = "https://api.qrserver.com/v1/create-qr-code/";
 const PENDING_REFERRAL_STORAGE_KEY = "techweek-pending-referral-code";
 const MARKDOWN_RENDERER = createMarkdownRenderer();
+let scheduleLoadPromise = null;
 
 function loadMotionLibrary() {
   if (motionApiLoadPromise) return motionApiLoadPromise;
@@ -227,6 +227,7 @@ const VIEW_TITLES = {
   invites: "Invites",
 };
 const devAgent = createDevAgentState();
+const devAgentEnabled = Boolean(devAgent.config.ready);
 const motionButtonsAnimated = new WeakSet();
 const motionCardsAnimated = new WeakSet();
 
@@ -318,19 +319,23 @@ chatCloseButton.addEventListener("click", closeChat);
 chatNewButton.addEventListener("click", startNewChat);
 chatHistoryToggle.addEventListener("click", toggleChatHistory);
 chatBackdrop.addEventListener("click", closeChat);
-devChatOpenButton.hidden = false;
-devChatOpenButton.addEventListener("click", openDevChat);
-devChatCloseButton.addEventListener("click", closeDevChat);
-devChatNewButton.addEventListener("click", startNewDevThread);
-devChatBackButton.addEventListener("click", showDevInbox);
-devChatBackdrop.addEventListener("click", closeDevChat);
-devChatForm.addEventListener("submit", handleDevChatSubmit);
-devChatForm.elements.prompt.addEventListener("input", updateDevComposerState);
-devChatForm.elements.prompt.addEventListener("keydown", handleDevChatKeydown);
-devDeployCheckbox.addEventListener("change", () => {
-  devAgent.deploy = devDeployCheckbox.checked;
-  updateDevComposerState();
-});
+if (devAgentEnabled) {
+  devChatOpenButton.hidden = false;
+  devChatOpenButton.addEventListener("click", openDevChat);
+  devChatCloseButton.addEventListener("click", closeDevChat);
+  devChatNewButton.addEventListener("click", startNewDevThread);
+  devChatBackButton.addEventListener("click", showDevInbox);
+  devChatBackdrop.addEventListener("click", closeDevChat);
+  devChatForm.addEventListener("submit", handleDevChatSubmit);
+  devChatForm.elements.prompt.addEventListener("input", updateDevComposerState);
+  devChatForm.elements.prompt.addEventListener("keydown", handleDevChatKeydown);
+  devDeployCheckbox.addEventListener("change", () => {
+    devAgent.deploy = devDeployCheckbox.checked;
+    updateDevComposerState();
+  });
+} else if (devChatOpenButton) {
+  devChatOpenButton.hidden = true;
+}
 accountButton.addEventListener("click", handleAccountButton);
 inviteCopyCodeButton?.addEventListener("click", () => {
   if (state.invitePayload?.code) {
@@ -448,6 +453,7 @@ async function loadAccountSession() {
   state.accountLoading = true;
   state.accountError = "";
   renderAccountButton();
+  const wasAuthenticated = state.accountSession?.authenticated === true;
   try {
     const response = await fetch("/api/account/session", {
       cache: "no-store",
@@ -459,6 +465,9 @@ async function loadAccountSession() {
     }
     applyAccountSession(body.session || null);
     if (body?.session?.authenticated) {
+      if (!wasAuthenticated || !state.payload) {
+        await loadScheduleAfterAuthentication();
+      }
       await loadInviteDataForAuthenticatedSession();
     } else {
       state.invitePayload = null;
@@ -479,10 +488,11 @@ async function loadAccountSession() {
 
 function pendingReferralCode() {
   try {
-    return String(localStorage.getItem(PENDING_REFERRAL_STORAGE_KEY) || "").trim().toUpperCase().replace(
-      /[^A-Z0-9]/g,
-      "",
-    );
+    return String(localStorage.getItem(PENDING_REFERRAL_STORAGE_KEY) || "").trim().toUpperCase()
+      .replace(
+        /[^A-Z0-9]/g,
+        "",
+      );
   } catch {
     return "";
   }
@@ -599,26 +609,67 @@ function normalizeAccountSession(session) {
 function handleAccountButton() {
   if (state.accountLoading) return;
   if (state.accountSession?.authenticated) {
-    void loadAccountSession();
+    void signOutAccount();
     return;
   }
-  openAccountAuth("login");
+  openAccountAuth(state.accountSession?.setupRequired ? "register" : "login");
 }
 
 function renderAccountButton() {
   const authenticated = state.accountSession?.authenticated === true;
+  const setupRequired = state.accountSession?.setupRequired === true;
   const handle = state.accountSession?.user?.handle || "Account";
   accountButton.dataset.authState = state.accountLoading
     ? "loading"
     : authenticated
     ? "authenticated"
+    : setupRequired
+    ? "setup"
     : "unauthenticated";
   accountButton.disabled = state.accountLoading;
+  accountButton.title = authenticated ? `Signed in as ${handle}. Click to sign out.` : "";
   accountButton.setAttribute(
     "aria-label",
-    authenticated ? `Signed in as ${handle}` : "Sign in with passkey",
+    authenticated
+      ? `Signed in as ${handle}. Sign out.`
+      : setupRequired
+      ? "Create the first passkey"
+      : "Sign in with passkey",
   );
-  accountLabel.textContent = state.accountLoading ? "Checking" : authenticated ? handle : "Sign in";
+  accountLabel.textContent = state.accountLoading
+    ? "Checking"
+    : authenticated
+    ? "Sign out"
+    : setupRequired
+    ? "Set up"
+    : "Sign in";
+}
+
+async function signOutAccount() {
+  state.accountLoading = true;
+  state.accountError = "";
+  renderAccountButton();
+  try {
+    const response = await fetch("/api/auth/logout", {
+      method: "POST",
+      cache: "no-store",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body?.error?.message || "Could not sign out.");
+    }
+    state.invitePayload = null;
+    applyAccountSession({ authenticated: false, auth: "passkey" });
+    renderInvite();
+  } catch (error) {
+    state.accountError = error instanceof Error ? error.message : "Could not sign out.";
+    await loadAccountSession();
+  } finally {
+    state.accountLoading = false;
+    renderAccountButton();
+  }
 }
 
 function openAccountAuth(mode) {
@@ -653,16 +704,9 @@ function openAccountAuth(mode) {
 }
 
 function handleAccountAuthMessage(event) {
-  if (event.origin !== new URL(ACCOUNT_AUTH_BASE).origin) return;
+  if (event.origin !== globalThis.location.origin) return;
   if (event.data?.type !== ACCOUNT_AUTH_MESSAGE_TYPE) return;
   clearAccountAuthPopupWatcher();
-  const handoffToken = typeof event.data?.handoffToken === "string"
-    ? event.data.handoffToken.trim()
-    : "";
-  if (handoffToken) {
-    void completeAccountAuthHandoff(handoffToken);
-    return;
-  }
   void loadAccountSession();
 }
 
@@ -672,43 +716,8 @@ function clearAccountAuthPopupWatcher() {
   state.accountAuthPopupTimer = 0;
 }
 
-async function completeAccountAuthHandoff(handoffToken) {
-  state.accountLoading = true;
-  state.accountError = "";
-  renderAccountButton();
-  try {
-    const referralCode = pendingReferralCode();
-    const handoffPayload = { handoffToken };
-    if (referralCode) handoffPayload.referralCode = referralCode;
-    const response = await fetch("/api/account/session/handoff", {
-      method: "POST",
-      cache: "no-store",
-      credentials: "include",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(handoffPayload),
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(body?.error?.message || "Could not complete account sign-in.");
-    }
-    applyAccountSession(body.session || null);
-    await loadInviteDataForAuthenticatedSession();
-  } catch (error) {
-    state.accountError = error instanceof Error
-      ? error.message
-      : "Could not complete account sign-in.";
-    await loadAccountSession();
-  } finally {
-    state.accountLoading = false;
-    renderAccountButton();
-  }
-}
-
 function accountAuthUrl(path) {
-  return devBaseUrl(ACCOUNT_AUTH_BASE, path);
+  return new URL(path, globalThis.location.origin);
 }
 
 function setView(view, options = {}) {
@@ -844,7 +853,7 @@ async function handleDevChatSubmit(event) {
     }
   } catch (error) {
     if (isAuthStatus(error)) {
-      markDevUnauthenticated("Your Pi agent session expired. Sign in again.");
+      markDevUnauthenticated("Your development agent session expired. Sign in again.");
       renderDevAgent();
     } else {
       devAgent.composerError = devFriendlyError(error, "Could not send prompt.");
@@ -897,8 +906,8 @@ function createDevAgentState() {
 
 function readDevAgentConfig() {
   const dataset = devChatDrawer?.dataset || {};
-  const apiBase = normalizeApiBase(dataset.agentApi || "/__pi-agent");
-  const authBase = normalizeApiBase(dataset.agentAuth || "https://agent.pavlovcik.com");
+  const apiBase = normalizeApiBase(dataset.agentApi || "");
+  const authBase = normalizeApiBase(dataset.agentAuth || "");
   const repo = String(dataset.repo || "").trim();
   const repoId = String(dataset.repoId || "").trim();
   const repoLabel = String(dataset.repoLabel || repoName(repo) || repoId || "Development repo")
@@ -918,7 +927,7 @@ async function bootstrapDevAgent(options = {}) {
   if (!devAgent.config.ready) {
     devAgent.bootstrapped = true;
     devAgent.authState = "config_error";
-    devAgent.error = "Missing Pi API origin or repository configuration.";
+    devAgent.error = "Missing development API origin or repository configuration.";
     renderDevAgent();
     return;
   }
@@ -943,12 +952,12 @@ async function bootstrapDevAgent(options = {}) {
     }
   } catch (error) {
     if (isAuthStatus(error)) {
-      markDevUnauthenticated("Your Pi agent session expired. Sign in again.");
+      markDevUnauthenticated("Your development agent session expired. Sign in again.");
       return;
     }
     devAgent.bootstrapped = true;
     devAgent.authState = "error";
-    devAgent.error = devFriendlyError(error, "Could not reach the Pi agent API.");
+    devAgent.error = devFriendlyError(error, "Could not reach the development agent API.");
     if (scheduleDevSessionRetry()) {
       devAgent.error = `${devAgent.error} Retrying automatically.`;
     }
@@ -1008,7 +1017,7 @@ function markDevUnauthenticated(message) {
   devAgent.currentThreadId = "";
   devAgent.error = "";
   devAgent.composerError = "";
-  devAgent.authStatus = message || "Sign in on the Pi origin to continue.";
+  devAgent.authStatus = message || "Sign in on the development origin to continue.";
   localStorage.removeItem(DEV_AGENT_SELECTED_THREAD_KEY);
 }
 
@@ -1035,7 +1044,7 @@ async function loadDevThreads(options = {}) {
       : [];
   } catch (error) {
     if (isAuthStatus(error)) {
-      markDevUnauthenticated("Your Pi agent session expired. Sign in again.");
+      markDevUnauthenticated("Your development agent session expired. Sign in again.");
     } else {
       devAgent.error = devFriendlyError(error, "Could not load development threads.");
     }
@@ -1092,7 +1101,7 @@ async function openDevThread(threadId, options = {}) {
     startDevThreadStream(id);
   } catch (error) {
     if (isAuthStatus(error)) {
-      markDevUnauthenticated("Your Pi agent session expired. Sign in again.");
+      markDevUnauthenticated("Your development agent session expired. Sign in again.");
     } else {
       devAgent.error = devFriendlyError(error, "Could not load development thread.");
     }
@@ -1202,14 +1211,14 @@ function renderDevInbox() {
   }
   if (devAgent.loadingSession || !devAgent.bootstrapped) {
     devChatLog.dataset.empty = "true";
-    devChatLog.append(devEmptyState("Checking Pi agent session."));
+    devChatLog.append(devEmptyState("Checking development agent session."));
     return;
   }
   if (devAgent.authState === "not_configured") {
     devChatLog.dataset.empty = "true";
     devChatLog.append(devNotice(
-      "Pi agent auth is not configured.",
-      "Finish the Pi daemon auth setup before sending development prompts.",
+      "development agent auth is not configured.",
+      "Finish the development agent auth setup before sending development prompts.",
       () => bootstrapDevAgent(),
     ));
     return;
@@ -1222,7 +1231,7 @@ function renderDevInbox() {
   if (devAgent.authState === "error") {
     devChatLog.dataset.empty = "true";
     devChatLog.append(
-      devNotice("Pi agent unavailable.", devAgent.error, () => bootstrapDevAgent()),
+      devNotice("development agent unavailable.", devAgent.error, () => bootstrapDevAgent()),
     );
     return;
   }
@@ -1403,7 +1412,7 @@ function devNotice(title, message, retry) {
 function devAuthNotice() {
   const wrapper = devNotice(
     "Sign in required.",
-    devAgent.authStatus || "Use the Pi agent passkey flow to continue.",
+    devAgent.authStatus || "Use the development agent passkey flow to continue.",
     null,
   );
   const button = document.createElement("button");
@@ -1565,7 +1574,7 @@ function devBaseUrl(base, path) {
 }
 
 function devFriendlyError(error, fallback) {
-  if (isAuthStatus(error)) return "Sign in on the Pi origin to continue.";
+  if (isAuthStatus(error)) return "Sign in on the development origin to continue.";
   return error?.message || fallback;
 }
 
@@ -1587,11 +1596,11 @@ function openDevAuth(mode) {
   url.searchParams.set("mode", mode);
   url.searchParams.set("embedOrigin", globalThis.location.origin);
   url.searchParams.set("returnUrl", globalThis.location.href);
-  devAgent.authStatus = "Waiting for passkey sign-in in the Pi window.";
+  devAgent.authStatus = "Waiting for passkey sign-in in the development window.";
   renderDevAgent();
-  const popup = globalThis.open(url.toString(), "pi-codex-auth", "popup,width=460,height=720");
+  const popup = globalThis.open(url.toString(), "techweek-dev-auth", "popup,width=460,height=720");
   if (!popup) {
-    devAgent.authStatus = "Opening the Pi passkey page in this tab.";
+    devAgent.authStatus = "Opening the development passkey page in this tab.";
     renderDevAgent();
     globalThis.location.href = url.toString();
     return;
@@ -1606,7 +1615,7 @@ function openDevAuth(mode) {
     }
     if (Date.now() - openedAt > DEV_AUTH_POPUP_TIMEOUT_MS) {
       clearDevAuthPopupWatcher();
-      devAgent.authStatus = "The Pi sign-in window is still open.";
+      devAgent.authStatus = "The development sign-in window is still open.";
       renderDevAgent();
     }
   }, DEV_AUTH_POPUP_POLL_MS);
@@ -1615,7 +1624,7 @@ function openDevAuth(mode) {
 function handleDevAuthMessage(event) {
   if (!devAgent?.config?.authBase) return;
   if (event.origin !== new URL(devAgent.config.authBase).origin) return;
-  if (event.data?.type !== "pi-codex-auth-complete") return;
+  if (event.data?.type !== "techweek-dev-auth-complete") return;
   clearDevAuthPopupWatcher();
   void refreshDevAuthAfterWindow();
 }
@@ -1627,13 +1636,13 @@ function clearDevAuthPopupWatcher() {
 }
 
 async function refreshDevAuthAfterWindow() {
-  devAgent.authStatus = "Checking Pi agent session after passkey sign-in.";
+  devAgent.authStatus = "Checking development agent session after passkey sign-in.";
   renderDevAgent();
   await bootstrapDevAgent();
   if (devAgent.authState === "authenticated") return;
   if (devAgent.authState === "unauthenticated") {
     devAgent.authStatus =
-      "The Pi sign-in window closed, but the shared app session is still missing. Sign in again to refresh it.";
+      "The development sign-in window closed, but the shared app session is still missing. Sign in again to refresh it.";
     renderDevAgent();
   }
 }
@@ -1786,7 +1795,7 @@ function toggleChatHistory() {
 }
 
 async function loadSchedule() {
-  const response = await fetch("/api/schedule", { cache: "no-store" });
+  const response = await fetch("/api/schedule", { cache: "no-store", credentials: "include" });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(payload?.error?.message || "Could not load schedule.");
@@ -1803,6 +1812,36 @@ async function loadSchedule() {
   render();
   surfacePartifulAutoSyncStatus();
   writeHashNavigation({ replace: true });
+}
+
+async function loadScheduleForApp(options = {}) {
+  if (scheduleLoadPromise) return await scheduleLoadPromise;
+  if (options.showLoading) {
+    document.querySelector("[data-next-title]").textContent = "Loading events...";
+    setAgendaStatus("Loading events...");
+  }
+  scheduleLoadPromise = loadSchedule().then(() => {
+    if (options.scheduleAutoSync) scheduleServerPartifulAutoSync();
+  }).catch((error) => {
+    const message = error instanceof Error ? error.message : "Could not load schedule.";
+    document.querySelector("[data-next-title]").textContent = message;
+    setAgendaStatus(message);
+    throw error;
+  }).finally(() => {
+    scheduleLoadPromise = null;
+  });
+  return await scheduleLoadPromise;
+}
+
+async function loadScheduleAfterAuthentication() {
+  if (state.accountSession?.authenticated !== true) return;
+  try {
+    await loadScheduleForApp({ showLoading: !state.payload, scheduleAutoSync: true });
+  } catch {
+    if (state.accountSession?.authenticated === true) {
+      await loadScheduleForApp({ showLoading: true, scheduleAutoSync: true }).catch(() => {});
+    }
+  }
 }
 
 async function recalculateAgenda() {
@@ -1996,6 +2035,7 @@ function setAgendaStatus(message) {
 }
 
 function scheduleServerPartifulAutoSync(delayMs = PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS) {
+  if (state.accountSession?.authenticated !== true) return;
   if (state.partifulAutoSyncRequestTimer) {
     globalThis.clearTimeout(state.partifulAutoSyncRequestTimer);
   }
@@ -2006,6 +2046,7 @@ function scheduleServerPartifulAutoSync(delayMs = PARTIFUL_AUTO_SYNC_OPEN_DELAY_
 }
 
 async function requestServerPartifulAutoSync() {
+  if (state.accountSession?.authenticated !== true) return;
   if (state.partifulAutoSyncRequestBusy || document.hidden) return;
   state.partifulAutoSyncRequestBusy = true;
   try {
@@ -2087,10 +2128,15 @@ function renderInvite() {
   if (!inviteStatus) return;
   if (!state.invitePayload) {
     const isSignedIn = state.accountSession?.authenticated === true;
+    const setupRequired = state.accountSession?.setupRequired === true;
     inviteStatus.textContent = state.inviteLoading
       ? "Loading invite data..."
+      : state.accountError
+      ? state.accountError
       : isSignedIn
       ? "Invite data is not available yet."
+      : setupRequired
+      ? "Create the first passkey before sharing invites."
       : "Sign in to create and share your invite.";
     inviteCode.textContent = "—";
     inviteCopyCodeButton?.setAttribute("disabled", "true");
@@ -2106,14 +2152,18 @@ function renderInvite() {
 
   const payload = state.invitePayload;
   const referrals = Array.isArray(payload.referrals) ? payload.referrals : [];
-  inviteStatus.textContent = `Share URL: ${payload.createdAt ? `created ${payload.createdAt}` : "updated"}`.trim();
+  inviteStatus.textContent = `Share URL: ${
+    payload.createdAt ? `created ${payload.createdAt}` : "updated"
+  }`.trim();
   inviteCode.textContent = payload.code || "—";
   inviteShareLink.textContent = payload.shareUrl || "";
   inviteShareLink.href = payload.shareUrl || "#";
   inviteCopyCodeButton?.removeAttribute("disabled");
   inviteCopyLinkButton?.removeAttribute("disabled");
   if (payload.shareUrl) {
-    inviteQrImage.src = `${INVITE_QR_IMAGE_URL}?size=220x220&data=${encodeURIComponent(payload.shareUrl)}`;
+    inviteQrImage.src = `${INVITE_QR_IMAGE_URL}?size=220x220&data=${
+      encodeURIComponent(payload.shareUrl)
+    }`;
     inviteQrImage.hidden = false;
   } else {
     inviteQrImage.hidden = true;
@@ -4961,11 +5011,7 @@ function setBusy(busy) {
   updateComposerState();
 }
 
-loadSchedule().catch((error) => {
-  document.querySelector("[data-next-title]").textContent = error.message;
-}).finally(() => {
-  scheduleServerPartifulAutoSync();
-});
+loadScheduleForApp({ scheduleAutoSync: true }).catch(() => {});
 globalThis.setInterval(refreshAutomaticLeadEvent, LEAD_EVENT_REFRESH_MS);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) refreshAutomaticLeadEvent();

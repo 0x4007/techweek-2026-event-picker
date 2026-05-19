@@ -9,8 +9,7 @@ import {
   router,
   type ScheduleEntry,
   sendResendTestEmail,
-  setPiAgentSessionFetchForTest,
-  setPiAgentSessionHandoffFetchForTest,
+  setAccountSessionForTest,
   statusLabelForScheduleStatus,
   visibleAgentGatewayError,
 } from "./server.ts";
@@ -25,52 +24,45 @@ function assertEquals(actual: unknown, expected: unknown) {
 
 const ADMIN_STATE_HEADERS = {
   "content-type": "application/json",
-  cookie: "pi_codex_session=test-session",
+  cookie: "techweek_session=test-session",
 };
 
-function useAdminSessionFetchForTest() {
-  setPiAgentSessionFetchForTest((_request, cookieHeader) => {
-    if (!cookieHeader.includes("pi_codex_session=test-session")) {
-      throw new Error(`Expected admin session cookie, got ${cookieHeader}`);
-    }
-    return Promise.resolve(jsonResponse({
-      authenticated: true,
-      auth: "passkey",
-      user: {
-        id: "admin_123",
-        handle: "admin",
-        isAdmin: true,
-        credentialCount: 1,
-      },
-    }));
+function useAdminSessionForTest() {
+  setAccountSessionForTest({
+    authenticated: true,
+    auth: "passkey",
+    user: {
+      id: "admin_123",
+      handle: "admin",
+      isAdmin: true,
+      credentialCount: 1,
+    },
+    expiresAt: "2026-06-01T12:00:00.000Z",
   });
 }
 
-function useAccountSessionFetchForTest(user: {
-  id: string;
-  handle: string;
-  isAdmin?: boolean;
-  credentialCount?: number;
-} | null) {
+function useAccountSessionForTest(
+  user: {
+    id: string;
+    handle: string;
+    isAdmin?: boolean;
+    credentialCount?: number;
+  } | null,
+) {
   if (!user) {
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
     return;
   }
-  setPiAgentSessionFetchForTest((_request, cookieHeader) => {
-    if (!cookieHeader.includes("pi_codex_session=")) {
-      throw new Error(`Expected Pi session cookie, got ${cookieHeader}`);
-    }
-    return Promise.resolve(jsonResponse({
-      authenticated: true,
-      auth: "passkey",
-      user: {
-        id: user.id,
-        handle: user.handle,
-        isAdmin: Boolean(user.isAdmin),
-        credentialCount: user.credentialCount || 1,
-      },
-      expiresAt: "2026-06-01T12:00:00.000Z",
-    }));
+  setAccountSessionForTest({
+    authenticated: true,
+    auth: "passkey",
+    user: {
+      id: user.id,
+      handle: user.handle,
+      isAdmin: Boolean(user.isAdmin),
+      credentialCount: user.credentialCount || 1,
+    },
+    expiresAt: "2026-06-01T12:00:00.000Z",
   });
 }
 
@@ -230,7 +222,7 @@ Deno.test("visibleAgentGatewayError renders upstream debug details instead of lo
 });
 
 Deno.test("Partiful sync endpoint ingests browser response snapshots and exposes readback", async () => {
-  useAdminSessionFetchForTest();
+  useAdminSessionForTest();
   const response = await router(
     new Request("http://localhost/api/sync/partiful", {
       method: "POST",
@@ -283,19 +275,19 @@ Deno.test("Partiful sync endpoint ingests browser response snapshots and exposes
   );
   assertEquals(getPath(openSource, ["normalizedEvent", "status"]), "registered");
   assertEquals(getPath(openSource, ["normalizedEvent", "rawStatus"]), "APPROVED");
-  setPiAgentSessionFetchForTest(null);
+  setAccountSessionForTest(undefined);
 });
 
 Deno.test("Partiful sync POST endpoints reject unauthenticated requests", async () => {
-  setPiAgentSessionFetchForTest(() =>
-    Promise.reject(new Error("Pi session endpoint should not be called without a cookie."))
-  );
+  setAccountSessionForTest(null);
   try {
-    for (const path of [
-      "/api/sync/partiful",
-      "/api/sync/partiful/auto",
-      "/api/sync/partiful/headless",
-    ]) {
+    for (
+      const path of [
+        "/api/sync/partiful",
+        "/api/sync/partiful/auto",
+        "/api/sync/partiful/headless",
+      ]
+    ) {
       const response = await router(
         new Request(`http://localhost${path}`, {
           method: "POST",
@@ -308,14 +300,12 @@ Deno.test("Partiful sync POST endpoints reject unauthenticated requests", async 
       assertEquals(getPath(body, ["error", "message"]), "Authentication required.");
     }
   } finally {
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
   }
 });
 
 Deno.test("sensitive API routes reject unauthenticated requests at the router", async () => {
-  setPiAgentSessionFetchForTest(() =>
-    Promise.reject(new Error("Pi session endpoint should not be called without a cookie."))
-  );
+  setAccountSessionForTest(null);
   try {
     const requests = [
       new Request("http://localhost/api/schedule"),
@@ -339,12 +329,12 @@ Deno.test("sensitive API routes reject unauthenticated requests at the router", 
       assertEquals(getPath(body, ["error", "message"]), "Authentication required.");
     }
   } finally {
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
   }
 });
 
 Deno.test("Google Calendar write sync endpoint is removed", async () => {
-  useAdminSessionFetchForTest();
+  useAdminSessionForTest();
   try {
     const response = await router(
       new Request("http://localhost/api/sync/google", {
@@ -354,46 +344,64 @@ Deno.test("Google Calendar write sync endpoint is removed", async () => {
     );
     assertEquals(response.status, 404);
   } finally {
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
   }
 });
 
-Deno.test("account session reports unauthenticated without a Pi session cookie", async () => {
-  setPiAgentSessionFetchForTest(() =>
-    Promise.reject(new Error("Pi session endpoint should not be called without a cookie."))
-  );
+Deno.test("account session reports setup state without a local session cookie", async () => {
   try {
     const response = await router(new Request("http://localhost/api/account/session"));
     assertEquals(response.status, 200);
     const body = await response.json() as Record<string, unknown>;
     assertEquals(getPath(body, ["session", "authenticated"]), false);
-    assertEquals(getPath(body, ["session", "auth"]), "passkey");
+    assertEquals(getPath(body, ["session", "auth"]), "setup_required");
+    assertEquals(getPath(body, ["session", "setupRequired"]), true);
   } finally {
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
   }
 });
 
-Deno.test("account session proxies authenticated Pi passkey identity", async () => {
-  setPiAgentSessionFetchForTest((_request, cookieHeader) => {
-    if (!cookieHeader.includes("pi_codex_session=test-session")) {
-      return Promise.reject(new Error(`Expected forwarded Pi cookie, got ${cookieHeader}`));
-    }
-    return Promise.resolve(jsonResponse({
-      authenticated: true,
-      auth: "passkey",
-      user: {
-        id: "user_123",
-        handle: "nik",
-        isAdmin: true,
-        credentialCount: 2,
-      },
-      expiresAt: "2026-06-01T12:00:00.000Z",
-    }));
+Deno.test("auth registration start returns a standalone WebAuthn user id", async () => {
+  setAccountSessionForTest(undefined);
+  const response = await router(
+    new Request("http://localhost/api/auth/register/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        handle: "Nik Pavlovcik",
+        client_origin: "http://localhost",
+      }),
+    }),
+  );
+  assertEquals(response.status, 200);
+  const body = await response.json() as Record<string, unknown>;
+  assertEquals(getPath(body, ["handle"]), "nik-pavlovcik");
+  assertEquals(getPath(body, ["admin"]), true);
+  const webAuthnUserId = decodeBase64urlText(String(getPath(body, ["publicKey", "user", "id"])));
+  if (!webAuthnUserId.startsWith("user_")) {
+    throw new Error(`Expected generated internal WebAuthn user id, got ${webAuthnUserId}`);
+  }
+  if (webAuthnUserId.includes("nik")) {
+    throw new Error(`Expected WebAuthn user id not to expose handle, got ${webAuthnUserId}`);
+  }
+});
+
+Deno.test("account session returns authenticated local passkey identity", async () => {
+  setAccountSessionForTest({
+    authenticated: true,
+    auth: "passkey",
+    user: {
+      id: "user_123",
+      handle: "nik",
+      isAdmin: true,
+      credentialCount: 2,
+    },
+    expiresAt: "2026-06-01T12:00:00.000Z",
   });
   try {
     const response = await router(
       new Request("http://localhost/api/account/session", {
-        headers: { cookie: "other=value; pi_codex_session=test-session" },
+        headers: { cookie: "other=value; techweek_session=test-session" },
       }),
     );
     assertEquals(response.status, 200);
@@ -403,127 +411,12 @@ Deno.test("account session proxies authenticated Pi passkey identity", async () 
     assertEquals(getPath(body, ["session", "user", "handle"]), "nik");
     assertEquals(getPath(body, ["session", "user", "isAdmin"]), true);
   } finally {
-    setPiAgentSessionFetchForTest(null);
-  }
-});
-
-Deno.test("account handoff sets a local Pi session cookie", async () => {
-  setPiAgentSessionHandoffFetchForTest((_request, handoffToken, targetOrigin) => {
-    assertEquals(handoffToken, "handoff_123");
-    assertEquals(targetOrigin, "http://localhost");
-    return Promise.resolve(jsonResponse({
-      sessionToken: "test-session",
-      session: {
-        authenticated: true,
-        auth: "passkey",
-        user: {
-          id: "user_123",
-          handle: "nik",
-          isAdmin: false,
-          credentialCount: 1,
-        },
-        expiresAt: "2026-06-01T12:00:00.000Z",
-      },
-    }));
-  });
-  try {
-    const response = await router(
-      new Request("http://localhost/api/account/session/handoff", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ handoffToken: "handoff_123" }),
-      }),
-    );
-    assertEquals(response.status, 200);
-    const body = await response.json() as Record<string, unknown>;
-    assertEquals(getPath(body, ["session", "authenticated"]), true);
-    assertEquals(getPath(body, ["session", "user", "id"]), "user_123");
-    const cookie = response.headers.get("set-cookie") ?? "";
-    if (!cookie.includes("pi_codex_session=test-session") || !cookie.includes("HttpOnly")) {
-      throw new Error(`Expected local session cookie, got ${cookie}`);
-    }
-  } finally {
-    setPiAgentSessionHandoffFetchForTest(null);
-  }
-});
-
-Deno.test("account handoff claims pending referral code", async () => {
-  useAccountSessionFetchForTest({ id: "invite_owner_ref", handle: "owner_ref", isAdmin: true });
-  let ownerCode = "";
-  try {
-    const ownerInvite = await router(
-      new Request("http://localhost/api/account/invite", {
-        headers: { cookie: "pi_codex_session=owner-invite" },
-      }),
-    );
-    assertEquals(ownerInvite.status, 200);
-    const ownerInviteBody = await ownerInvite.json() as Record<string, unknown>;
-    ownerCode = String(getPath(ownerInviteBody, ["invite", "code"]) || "");
-    assertEquals(ownerCode.length > 0, true);
-  } finally {
-    setPiAgentSessionFetchForTest(null);
-  }
-
-  let handoffCalled = false;
-  setPiAgentSessionHandoffFetchForTest((_request, handoffToken, targetOrigin) => {
-    handoffCalled = true;
-    assertEquals(handoffToken, "handoff-referral");
-    assertEquals(targetOrigin, "http://localhost");
-    return Promise.resolve(jsonResponse({
-      sessionToken: "handoff-ref-session",
-      session: {
-        authenticated: true,
-        auth: "passkey",
-        user: {
-          id: "invite_new_user",
-          handle: "new_user",
-          isAdmin: false,
-          credentialCount: 1,
-        },
-        expiresAt: "2026-06-01T12:00:00.000Z",
-      },
-    }));
-  });
-
-  try {
-    const handoff = await router(
-      new Request("http://localhost/api/account/session/handoff", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ handoffToken: "handoff-referral", referralCode: ownerCode }),
-      }),
-    );
-    assertEquals(handoff.status, 200);
-    assertEquals(handoffCalled, true);
-  } finally {
-    setPiAgentSessionHandoffFetchForTest(null);
-    setPiAgentSessionFetchForTest(null);
-  }
-
-  useAccountSessionFetchForTest({ id: "invite_owner_ref", handle: "owner_ref", isAdmin: true });
-  try {
-    const ownerAfter = await router(
-      new Request("http://localhost/api/account/invite", {
-        headers: { cookie: "pi_codex_session=owner-invite" },
-      }),
-    );
-    assertEquals(ownerAfter.status, 200);
-    const ownerAfterBody = await ownerAfter.json() as Record<string, unknown>;
-    const referrals = Array.isArray(getPath(ownerAfterBody, ["invite", "referrals"]))
-      ? getPath(ownerAfterBody, ["invite", "referrals"]) as unknown[]
-      : [];
-    assertEquals(referrals.some((entry) =>
-      getPath(entry as Record<string, unknown>, ["userId"]) === "invite_new_user"
-    ), true);
-  } finally {
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
   }
 });
 
 Deno.test("account invite GET/POST reject unauthenticated requests", async () => {
-  setPiAgentSessionFetchForTest(() =>
-    Promise.reject(new Error("Pi session endpoint should not be called without a cookie."))
-  );
+  setAccountSessionForTest(null);
   try {
     const getResponse = await router(
       new Request("http://localhost/api/account/invite"),
@@ -543,16 +436,16 @@ Deno.test("account invite GET/POST reject unauthenticated requests", async () =>
     const postBody = await postResponse.json() as Record<string, unknown>;
     assertEquals(getPath(postBody, ["error", "message"]), "Authentication required.");
   } finally {
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
   }
 });
 
 Deno.test("account invite GET returns stable code and payload for the same authenticated user", async () => {
-  useAccountSessionFetchForTest({ id: "invite_user_a", handle: "alice", isAdmin: true });
+  useAccountSessionForTest({ id: "invite_user_a", handle: "alice", isAdmin: true });
   try {
     const first = await router(
       new Request("http://localhost/api/account/invite", {
-        headers: { cookie: "pi_codex_session=invite-session" },
+        headers: { cookie: "techweek_session=invite-session" },
       }),
     );
     assertEquals(first.status, 200);
@@ -568,7 +461,7 @@ Deno.test("account invite GET returns stable code and payload for the same authe
 
     const second = await router(
       new Request("http://localhost/api/account/invite", {
-        headers: { cookie: "pi_codex_session=invite-session" },
+        headers: { cookie: "techweek_session=invite-session" },
       }),
     );
     assertEquals(second.status, 200);
@@ -577,7 +470,7 @@ Deno.test("account invite GET returns stable code and payload for the same authe
     const secondCode = String(secondInvite?.code || "");
     assertEquals(secondCode, firstCode);
   } finally {
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
   }
 });
 
@@ -585,11 +478,11 @@ Deno.test("account invite claim records referral, ignores self-referral", async 
   const testSuffix = crypto.randomUUID();
   const ownerId = `invite_owner_${testSuffix}`;
   const friendId = `invite_friend_${testSuffix}`;
-  useAccountSessionFetchForTest({ id: ownerId, handle: "owner" });
+  useAccountSessionForTest({ id: ownerId, handle: "owner" });
   try {
     const ownerInviteResponse = await router(
       new Request("http://localhost/api/account/invite", {
-        headers: { cookie: "pi_codex_session=invite-session-owner" },
+        headers: { cookie: "techweek_session=invite-session-owner" },
       }),
     );
     assertEquals(ownerInviteResponse.status, 200);
@@ -597,13 +490,13 @@ Deno.test("account invite claim records referral, ignores self-referral", async 
     const ownerInviteCode = String(getPath(ownerInviteBody, ["invite", "code"]) || "");
     assertEquals(ownerInviteCode.length > 0, true);
 
-    useAccountSessionFetchForTest({ id: friendId, handle: "friend" });
+    useAccountSessionForTest({ id: friendId, handle: "friend" });
     const claimResponse = await router(
       new Request("http://localhost/api/account/invite", {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          cookie: "pi_codex_session=invite-session-friend",
+          cookie: "techweek_session=invite-session-friend",
         },
         body: JSON.stringify({ referralCode: ownerInviteCode }),
       }),
@@ -617,13 +510,13 @@ Deno.test("account invite claim records referral, ignores self-referral", async 
     assertEquals(claimedReferrals.length, 0);
     assertEquals(claimBody?.claimed, true);
 
-    useAccountSessionFetchForTest({ id: ownerId, handle: "owner" });
+    useAccountSessionForTest({ id: ownerId, handle: "owner" });
     const selfResponse = await router(
       new Request("http://localhost/api/account/invite", {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          cookie: "pi_codex_session=invite-session-owner",
+          cookie: "techweek_session=invite-session-owner",
         },
         body: JSON.stringify({ referralCode: ownerInviteCode }),
       }),
@@ -634,23 +527,25 @@ Deno.test("account invite claim records referral, ignores self-referral", async 
 
     const ownerReload = await router(
       new Request("http://localhost/api/account/invite", {
-        headers: { cookie: "pi_codex_session=invite-session-owner" },
+        headers: { cookie: "techweek_session=invite-session-owner" },
       }),
     );
     assertEquals(ownerReload.status, 200);
     const ownerReloadBody = await ownerReload.json() as Record<string, unknown>;
-    const ownerReloadInvite = getPath(ownerReloadBody, ["invite"]) as Record<string, unknown> | undefined;
+    const ownerReloadInvite = getPath(ownerReloadBody, ["invite"]) as
+      | Record<string, unknown>
+      | undefined;
     const ownerReferrals = Array.isArray(ownerReloadInvite?.referrals)
       ? ownerReloadInvite.referrals as unknown[]
       : [];
     assertEquals(ownerReferrals.length, 1);
   } finally {
-    useAccountSessionFetchForTest(null);
+    useAccountSessionForTest(null);
   }
 });
 
 Deno.test("agenda recalculation rejects unauthenticated activation without changing active agenda", async () => {
-  useAdminSessionFetchForTest();
+  useAdminSessionForTest();
   try {
     const before = await router(
       new Request("http://localhost/api/schedule", {
@@ -693,14 +588,12 @@ Deno.test("agenda recalculation rejects unauthenticated activation without chang
     const afterBody = await after.json() as Record<string, unknown>;
     assertEquals(getPath(afterBody, ["state", "activeAgendaRunId"]), beforeRunId);
   } finally {
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
   }
 });
 
 Deno.test("state lead creation rejects unauthenticated follow-up email mutation", async () => {
-  setPiAgentSessionFetchForTest(() =>
-    Promise.reject(new Error("Pi session endpoint should not be called without a cookie."))
-  );
+  setAccountSessionForTest(null);
   try {
     const response = await router(
       new Request("http://localhost/api/state", {
@@ -723,12 +616,12 @@ Deno.test("state lead creation rejects unauthenticated follow-up email mutation"
       throw new Error("Unauthenticated lead creation should not return a lead.");
     }
   } finally {
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
   }
 });
 
 Deno.test("concurrent lead creation preserves both state updates", async () => {
-  useAdminSessionFetchForTest();
+  useAdminSessionForTest();
   const firstLead = `Concurrent Lead A ${crypto.randomUUID().slice(0, 8)}`;
   const secondLead = `Concurrent Lead B ${crypto.randomUUID().slice(0, 8)}`;
   const createdIds: string[] = [];
@@ -779,7 +672,7 @@ Deno.test("concurrent lead creation preserves both state updates", async () => {
         }),
       );
     }
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
   }
 });
 
@@ -799,7 +692,7 @@ Deno.test({
 });
 
 Deno.test("lead creation persists compact OCR provenance metadata", async () => {
-  useAdminSessionFetchForTest();
+  useAdminSessionForTest();
   const leadName = `OCR Metadata ${crypto.randomUUID().slice(0, 8)}`;
   const create = await router(
     new Request("http://localhost/api/state", {
@@ -888,12 +781,12 @@ Deno.test("lead creation persists compact OCR provenance metadata", async () => 
         }),
       );
     }
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
   }
 });
 
 Deno.test("lead creation ignores invalid OCR metadata payloads", async () => {
-  useAdminSessionFetchForTest();
+  useAdminSessionForTest();
   const leadName = `OCR Metadata Invalid ${crypto.randomUUID().slice(0, 8)}`;
   const create = await router(
     new Request("http://localhost/api/state", {
@@ -953,7 +846,7 @@ Deno.test("lead creation ignores invalid OCR metadata payloads", async () => {
         }),
       );
     }
-    setPiAgentSessionFetchForTest(null);
+    setAccountSessionForTest(undefined);
   }
 });
 
@@ -1009,9 +902,12 @@ function getPath(value: unknown, path: string[]): unknown {
   return current;
 }
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
+function decodeBase64urlText(value: string): string {
+  const padded = value + "=".repeat((4 - (value.length % 4)) % 4);
+  const binary = atob(padded.replaceAll("-", "+").replaceAll("_", "/"));
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new TextDecoder().decode(bytes);
 }

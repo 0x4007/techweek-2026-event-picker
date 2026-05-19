@@ -311,6 +311,11 @@ body > header > section {
   color: var(--accent);
 }
 
+[data-account-button][data-auth-state="setup"] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
 p,
 h1,
 h2,
