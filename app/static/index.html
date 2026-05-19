@@ -104,20 +104,41 @@
           <h1 data-page-title>Agenda</h1>
         </section>
         <nav aria-label="Tech Week views">
-          <button type="button" data-view-button="route" aria-current="page">
+          <button
+            type="button"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-view-button="route"
+            aria-current="page"
+          >
             <svg><use href="#icon-calendar"></use></svg><span>Agenda</span>
           </button>
-          <button type="button" data-view-button="backup">
+          <button
+            type="button"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-view-button="backup"
+          >
             <svg><use href="#icon-layers"></use></svg><span>Events</span>
           </button>
-          <button type="button" data-view-button="invites">
+          <button
+            type="button"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-view-button="invites"
+          >
             <svg><use href="#icon-user-plus"></use></svg><span>Invites</span>
           </button>
-          <button type="button" data-view-button="crm">
+          <button
+            type="button"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-view-button="crm"
+          >
             <svg><use href="#icon-user-plus"></use></svg><span>CRM</span>
           </button>
         </nav>
-        <button type="button" data-account-button>
+        <button type="button" data-motion="button" data-motion-hidden="true" data-account-button>
           <svg><use href="#icon-user-plus"></use></svg><span data-account-label>Sign in</span>
         </button>
       </section>
@@ -162,12 +183,33 @@
             <h3>Invite code</h3>
             <section class="invite-row">
               <strong data-invite-code>...</strong>
-              <button type="button" data-invite-copy-code>Copy</button>
+              <button
+                type="button"
+                data-motion="button"
+                data-motion-hidden="true"
+                data-invite-copy-code
+              >
+                Copy
+              </button>
             </section>
             <p class="invite-label">Share link</p>
             <section class="invite-row">
-              <a data-invite-share-link href="#" target="_blank" rel="noreferrer"></a>
-              <button type="button" data-invite-copy-link>Copy</button>
+              <a
+                data-motion="button"
+                data-motion-hidden="true"
+                data-invite-share-link
+                href="#"
+                target="_blank"
+                rel="noreferrer"
+              ></a>
+              <button
+                type="button"
+                data-motion="button"
+                data-motion-hidden="true"
+                data-invite-copy-link
+              >
+                Copy
+              </button>
             </section>
           </article>
           <article class="invite-qrcode" aria-label="Invite QR code">
@@ -196,7 +238,13 @@
               <select name="calendarBlockId" data-lead-event></select>
             </label>
             <section data-card-scan>
-              <label data-card-scan-button role="button" tabindex="0">
+              <label
+                data-motion="button"
+                data-motion-hidden="true"
+                data-card-scan-button
+                role="button"
+                tabindex="0"
+              >
                 <input type="file" accept="image/*" capture="environment" data-card-input>
                 <svg><use href="#icon-camera"></use></svg><span>Scan card</span>
               </label>
@@ -246,7 +294,7 @@
             </label>
             <p data-lead-error hidden></p>
             <menu>
-              <button type="submit">
+              <button type="submit" data-motion="button" data-motion-hidden="true">
                 <svg><use href="#icon-check"></use></svg><span>Save lead</span>
               </button>
             </menu>
@@ -256,12 +304,20 @@
       </section>
     </main>
 
-    <button type="button" data-chat-fab data-chat-open>
+    <button
+      type="button"
+      data-motion="button"
+      data-motion-hidden="true"
+      data-chat-fab
+      data-chat-open
+    >
       <svg><use href="#icon-message"></use></svg><span>Ask</span>
     </button>
     <button
       type="button"
       aria-label="Open development chat"
+      data-motion="button"
+      data-motion-hidden="true"
       data-dev-chat-fab
       data-chat-fab-side="left"
       data-dev-chat-open
@@ -277,7 +333,14 @@
           <p data-event-type></p>
           <h2 data-event-title></h2>
         </section>
-        <button type="button" aria-label="Close details" data-event-close data-icon-only>
+        <button
+          type="button"
+          aria-label="Close details"
+          data-motion="button"
+          data-motion-hidden="true"
+          data-event-close
+          data-icon-only
+        >
           <svg><use href="#icon-x"></use></svg>
         </button>
       </header>
@@ -303,19 +366,35 @@
           <h2>Executive assistant</h2>
         </section>
         <menu data-agent-tools>
-          <button type="button" aria-label="New chat" data-chat-new data-icon-only>
+          <button
+            type="button"
+            aria-label="New chat"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-chat-new
+            data-icon-only
+          >
             <svg><use href="#icon-plus"></use></svg>
           </button>
           <button
             type="button"
             aria-label="Chat history"
             aria-expanded="false"
+            data-motion="button"
+            data-motion-hidden="true"
             data-chat-history-toggle
             data-icon-only
           >
             <svg><use href="#icon-clock"></use></svg>
           </button>
-          <button type="button" aria-label="Close agent" data-chat-close data-icon-only>
+          <button
+            type="button"
+            aria-label="Close agent"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-chat-close
+            data-icon-only
+          >
             <svg><use href="#icon-x"></use></svg>
           </button>
         </menu>
@@ -324,28 +403,51 @@
       <section data-chat-log aria-live="polite"></section>
       <section data-agent-composer>
         <section aria-label="Quick prompts" data-prompts>
-          <button type="button" data-agenda-recalculate data-variant="primary">
+          <button
+            type="button"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-agenda-recalculate
+            data-variant="primary"
+          >
             <svg><use href="#icon-sparkles"></use></svg><span>Optimize</span>
           </button>
-          <a href="/api/ics/operational">
+          <a href="/api/ics/operational" data-motion="button" data-motion-hidden="true">
             <svg><use href="#icon-download"></use></svg><span>ICS</span>
           </a>
-          <button type="button" data-partiful-sync>
+          <button type="button" data-motion="button" data-motion-hidden="true" data-partiful-sync>
             <svg><use href="#icon-refresh"></use></svg><span>Partiful</span>
           </button>
-          <button type="button" data-ask="What should I do next?">
+          <button
+            type="button"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-ask="What should I do next?"
+          >
             <svg><use href="#icon-calendar"></use></svg><span>Next</span>
           </button>
-          <button type="button" data-ask="Can I make the next event on time?">
+          <button
+            type="button"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-ask="Can I make the next event on time?"
+          >
             <svg><use href="#icon-clock"></use></svg><span>Timing</span>
           </button>
           <button
             type="button"
+            data-motion="button"
+            data-motion-hidden="true"
             data-ask="Which event option should I use tonight if the primary falls through?"
           >
             <svg><use href="#icon-layers"></use></svg><span>Options</span>
           </button>
-          <button type="button" data-ask="Give me the opening line and ask for the next event.">
+          <button
+            type="button"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-ask="Give me the opening line and ask for the next event."
+          >
             <svg><use href="#icon-sparkles"></use></svg><span>Pitch</span>
           </button>
         </section>
@@ -393,12 +495,21 @@
           <small data-dev-chat-subtitle></small>
         </section>
         <menu data-agent-tools>
-          <button type="button" aria-label="New development chat" data-dev-chat-new data-icon-only>
+          <button
+            type="button"
+            aria-label="New development chat"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-dev-chat-new
+            data-icon-only
+          >
             <svg><use href="#icon-plus"></use></svg>
           </button>
           <button
             type="button"
             aria-label="Close development agent"
+            data-motion="button"
+            data-motion-hidden="true"
             data-dev-chat-close
             data-icon-only
           >
