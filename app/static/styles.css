@@ -228,6 +228,18 @@ a:active {
   transform: translateY(0);
 }
 
+[data-motion-hidden="true"] {
+  opacity: 0;
+  transform: translateY(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-motion-hidden="true"] {
+    opacity: 1;
+    transform: translateY(0px);
+  }
+}
+
 button:focus-visible,
 a:focus-visible,
 textarea:focus-visible,
@@ -354,7 +366,7 @@ body > header p {
 body > header nav {
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   min-width: 0;
   padding: 2px;
@@ -377,7 +389,7 @@ body > header nav button[aria-current="page"] {
 main {
   width: min(100%, 960px);
   margin: 0 auto;
-  padding: 8px 8px calc(16px + env(safe-area-inset-bottom));
+  padding: 8px 8px calc(104px + env(safe-area-inset-bottom));
   overflow-x: clip;
 }
 
@@ -484,7 +496,7 @@ menu a,
 [data-prompts] button,
 [data-prompts] a,
 [data-day-tabs] button {
-  min-height: 36px;
+  min-height: 24px;
   background: var(--soft);
   color: var(--ink);
 }
@@ -535,120 +547,10 @@ form button:hover,
 [data-reference-list] {
   display: grid;
   gap: 10px;
-  max-height: calc(100dvh - 250px);
-  overflow-y: auto;
-  overflow-x: clip;
-  padding: 0 2px calc(16px + env(safe-area-inset-bottom)) 0;
-  scroll-padding-bottom: calc(16px + env(safe-area-inset-bottom));
-  scrollbar-gutter: stable;
 }
 
 [data-panel="crm"] {
   gap: 8px;
-}
-
-[data-panel="invites"] {
-  gap: 10px;
-}
-
-[data-panel="invites"] > section:first-of-type > h2 {
-  margin: 0 0 2px;
-}
-
-[data-panel="invites"] > section:first-of-type > p {
-  margin: 0;
-}
-
-.invite-panel {
-  display: grid;
-  gap: 10px;
-}
-
-[data-invite-card],
-.invite-card {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
-  box-shadow: var(--shadow);
-}
-
-.invite-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  align-items: center;
-}
-
-.invite-row strong,
-.invite-row a {
-  min-width: 0;
-}
-
-.invite-row a {
-  background: transparent;
-  color: var(--accent);
-  justify-content: flex-start;
-  overflow-wrap: anywhere;
-  text-decoration: underline;
-  padding: 0;
-  min-height: auto;
-}
-
-.invite-label {
-  color: var(--muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-[data-invite-qrcode],
-.invite-qrcode {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  justify-items: center;
-  box-shadow: var(--shadow);
-}
-
-.invite-qrcode img {
-  width: min(200px, 100%);
-  height: auto;
-  aspect-ratio: 1 / 1;
-  object-fit: contain;
-  background: white;
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
-}
-
-[data-invite-referrals],
-.invite-referrals {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-.invite-referrals ul {
-  list-style: none;
-  margin: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.invite-referrals li {
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
 }
 
 [data-crm-card],
@@ -986,23 +888,7 @@ article[data-entry] {
   background: var(--type-other-bg);
   cursor: pointer;
   overflow: hidden;
-  opacity: 1;
-  transition: box-shadow 140ms ease, border-color 140ms ease, background-color 140ms ease;
-  z-index: 10;
-}
-
-[data-entry][data-option="true"] {
-  border-color: var(--muted);
-  background: linear-gradient(180deg, rgb(244 250 253 / 72%), rgb(241 246 249 / 78%));
-  box-shadow: 0 1px 2px rgb(9 19 22 / 4%), 0 4px 10px rgb(9 19 22 / 10%);
-}
-
-[data-entry][data-calendar="reference"] {
-  background: linear-gradient(180deg, rgb(240 247 252 / 82%), rgb(233 240 247 / 78%));
-}
-
-[data-entry][data-option="true"][data-calendar="reference"] {
-  background: linear-gradient(180deg, rgb(238 246 252 / 82%), rgb(227 236 245 / 74%));
+  transition: filter 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 [data-timeline] article[data-entry] {
@@ -1012,19 +898,28 @@ article[data-entry] {
 [data-timeline] article[data-entry]:hover,
 [data-timeline] article[data-entry]:focus-visible {
   z-index: 2;
-  border-color: var(--line-strong, #3b4651);
-  background-color: var(--accent-bg);
+  filter: brightness(1.055) saturate(1.04);
   box-shadow: var(--entry-hover-shadow);
+  /* transform: translateY(-1px); */
 }
 
 [data-timeline] article[data-entry]:active {
-  border-color: var(--line-strong, #435061);
-  background-color: var(--accent-bg-strong);
+  filter: brightness(1.02);
+  transform: translateY(0);
 }
 
 [data-timeline][data-transition="forward"] article[data-entry],
 [data-timeline][data-transition="backward"] article[data-entry] {
-  animation: route-entry-in 340ms cubic-bezier(0.18, 1, 0.26, 1) both;
+  animation: route-entry-in 250ms cubic-bezier(0, 0, 0, 1) both;
+  will-change: opacity, transform;
+}
+
+[data-timeline][data-transition="forward"] article[data-entry] {
+  --route-enter-x: min(44vw, 360px);
+}
+
+[data-timeline][data-transition="backward"] article[data-entry] {
+  --route-enter-x: max(-44vw, -360px);
 }
 
 article[data-entry]::before {
@@ -1261,12 +1156,6 @@ article[data-entry] > p {
 }
 
 @media (max-width: 759px) {
-  [data-route-list],
-  [data-reference-list] {
-    padding-bottom: calc(118px + env(safe-area-inset-bottom));
-    scroll-padding-bottom: calc(118px + env(safe-area-inset-bottom));
-  }
-
   [data-next-card] {
     grid-template-columns: auto minmax(0, 1fr);
   }
@@ -2270,10 +2159,12 @@ form[data-dev-chat-form] textarea:focus {
 @keyframes route-entry-in {
   0% {
     opacity: 0;
+    transform: translateX(var(--route-enter-x, 0)) scale(0.98);
   }
 
   100% {
     opacity: 1;
+    transform: translateX(0) scale(1);
   }
 }
 
@@ -2290,12 +2181,12 @@ form[data-dev-chat-form] textarea:focus {
   }
 
   body > header nav {
-    max-width: 430px;
+    max-width: 330px;
   }
 
   main {
     padding-top: 24px;
-    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+    padding-bottom: calc(86px + env(safe-area-inset-bottom));
   }
 
   [data-route-list],
@@ -2352,3 +2243,6 @@ form[data-dev-chat-form] textarea:focus {
     width: min(680px, calc(100vw - 48px));
   }
 }
+
+
+section[aria-label="Day picker"]>button[type="button"]{min-height: 36px;}

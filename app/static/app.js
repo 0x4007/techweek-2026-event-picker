@@ -229,34 +229,72 @@ const VIEW_TITLES = {
 const devAgent = createDevAgentState();
 const motionButtonsAnimated = new WeakSet();
 const motionCardsAnimated = new WeakSet();
+const BUTTON_MOTION_SELECTOR = "button, a[href], [role='button'], [data-motion='button']";
+const BUTTON_MOTION_INITIAL = {
+  opacity: "0",
+  transform: "translateY(2px)",
+};
+const BUTTON_MOTION_VISIBLE = {
+  opacity: "1",
+  transform: "translateY(0px)",
+};
 
 function runMotion(target, keyframes, options = {}) {
   if (!MOTION_REDUCE_OK && !FORCE_MOTION) return;
   if (!target) return;
+  const { onComplete, ...motionOptions } = options;
+  if (keyframes) {
+    for (const [property, values] of Object.entries(keyframes)) {
+      const firstValue = Array.isArray(values) ? values[0] : values;
+      if (typeof firstValue !== "undefined") target.style[property] = firstValue;
+    }
+  }
+
   const animationOptions = {
-    duration: Math.round((options.duration || 0) * 1000),
-    delay: options.delay || 0,
-    easing: options.easing || "ease-out",
-    fill: options.fill || "both",
+    duration: Math.round((motionOptions.duration || 0) * 1000),
+    delay: motionOptions.delay || 0,
+    easing: motionOptions.easing || "ease-out",
+    fill: motionOptions.fill || "both",
   };
   void loadMotionLibrary().then(() => {
+    let animation = null;
     if (typeof motionAnimate === "function") {
-      motionAnimate(target, keyframes, options);
+      animation = motionAnimate(target, keyframes, motionOptions);
+    } else {
+      animation = target.animate(keyframes, animationOptions);
+    }
+    if (typeof onComplete !== "function") return;
+    if (animation?.finished && typeof animation.finished.then === "function") {
+      void animation.finished.then(onComplete, onComplete);
       return;
     }
-    target.animate(keyframes, animationOptions);
+    globalThis.setTimeout(
+      onComplete,
+      Math.round(((motionOptions.delay || 0) + (motionOptions.duration || 0)) * 1000),
+    );
   });
 }
 
 function animateButtonCluster(root) {
-  if (!MOTION_REDUCE_OK && !FORCE_MOTION || !root) return;
-  const buttons = Array.from(
-    root.querySelectorAll(
-      "button, a[href], [role='button']",
-    ),
-  );
-  buttons.forEach((button, index) => {
-    if (motionButtonsAnimated.has(button) || button.hidden || button.disabled) return;
+  if (!root) return;
+  const buttons = motionButtonTargets(root);
+  const eligibleButtons = buttons.filter(isMotionButtonEligible);
+  for (const button of buttons) {
+    if (!isMotionButtonEligible(button) && button.dataset.motionHidden === "true") {
+      showMotionButton(button);
+    }
+  }
+
+  if (!MOTION_REDUCE_OK && !FORCE_MOTION) {
+    for (const button of buttons) {
+      showMotionButton(button);
+    }
+    return;
+  }
+
+  eligibleButtons.forEach((button, index) => {
+    if (motionButtonsAnimated.has(button)) return;
+    hideMotionButton(button);
     const delay = Number.isFinite(button.dataset.motionDelay)
       ? Number(button.dataset.motionDelay)
       : (index + 1) * (MOTION_BUTTON_STAGGER_MS / 1000);
@@ -268,9 +306,44 @@ function animateButtonCluster(root) {
       easing: "ease-out",
       delay,
       fill: "both",
+      onComplete: () => showMotionButton(button),
     });
     motionButtonsAnimated.add(button);
   });
+}
+
+function motionButtonTargets(root) {
+  const targets = [];
+  if (root.matches?.(BUTTON_MOTION_SELECTOR)) targets.push(root);
+  targets.push(...root.querySelectorAll?.(BUTTON_MOTION_SELECTOR) || []);
+  return Array.from(new Set(targets));
+}
+
+function isMotionButtonEligible(button) {
+  return !button.hidden && !button.disabled;
+}
+
+function hideMotionButton(button) {
+  button.dataset.motion = "button";
+  button.dataset.motionHidden = "true";
+  button.style.opacity = BUTTON_MOTION_INITIAL.opacity;
+  button.style.transform = BUTTON_MOTION_INITIAL.transform;
+  return button;
+}
+
+function markMotionButton(button) {
+  if (!isMotionButtonEligible(button)) return button;
+  button.dataset.motion = "button";
+  button.dataset.motionHidden = "true";
+  return button;
+}
+
+function showMotionButton(button) {
+  button.dataset.motion = "button";
+  delete button.dataset.motionHidden;
+  button.style.opacity = BUTTON_MOTION_VISIBLE.opacity;
+  button.style.transform = BUTTON_MOTION_VISIBLE.transform;
+  return button;
 }
 
 function animateCards(root) {
@@ -479,10 +552,11 @@ async function loadAccountSession() {
 
 function pendingReferralCode() {
   try {
-    return String(localStorage.getItem(PENDING_REFERRAL_STORAGE_KEY) || "").trim().toUpperCase().replace(
-      /[^A-Z0-9]/g,
-      "",
-    );
+    return String(localStorage.getItem(PENDING_REFERRAL_STORAGE_KEY) || "").trim().toUpperCase()
+      .replace(
+        /[^A-Z0-9]/g,
+        "",
+      );
   } catch {
     return "";
   }
@@ -2106,14 +2180,18 @@ function renderInvite() {
 
   const payload = state.invitePayload;
   const referrals = Array.isArray(payload.referrals) ? payload.referrals : [];
-  inviteStatus.textContent = `Share URL: ${payload.createdAt ? `created ${payload.createdAt}` : "updated"}`.trim();
+  inviteStatus.textContent = `Share URL: ${
+    payload.createdAt ? `created ${payload.createdAt}` : "updated"
+  }`.trim();
   inviteCode.textContent = payload.code || "—";
   inviteShareLink.textContent = payload.shareUrl || "";
   inviteShareLink.href = payload.shareUrl || "#";
   inviteCopyCodeButton?.removeAttribute("disabled");
   inviteCopyLinkButton?.removeAttribute("disabled");
   if (payload.shareUrl) {
-    inviteQrImage.src = `${INVITE_QR_IMAGE_URL}?size=220x220&data=${encodeURIComponent(payload.shareUrl)}`;
+    inviteQrImage.src = `${INVITE_QR_IMAGE_URL}?size=220x220&data=${
+      encodeURIComponent(payload.shareUrl)
+    }`;
     inviteQrImage.hidden = false;
   } else {
     inviteQrImage.hidden = true;
@@ -2160,10 +2238,15 @@ function renderDayTabs() {
     button.setAttribute("aria-selected", String(day.date === state.activeDay));
     button.addEventListener("click", () => {
       const previousDay = state.activeDay;
+      if (previousDay === day.date) {
+        return;
+      }
       state.activeDay = day.date;
       state.routeTransitionDirection = routeTransitionDirection(previousDay, state.activeDay);
       renderDayTabs();
       renderRouteList();
+      animateButtonCluster(dayTabs);
+      animateCards(routeList);
       writeHashNavigation();
     });
     dayTabs.append(button);
@@ -3723,6 +3806,7 @@ function eventActions(entry) {
     link.target = "_blank";
     link.rel = "noreferrer";
     setButtonContent(link, "external", "Partiful");
+    markMotionButton(link);
     actions.push(link);
   }
 
@@ -3735,6 +3819,7 @@ function eventActions(entry) {
       if (state.agentBusy) return;
       openEventCoachingChat(entry);
     });
+    markMotionButton(ask);
     actions.push(ask);
   }
 
@@ -4913,6 +4998,7 @@ function renderProposedActions(messageEl, actions) {
     button.type = "button";
     setButtonContent(button, actionIcon(action), actionLabel(action));
     button.addEventListener("click", () => applyAction(action));
+    markMotionButton(button);
     wrap.append(button);
   }
   messageEl.after(wrap);
@@ -4963,6 +5049,7 @@ function setBusy(busy) {
 
 loadSchedule().catch((error) => {
   document.querySelector("[data-next-title]").textContent = error.message;
+  animateButtonCluster(document);
 }).finally(() => {
   scheduleServerPartifulAutoSync();
 });
