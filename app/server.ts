@@ -55,6 +55,17 @@ import {
   writeStateValue,
 } from "./lib/postgres_store.ts";
 import {
+  buildPlannerPlan,
+  defaultPlannerPlanName,
+  normalizePlannerState,
+  parsePlannerEventSource,
+  plannerChatFallback,
+  type PlannerImport,
+  type PlannerPlan,
+  type PlannerState,
+  updatePlannerProfile,
+} from "./lib/general_planner.ts";
+import {
   AccountAuthError,
   accountSessionCookie,
   type AccountSessionState,
@@ -85,6 +96,7 @@ const RANKINGS_CSV = new URL(
 const RSVP_PROFILE_JSON = new URL("../.codex/techweek-rsvp-profile.json", import.meta.url);
 const APP_STATE_JSON = new URL("../.codex/techweek_app_state.json", import.meta.url);
 const AGENDA_RUNS_DIR = new URL("../.codex/agenda-runs/", import.meta.url);
+const PLANNER_STATES_DIR = new URL("../.codex/planner-states/", import.meta.url);
 const TEXT_REWARDS_REPO = new URL(
   "file:///Users/nv/repos/ubiquity-os-marketplace/text-conversation-rewards/",
 );
@@ -108,6 +120,7 @@ const MODEL_CONTEXT_CACHE_MS = 5 * 60 * 1000;
 const TOKEN_ENCODER = getEncoding(TOKEN_ENCODING_NAME);
 const PRODUCT_PLAYBOOK_CONTEXT_CHAR_BUDGET = 120_000;
 const ROUTE_RUNBOOK_CONTEXT_CHAR_BUDGET = 90_000;
+const MAX_PLANNER_PLANS = 50;
 const EVENT_DOSSIER_CONTEXT_CHAR_BUDGET = 150_000;
 const RANKED_OPPORTUNITY_MAP_CHAR_BUDGET = 190_000;
 const RANKED_OPPORTUNITY_MAP_LIMIT = 260;
@@ -632,6 +645,13 @@ type OcrRequestBody = {
   }>;
 };
 
+type PlannerResearchResult = {
+  answer: string;
+  importName: string;
+  csv: string;
+  sources: Array<{ title: string; url: string }>;
+};
+
 type LeadDraft = {
   name: string;
   company: string;
@@ -864,6 +884,9 @@ async function authorizeApiRoute(request: Request, url: URL): Promise<Response |
   if (request.method === "GET" && pathname === "/api/account/invite") return null;
   if (request.method === "POST" && pathname === "/api/account/session/handoff") return null;
   if (request.method === "POST" && pathname === "/api/account/invite") return null;
+  if (pathname === "/api/planner" || pathname.startsWith("/api/planner/")) {
+    return await requireAuthenticatedAccountSession(request);
+  }
   return await requireAdminAccountSession(request);
 }
 
@@ -2360,6 +2383,583 @@ async function handleIcs(headOnly = false): Promise<Response> {
       "content-disposition": 'attachment; filename="techweek-operational-route.ics"',
     },
   });
+}
+
+async function handlePlannerState(request: Request): Promise<Response> {
+  const user = await plannerUser(request);
+  if (!user) return json({ error: { message: "Authentication required." } }, { status: 401 });
+  return json({ planner: await readPlannerState(user.id) });
+}
+
+async function handlePlannerProfileUpdate(request: Request): Promise<Response> {
+  const user = await plannerUser(request);
+  if (!user) return json({ error: { message: "Authentication required." } }, { status: 401 });
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return badRequest("Expected a JSON object body.");
+  }
+  return await mutatePlannerState(user.id, async (state) => {
+    state.profile = updatePlannerProfile(state.profile, body);
+    return json({ planner: await writePlannerState(state), profile: state.profile });
+  });
+}
+
+async function handlePlannerImportCreate(request: Request): Promise<Response> {
+  const user = await plannerUser(request);
+  if (!user) return json({ error: { message: "Authentication required." } }, { status: 401 });
+  const body = await request.json().catch(() => null);
+  const raw = recordValue(body);
+  if (!raw) return badRequest("Expected a JSON object body.");
+  const sourceText = textField(raw.sourceText ?? raw.text, 200_000);
+  if (!sourceText.trim()) return badRequest("sourceText is required.");
+  const sourceType = raw.sourceType === "csv" ? "csv" : "text";
+  const importId = `imp_${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`;
+
+  return await mutatePlannerState(user.id, async (state) => {
+    const parsed = parsePlannerEventSource({
+      importId,
+      name: textField(raw.name, 160) || "Imported events",
+      sourceType,
+      sourceText,
+      defaultDurationMinutes: state.profile.defaultEventDurationMinutes,
+    });
+    const plannerImport: PlannerImport = {
+      id: importId,
+      name: textField(raw.name, 160) || "Imported events",
+      sourceType,
+      sourceText,
+      events: parsed.events,
+      warnings: parsed.warnings,
+      createdAt: new Date().toISOString(),
+    };
+    state.imports = [plannerImport, ...state.imports].slice(0, 25);
+    return json({ planner: await writePlannerState(state), import: plannerImport });
+  });
+}
+
+async function handlePlannerImportDelete(request: Request, id: string): Promise<Response> {
+  const user = await plannerUser(request);
+  if (!user) return json({ error: { message: "Authentication required." } }, { status: 401 });
+  const importId = textField(id, 160);
+  if (!importId) return badRequest("import id is required.");
+  return await mutatePlannerState(user.id, async (state) => {
+    state.imports = state.imports.filter((item) => item.id !== importId);
+    state.plans = state.plans.filter((plan) => !plan.sourceImportIds.includes(importId));
+    state.activePlanId = state.plans[0]?.id ?? "";
+    return json({ planner: await writePlannerState(state) });
+  });
+}
+
+async function handlePlannerEventCreate(request: Request): Promise<Response> {
+  const user = await plannerUser(request);
+  if (!user) return json({ error: { message: "Authentication required." } }, { status: 401 });
+  const body = await request.json().catch(() => null);
+  const raw = recordValue(body);
+  if (!raw) return badRequest("Expected a JSON object body.");
+  return await mutatePlannerState(user.id, async (state) => {
+    const event = plannerEventFromBody(raw, `manual_${crypto.randomUUID()}`, "manual_events");
+    if (!event.title) return badRequest("title is required.");
+    if (!event.start || !event.end) return badRequest("start and end are required.");
+    if (!plannerEventTimeRangeIsValid(event)) return badRequest("end must be after start.");
+    const manualImport = upsertManualPlannerImport(state);
+    manualImport.events = [event, ...manualImport.events].slice(0, 500);
+    const plan = await buildPlannerPlan({ state });
+    state.plans = [plan, ...state.plans.filter((item) => item.id !== plan.id)].slice(
+      0,
+      MAX_PLANNER_PLANS,
+    );
+    state.activePlanId = plan.id;
+    return json({ planner: await writePlannerState(state), event, plan });
+  });
+}
+
+async function handlePlannerEventUpdate(request: Request, id: string): Promise<Response> {
+  const user = await plannerUser(request);
+  if (!user) return json({ error: { message: "Authentication required." } }, { status: 401 });
+  const body = await request.json().catch(() => null);
+  const raw = recordValue(body);
+  if (!raw) return badRequest("Expected a JSON object body.");
+  const eventId = textField(id, 220);
+  if (!eventId) return badRequest("event id is required.");
+  return await mutatePlannerState(user.id, async (state) => {
+    let updated: PlannerImport["events"][number] | null = null;
+    for (const plannerImport of state.imports) {
+      const index = plannerImport.events.findIndex((event) => event.id === eventId);
+      if (index < 0) continue;
+      updated = plannerEventFromBody(raw, eventId, plannerImport.id, plannerImport.events[index]);
+      if (!updated.title) return badRequest("title is required.");
+      if (!updated.start || !updated.end) return badRequest("start and end are required.");
+      if (!plannerEventTimeRangeIsValid(updated)) return badRequest("end must be after start.");
+      plannerImport.events[index] = updated;
+      break;
+    }
+    if (!updated) return notFound();
+    const plan = await buildPlannerPlan({ state });
+    state.plans = [plan, ...state.plans.filter((item) => item.id !== plan.id)].slice(
+      0,
+      MAX_PLANNER_PLANS,
+    );
+    state.activePlanId = plan.id;
+    return json({ planner: await writePlannerState(state), event: updated, plan });
+  });
+}
+
+async function handlePlannerPlanCreate(request: Request): Promise<Response> {
+  const user = await plannerUser(request);
+  if (!user) return json({ error: { message: "Authentication required." } }, { status: 401 });
+  const body = await request.json().catch(() => ({}));
+  const raw = recordValue(body) ?? {};
+  return await mutatePlannerState(user.id, async (state) => {
+    if (state.imports.length === 0) return badRequest("Import events before planning.");
+    const importIds = Array.isArray(raw.importIds) ? raw.importIds.map(String) : undefined;
+    const plan = await buildPlannerPlan({ state, importIds });
+    state.plans = [plan, ...state.plans.filter((item) => item.id !== plan.id)].slice(
+      0,
+      MAX_PLANNER_PLANS,
+    );
+    state.activePlanId = plan.id;
+    return json({ planner: await writePlannerState(state), plan });
+  });
+}
+
+async function handlePlannerPlanUpdate(request: Request, id: string): Promise<Response> {
+  const user = await plannerUser(request);
+  if (!user) return json({ error: { message: "Authentication required." } }, { status: 401 });
+  const planId = textField(id, 220);
+  if (!planId) return badRequest("plan id is required.");
+  const body = await request.json().catch(() => null);
+  const raw = recordValue(body);
+  if (!raw) return badRequest("Expected a JSON object body.");
+  return await mutatePlannerState(user.id, async (state) => {
+    const plan = state.plans.find((item) => item.id === planId);
+    if (!plan) return notFound();
+    if (Object.hasOwn(raw, "name")) {
+      plan.name = textField(raw.name, 160) || plannerPlanFallbackName(plan);
+    }
+    if (raw.active === true) state.activePlanId = plan.id;
+    return json({ planner: await writePlannerState(state), plan });
+  });
+}
+
+function upsertManualPlannerImport(state: PlannerState): PlannerImport {
+  let manualImport = state.imports.find((item) => item.id === "manual_events");
+  if (manualImport) return manualImport;
+  manualImport = {
+    id: "manual_events",
+    name: "Manual events",
+    sourceType: "csv",
+    sourceText: "",
+    events: [],
+    warnings: [],
+    createdAt: new Date().toISOString(),
+  };
+  state.imports = [manualImport, ...state.imports].slice(0, 25);
+  return manualImport;
+}
+
+function plannerEventFromBody(
+  body: Record<string, unknown>,
+  id: string,
+  importId: string,
+  existing?: PlannerImport["events"][number],
+): PlannerImport["events"][number] {
+  const start = normalizePlannerDateTimeField(body.start ?? existing?.start);
+  const end = normalizePlannerDateTimeField(body.end ?? existing?.end);
+  return {
+    id,
+    importId,
+    title: textField(body.title ?? existing?.title, 300),
+    description: textField(body.description ?? existing?.description, 4000),
+    start,
+    end,
+    location: textField(body.location ?? existing?.location, 500),
+    category: textField(body.category ?? existing?.category, 80) || "manual",
+    status: textField(body.status ?? existing?.status, 80) || "registered",
+    priorityScore: plannerPriorityScore(body.priorityScore ?? existing?.priorityScore),
+    url: textField(body.url ?? existing?.url, 1000),
+    raw: existing?.raw ?? {},
+  };
+}
+
+function normalizePlannerDateTimeField(value: unknown): string {
+  return textField(value, 80).replace("T", " ").slice(0, 16);
+}
+
+function plannerPriorityScore(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function plannerEventTimeRangeIsValid(event: PlannerImport["events"][number]): boolean {
+  const start = Date.parse(event.start.replace(" ", "T"));
+  const end = Date.parse(event.end.replace(" ", "T"));
+  return Number.isFinite(start) && Number.isFinite(end) && end > start;
+}
+
+function plannerPlanFallbackName(plan: PlannerPlan): string {
+  return defaultPlannerPlanName(plan.blocks, plan.generatedAt);
+}
+
+function plannerPlanNameFromPrompt(prompt: string, plan: PlannerPlan): string {
+  const name = prompt.replace(/\s+/g, " ").trim().slice(0, 80);
+  return name || plannerPlanFallbackName(plan);
+}
+
+async function handlePlannerChat(request: Request): Promise<Response> {
+  const user = await plannerUser(request);
+  if (!user) return json({ error: { message: "Authentication required." } }, { status: 401 });
+  const body = await request.json().catch(() => null);
+  const raw = recordValue(body);
+  if (!raw) return badRequest("Expected a JSON object body.");
+  const prompt = textField(raw.prompt ?? raw.message, 8000);
+  if (!prompt) return badRequest("prompt is required.");
+
+  return await mutatePlannerState(user.id, async (state) => {
+    let plan = state.plans.find((item) => item.id === state.activePlanId) ?? null;
+    let calendarUpdated = false;
+    const toolCalls: Array<{ name: string; planId?: string }> = [];
+    const research = await researchPlannerPrompt(prompt, state);
+    if (research?.csv) {
+      const importId = `web_${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`;
+      const parsed = parsePlannerEventSource({
+        importId,
+        name: research.importName || "Web researched plan",
+        sourceType: "csv",
+        sourceText: research.csv,
+        defaultDurationMinutes: state.profile.defaultEventDurationMinutes,
+      });
+      const plannerImport: PlannerImport = {
+        id: importId,
+        name: research.importName || "Web researched plan",
+        sourceType: "csv",
+        sourceText: research.csv,
+        events: parsed.events,
+        warnings: parsed.warnings,
+        createdAt: new Date().toISOString(),
+      };
+      state.imports = [plannerImport, ...state.imports].slice(0, 25);
+      const nextPlan = await buildPlannerPlan({ state, importIds: [importId] });
+      nextPlan.name = research.importName || nextPlan.name;
+      plan = nextPlan;
+      state.plans = [nextPlan, ...state.plans.filter((item) => item.id !== nextPlan.id)].slice(
+        0,
+        MAX_PLANNER_PLANS,
+      );
+      state.activePlanId = nextPlan.id;
+      calendarUpdated = true;
+      toolCalls.push({ name: "render_calendar", planId: nextPlan.id });
+      await writePlannerState(state);
+      const sourceLines = research.sources.length
+        ? [
+          "",
+          "Sources:",
+          ...research.sources.slice(0, 5).map((source) =>
+            `- ${source.title || source.url}: ${source.url}`
+          ),
+        ]
+        : [];
+      const warningLines = parsed.warnings.length
+        ? ["", "Import warnings:", ...parsed.warnings.slice(0, 4).map((warning) => `- ${warning}`)]
+        : [];
+      const message = [
+        research.answer,
+        "",
+        `Built a plan with ${nextPlan.summary.selectedEvents} selected events and ${nextPlan.summary.generatedLogisticsBlocks} generated logistics blocks.`,
+        ...sourceLines,
+        ...warningLines,
+      ].filter(Boolean).join("\n");
+      return json({ message, planner: state, plan, research, calendarUpdated, toolCalls });
+    }
+
+    if (state.imports.length > 0 && shouldPlanFromPrompt(prompt)) {
+      const nextPlan = await buildPlannerPlan({ state });
+      nextPlan.name = plannerPlanNameFromPrompt(prompt, nextPlan);
+      plan = nextPlan;
+      state.plans = [nextPlan, ...state.plans.filter((item) => item.id !== nextPlan.id)].slice(
+        0,
+        MAX_PLANNER_PLANS,
+      );
+      state.activePlanId = nextPlan.id;
+      calendarUpdated = true;
+      toolCalls.push({ name: "render_calendar", planId: nextPlan.id });
+      await writePlannerState(state);
+    }
+    const baseMessage = research?.answer || plannerChatFallback(state, prompt);
+    const message = calendarUpdated && plan
+      ? `${baseMessage}\n\nUpdated and saved "${plan.name}".`
+      : baseMessage;
+    return json({ message, planner: state, plan, calendarUpdated, toolCalls });
+  });
+}
+
+async function researchPlannerPrompt(
+  prompt: string,
+  state: PlannerState,
+): Promise<PlannerResearchResult | null> {
+  if (!shouldSearchForPlannerPrompt(prompt, state)) return null;
+  const { token, responsesUrl } = gatewayConfig();
+  if (!token) {
+    return {
+      answer:
+        "I can search the web from this serverless app, but the AI gateway token is not configured in this runtime. Add events manually for now, or deploy with the existing UOS_AI_TOKEN/OPENAI_API_KEY path enabled.",
+      importName: "",
+      csv: "",
+      sources: [],
+    };
+  }
+
+  const body = plannerResearchRequestBody(prompt, state);
+  let upstream: Response;
+  try {
+    upstream = await fetch(responsesUrl, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    return {
+      answer: `I tried to search the web, but the request failed: ${
+        error instanceof Error ? error.message : "Unknown fetch error"
+      }`,
+      importName: "",
+      csv: "",
+      sources: [],
+    };
+  }
+
+  const responseBody = await readGatewayBody(upstream);
+  if (!upstream.ok) {
+    return {
+      answer: visibleAgentGatewayError(upstream, AGENT_MODEL, responseBody),
+      importName: "",
+      csv: "",
+      sources: [],
+    };
+  }
+
+  const text = responseOutputText(responseBody);
+  const parsed = parsePlannerResearchJson(text);
+  if (!parsed) {
+    return {
+      answer: text || "I searched, but could not turn the result into a plan.",
+      importName: "",
+      csv: "",
+      sources: responseSourcesFromBody(responseBody),
+    };
+  }
+  const sources = parsed.sources.length ? parsed.sources : responseSourcesFromBody(responseBody);
+  return { ...parsed, sources };
+}
+
+function plannerResearchRequestBody(prompt: string, state: PlannerState) {
+  const profile = state.profile;
+  return {
+    model: AGENT_MODEL,
+    reasoning: { effort: "low" },
+    tools: [{
+      type: "web_search",
+      user_location: {
+        type: "approximate",
+        country: "US",
+        city: "New York",
+        region: "New York",
+        timezone: profile.timeZone || TIME_ZONE,
+      },
+    }],
+    tool_choice: "auto",
+    include: ["web_search_call.action.sources"],
+    input: [
+      {
+        role: "developer",
+        content: [
+          "You are the research planner for a serverless calendar-planning app.",
+          "Use web search for current event, venue, ticket, travel, or schedule facts.",
+          "Return only a JSON object with keys: answer, importName, csv, sources.",
+          "The csv value must be a CSV document with headers: title,start,end,location,description,status,score,category,url.",
+          "Create rows for the user's requested anchor event and fixed commitments such as intercity flights, hotel check-in/check-out, or ticketed/dated events.",
+          "Do not create generic sleep, breakfast, lunch, dinner, local ground transport, or buffer rows unless the user explicitly requested those exact fixed blocks; the app generates routine sleep, meals, and local transportation itself.",
+          "Use category values event, flight, hotel, sleep, meal, or logistics when useful so the app can avoid re-planning logistics as events.",
+          "Use local wall-clock times in the user's profile time zone unless a destination-local time is clearly better; mention the timezone in the answer.",
+          "If the user gives dates without a year, use 2026 because the current date is 2026-05-19.",
+          "Use concise assumptions when exact flights/hotels are not known. Do not invent ticket ownership, reservation numbers, or paid bookings.",
+          "Include source URLs in the answer and in sources. Keep answer under 220 words.",
+        ].join(" "),
+      },
+      {
+        role: "user",
+        content: [
+          `Current date: 2026-05-19.`,
+          `Profile home base: ${profile.homeBase || "Home"}.`,
+          `Profile preferences: ${profile.preferencePrompt}`,
+          `Profile priorities: ${profile.priorityPrompt}`,
+          `Existing imported event count: ${
+            state.imports.reduce((count, item) => count + item.events.length, 0)
+          }.`,
+          `User request: ${prompt}`,
+        ].join("\n"),
+      },
+    ],
+  };
+}
+
+function shouldSearchForPlannerPrompt(prompt: string, state: PlannerState): boolean {
+  const text = prompt.toLowerCase();
+  if (/\b(search|internet|web|look up|latest|current|flight|hotel|ticket|venue)\b/.test(text)) {
+    return true;
+  }
+  if (state.imports.length === 0 && shouldPlanFromPrompt(prompt)) return true;
+  return /\b(indy\s?500|indianapolis 500|concert|conference|festival|game|race)\b/.test(text);
+}
+
+function shouldPlanFromPrompt(prompt: string): boolean {
+  return /\b(plan|schedule|calendar|optimi[sz]e|rebuild|logistics|itinerary|travel|update|change|revise|refresh|render|re-?render)\b/i
+    .test(prompt);
+}
+
+function parsePlannerResearchJson(text: string): PlannerResearchResult | null {
+  const trimmed = text.trim();
+  const jsonText = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim() || trimmed;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText) as unknown;
+  } catch {
+    return null;
+  }
+  const raw = recordValue(parsed);
+  if (!raw) return null;
+  return {
+    answer: textField(raw.answer, 4000),
+    importName: textField(raw.importName, 160) || "Web researched plan",
+    csv: textField(raw.csv, 80_000),
+    sources: plannerResearchSources(raw.sources),
+  };
+}
+
+function plannerResearchSources(value: unknown): Array<{ title: string; url: string }> {
+  return (Array.isArray(value) ? value : []).map((item) => {
+    const raw = recordValue(item);
+    if (!raw) return null;
+    const url = textField(raw.url, 1000);
+    if (!url) return null;
+    return {
+      title: textField(raw.title, 240),
+      url,
+    };
+  }).filter((item): item is { title: string; url: string } => Boolean(item));
+}
+
+function responseSourcesFromBody(body: unknown): Array<{ title: string; url: string }> {
+  const raw = recordValue(body);
+  if (!raw) return [];
+  const direct = plannerResearchSources(raw.sources);
+  if (direct.length) return direct;
+  const output = Array.isArray(raw.output) ? raw.output : [];
+  return output.flatMap((item) => {
+    const content = recordValue(item)?.content;
+    if (!Array.isArray(content)) return [];
+    return content.flatMap((part) => {
+      const annotations = recordValue(part)?.annotations;
+      if (!Array.isArray(annotations)) return [];
+      return annotations.map((annotation) => {
+        const rawAnnotation = recordValue(annotation);
+        if (!rawAnnotation || rawAnnotation.type !== "url_citation") return null;
+        const url = textField(rawAnnotation.url, 1000);
+        if (!url) return null;
+        return {
+          title: textField(rawAnnotation.title, 240),
+          url,
+        };
+      });
+    });
+  }).filter((item): item is { title: string; url: string } => Boolean(item));
+}
+
+async function plannerUser(request: Request): Promise<AccountSessionUser | null> {
+  const session = await readAccountSession(request);
+  return session.authenticated && session.user ? session.user : null;
+}
+
+async function readPlannerState(userId: string): Promise<PlannerState> {
+  const key = plannerStateKey(userId);
+  const parsed = await readStateValue<Partial<PlannerState>>(key) ??
+    await readLocalPlannerState(userId);
+  if (parsed) return normalizePlannerState(parsed, userId);
+  const adopted = accountSessionForTest === undefined && !isPostgresStoreConfigured()
+    ? await readSoleLocalPlannerStateForAdoption(userId)
+    : null;
+  if (!adopted) return normalizePlannerState(null, userId);
+  const state = {
+    ...normalizePlannerState(adopted, userId),
+    userId,
+    updatedAt: new Date().toISOString(),
+  };
+  await writePlannerState(state);
+  return state;
+}
+
+async function writePlannerState(state: PlannerState): Promise<PlannerState> {
+  state.updatedAt = new Date().toISOString();
+  await writeStateValue(plannerStateKey(state.userId), state);
+  if (!isPostgresStoreConfigured()) await writeLocalPlannerState(state);
+  return state;
+}
+
+async function mutatePlannerState<T>(
+  userId: string,
+  operation: (state: PlannerState) => Promise<T>,
+): Promise<T> {
+  const run = stateMutationQueue.catch(() => undefined).then(async () => {
+    const state = await readPlannerState(userId);
+    return await operation(state);
+  });
+  stateMutationQueue = run.then(() => undefined, () => undefined);
+  return await run;
+}
+
+function plannerStateKey(userId: string): string {
+  return `planner_state_v1:${userId}`;
+}
+
+async function readLocalPlannerState(userId: string): Promise<Partial<PlannerState> | null> {
+  return await readJsonFile<Partial<PlannerState>>(plannerStateFile(userId));
+}
+
+async function readSoleLocalPlannerStateForAdoption(
+  userId: string,
+): Promise<Partial<PlannerState> | null> {
+  try {
+    const currentFile = `${safeFileSegment(userId)}.json`;
+    const candidates: string[] = [];
+    for await (const entry of Deno.readDir(PLANNER_STATES_DIR)) {
+      if (!entry.isFile || !entry.name.endsWith(".json") || entry.name === currentFile) continue;
+      candidates.push(entry.name);
+    }
+    if (candidates.length !== 1) return null;
+    return await readJsonFile<Partial<PlannerState>>(new URL(candidates[0], PLANNER_STATES_DIR));
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return null;
+    console.warn("Skipping local planner-state adoption.", safeError(error));
+    return null;
+  }
+}
+
+async function writeLocalPlannerState(state: PlannerState): Promise<void> {
+  try {
+    await Deno.mkdir(PLANNER_STATES_DIR, { recursive: true });
+    await Deno.writeTextFile(
+      plannerStateFile(state.userId),
+      `${JSON.stringify(state, null, 2)}\n`,
+    );
+  } catch (error) {
+    console.warn("Skipping local planner-state mirror write.", safeError(error));
+  }
+}
+
+function plannerStateFile(userId: string): URL {
+  return new URL(`${safeFileSegment(userId)}.json`, PLANNER_STATES_DIR);
 }
 
 async function handleStateAction(request: Request): Promise<Response> {
@@ -5533,6 +6133,42 @@ export async function router(request: Request): Promise<Response> {
     if (request.method === "POST" && pathname === "/api/account/invite") {
       return await handleAccountInviteClaim(request);
     }
+    if (request.method === "GET" && pathname === "/api/planner") {
+      return await handlePlannerState(request);
+    }
+    if (request.method === "PUT" && pathname === "/api/planner/profile") {
+      return await handlePlannerProfileUpdate(request);
+    }
+    if (request.method === "POST" && pathname === "/api/planner/imports") {
+      return await handlePlannerImportCreate(request);
+    }
+    if (request.method === "DELETE" && pathname.startsWith("/api/planner/imports/")) {
+      return await handlePlannerImportDelete(
+        request,
+        decodeURIComponent(pathname.replace("/api/planner/imports/", "")),
+      );
+    }
+    if (request.method === "POST" && pathname === "/api/planner/events") {
+      return await handlePlannerEventCreate(request);
+    }
+    if (request.method === "PUT" && pathname.startsWith("/api/planner/events/")) {
+      return await handlePlannerEventUpdate(
+        request,
+        decodeURIComponent(pathname.replace("/api/planner/events/", "")),
+      );
+    }
+    if (request.method === "POST" && pathname === "/api/planner/plan") {
+      return await handlePlannerPlanCreate(request);
+    }
+    if (request.method === "PUT" && pathname.startsWith("/api/planner/plans/")) {
+      return await handlePlannerPlanUpdate(
+        request,
+        decodeURIComponent(pathname.replace("/api/planner/plans/", "")),
+      );
+    }
+    if (request.method === "POST" && pathname === "/api/planner/chat") {
+      return await handlePlannerChat(request);
+    }
     if (request.method === "GET" && url.pathname === "/api/schedule") return await handleSchedule();
     if (request.method === "POST" && url.pathname === "/api/agenda/recalculate") {
       return await handleAgendaRecalculate(request);
@@ -5614,7 +6250,7 @@ if (import.meta.main) {
     port,
     hostname: "0.0.0.0",
     onListen({ hostname, port: boundPort }) {
-      console.log(`Tech Week app running on http://${hostname}:${boundPort}`);
+      console.log(`Planning Agent app running on http://${hostname}:${boundPort}`);
     },
   }, router);
 }

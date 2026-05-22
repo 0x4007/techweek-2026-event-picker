@@ -3,7 +3,7 @@ import { Pool } from "pg";
 export type JsonRecord = Record<string, unknown>;
 
 export type StoreHealth = {
-  backend: "postgres" | "memory";
+  backend: "postgres" | "kv";
   status: "ready" | "error";
   error: string;
 };
@@ -18,7 +18,7 @@ type Queryable = {
   query<T = JsonRecord>(text: string, values?: unknown[]): Promise<QueryResult<T>>;
 };
 
-type MemoryCacheRecord = {
+type KvCacheRecord = {
   kind: "cache";
   value: unknown;
   metadata: JsonRecord;
@@ -26,10 +26,26 @@ type MemoryCacheRecord = {
   expiresAtMs: number | null;
 };
 
+type KvJsonRecord =
+  | {
+    kind: "kv-json";
+    storage: "direct";
+    value: unknown;
+  }
+  | {
+    kind: "kv-json";
+    storage: "chunked";
+    chunkCount: number;
+  };
+
+const KV_DIRECT_JSON_BYTE_LIMIT = 48_000;
+const KV_CHUNK_BYTE_LIMIT = 48_000;
+const TEXT_ENCODER = new TextEncoder();
+const TEXT_DECODER = new TextDecoder();
+
 let poolPromise: Promise<Pool | null> | null = null;
 let schemaPromise: Promise<void> | null = null;
 let poolDatabaseUrl: string | null = null;
-const memoryStore = new Map<string, unknown>();
 
 export function isPostgresStoreConfigured(databaseUrl = Deno.env.get("DATABASE_URL") ?? "") {
   return databaseUrl !== "";
@@ -89,13 +105,18 @@ async function ensureSchema(db: Queryable): Promise<void> {
 export async function storeHealth(): Promise<StoreHealth> {
   try {
     const db = await getQueryable();
-    if (!db) return { backend: "memory", status: "ready", error: "" };
+    if (!db) {
+      await withKv(async (kv) => {
+        await kv.get(["health"]);
+      });
+      return { backend: "kv", status: "ready", error: "" };
+    }
     await db.query("select 1");
     return { backend: "postgres", status: "ready", error: "" };
   } catch (error) {
-    console.error("Postgres state store health check failed:", error);
+    console.error("State store health check failed:", error);
     return {
-      backend: "postgres",
+      backend: isPostgresStoreConfigured() ? "postgres" : "kv",
       status: "error",
       error: PUBLIC_STORE_HEALTH_ERROR,
     };
@@ -104,7 +125,11 @@ export async function storeHealth(): Promise<StoreHealth> {
 
 export async function readStateValue<T>(key: string): Promise<T | null> {
   const db = await getQueryable();
-  if (!db) return memoryGet<T>(`state:${key}`);
+  if (!db) {
+    return await withKv(async (kv) => {
+      return await kvGetJson<T>(kv, stateKvKey(key));
+    });
+  }
   const result = await db.query<{ value: T }>("select value from app_state where key = $1", [key]);
   return result.rows[0]?.value ?? null;
 }
@@ -112,7 +137,9 @@ export async function readStateValue<T>(key: string): Promise<T | null> {
 export async function writeStateValue<T>(key: string, value: T): Promise<void> {
   const db = await getQueryable();
   if (!db) {
-    memorySet(`state:${key}`, value);
+    await withKv(async (kv) => {
+      await kvSetJson(kv, stateKvKey(key), value);
+    });
     return;
   }
   await db.query(
@@ -129,7 +156,7 @@ export async function writeStateValue<T>(key: string, value: T): Promise<void> {
 
 export async function readCacheValue<T>(namespace: string, cacheId: string): Promise<T | null> {
   const db = await getQueryable();
-  if (!db) return memoryGetCache<T>(namespace, cacheId);
+  if (!db) return await kvGetCache<T>(namespace, cacheId);
   const result = await db.query<{ value: T }>(
     `
       select value
@@ -151,7 +178,7 @@ export async function writeCacheValue<T>(
 ): Promise<void> {
   const db = await getQueryable();
   if (!db) {
-    memorySetCache(namespace, cacheId, value, options);
+    await kvSetCache(namespace, cacheId, value, options);
     return;
   }
   await db.query(
@@ -184,7 +211,9 @@ export async function writeCacheValue<T>(
 export async function deleteCacheValue(namespace: string, cacheId: string): Promise<void> {
   const db = await getQueryable();
   if (!db) {
-    memoryStore.delete(memoryCacheKey(namespace, cacheId));
+    await withKv(async (kv) => {
+      await kvDeleteJson(kv, cacheKvKey(namespace, cacheId));
+    });
     return;
   }
   await db.query("delete from app_cache where namespace = $1 and cache_id = $2", [
@@ -199,19 +228,7 @@ export async function listCacheValues<T>(
 ): Promise<Array<{ cacheId: string; value: T; metadata: JsonRecord; updatedAt: string }>> {
   const db = await getQueryable();
   if (!db) {
-    pruneExpiredMemoryCache(namespace);
-    return [...memoryStore.entries()]
-      .filter((entry): entry is [string, MemoryCacheRecord] =>
-        entry[0].startsWith(`cache:${namespace}:`) && isMemoryCacheRecord(entry[1])
-      )
-      .sort((a, b) => Date.parse(b[1].updatedAt) - Date.parse(a[1].updatedAt))
-      .slice(0, limit)
-      .map(([key, record]) => ({
-        cacheId: key.replace(`cache:${namespace}:`, ""),
-        value: record.value as T,
-        metadata: record.metadata,
-        updatedAt: record.updatedAt,
-      }));
+    return await kvListCacheValues<T>(namespace, limit);
   }
   const result = await db.query<{
     cache_id: string;
@@ -240,15 +257,11 @@ export async function listCacheValues<T>(
 export async function cacheCounts(namespaces: readonly string[]): Promise<Record<string, number>> {
   const db = await getQueryable();
   if (!db) {
-    for (const namespace of namespaces) pruneExpiredMemoryCache(namespace);
-    return Object.fromEntries(
-      namespaces.map((namespace) => [
-        namespace,
-        [...memoryStore.entries()].filter(([key, value]) =>
-          key.startsWith(`cache:${namespace}:`) && isMemoryCacheRecord(value)
-        ).length,
-      ]),
-    );
+    const counts: Record<string, number> = {};
+    for (const namespace of namespaces) {
+      counts[namespace] = (await kvListCacheValues(namespace)).length;
+    }
+    return counts;
   }
   const result = await db.query<{ namespace: string; count: string }>(
     `
@@ -265,63 +278,202 @@ export async function cacheCounts(namespaces: readonly string[]): Promise<Record
   return counts;
 }
 
-function memoryCacheKey(namespace: string, cacheId: string): string {
-  return `cache:${namespace}:${cacheId}`;
+async function withKv<T>(operation: (kv: Deno.Kv) => Promise<T>): Promise<T> {
+  const kv = await Deno.openKv();
+  try {
+    return await operation(kv);
+  } finally {
+    kv.close();
+  }
 }
 
-function memoryGet<T>(key: string): T | null {
-  return memoryStore.get(key) as T | undefined ?? null;
+function stateKvKey(key: string): Deno.KvKey {
+  return ["state", key];
 }
 
-function memorySet<T>(key: string, value: T): void {
-  memoryStore.set(key, value);
+function cacheKvKey(namespace: string, cacheId: string): Deno.KvKey {
+  return ["cache", namespace, cacheId];
 }
 
-function memorySetCache<T>(
+function kvChunkKey(key: Deno.KvKey, index: number): Deno.KvKey {
+  return ["chunk", ...key, index];
+}
+
+async function kvSetJson<T>(
+  kv: Deno.Kv,
+  key: Deno.KvKey,
+  value: T,
+  options: { expireIn?: number } = {},
+): Promise<void> {
+  const previous = await kv.get<KvJsonRecord>(key);
+  const previousChunkCount = isKvJsonChunkedRecord(previous.value) ? previous.value.chunkCount : 0;
+  const json = JSON.stringify(value);
+  if (json === undefined) throw new TypeError("Cannot persist undefined JSON value.");
+  const encoded = TEXT_ENCODER.encode(json);
+  const setOptions = options.expireIn === undefined || options.expireIn <= 0
+    ? undefined
+    : { expireIn: options.expireIn };
+  if (encoded.byteLength <= KV_DIRECT_JSON_BYTE_LIMIT) {
+    await kv.set(
+      key,
+      { kind: "kv-json", storage: "direct", value } satisfies KvJsonRecord,
+      setOptions,
+    );
+    await kvDeleteChunks(kv, key, previousChunkCount);
+    return;
+  }
+
+  const chunkCount = Math.ceil(encoded.byteLength / KV_CHUNK_BYTE_LIMIT);
+  for (let index = 0; index < chunkCount; index += 1) {
+    const start = index * KV_CHUNK_BYTE_LIMIT;
+    await kv.set(
+      kvChunkKey(key, index),
+      encoded.slice(start, start + KV_CHUNK_BYTE_LIMIT),
+      setOptions,
+    );
+  }
+  await kv.set(
+    key,
+    { kind: "kv-json", storage: "chunked", chunkCount } satisfies KvJsonRecord,
+    setOptions,
+  );
+  await kvDeleteChunks(kv, key, Math.max(0, previousChunkCount - chunkCount), chunkCount);
+}
+
+async function kvGetJson<T>(kv: Deno.Kv, key: Deno.KvKey): Promise<T | null> {
+  const result = await kv.get<KvJsonRecord | T>(key);
+  return await kvDecodeJson<T>(kv, key, result.value);
+}
+
+async function kvDecodeJson<T>(
+  kv: Deno.Kv,
+  key: Deno.KvKey,
+  value: unknown,
+): Promise<T | null> {
+  if (value === null) return null;
+  if (!isKvJsonRecord(value)) return value as T;
+  if (value.storage === "direct") return value.value as T;
+  const chunks: Uint8Array[] = [];
+  for (let index = 0; index < value.chunkCount; index += 1) {
+    const result = await kv.get<Uint8Array>(kvChunkKey(key, index));
+    if (!(result.value instanceof Uint8Array)) return null;
+    chunks.push(result.value);
+  }
+  const byteLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
+  const merged = new Uint8Array(byteLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(TEXT_DECODER.decode(merged)) as T;
+}
+
+async function kvDeleteJson(kv: Deno.Kv, key: Deno.KvKey): Promise<void> {
+  const previous = await kv.get<KvJsonRecord>(key);
+  await kv.delete(key);
+  if (isKvJsonChunkedRecord(previous.value)) {
+    await kvDeleteChunks(kv, key, previous.value.chunkCount);
+  }
+}
+
+async function kvDeleteChunks(
+  kv: Deno.Kv,
+  key: Deno.KvKey,
+  count: number,
+  startIndex = 0,
+): Promise<void> {
+  for (let index = startIndex; index < startIndex + count; index += 1) {
+    await kv.delete(kvChunkKey(key, index));
+  }
+}
+
+async function kvSetCache<T>(
   namespace: string,
   cacheId: string,
   value: T,
   options: { ttlMs?: number; metadata?: JsonRecord },
-): void {
+): Promise<void> {
   const nowMs = Date.now();
-  memoryStore.set(
-    memoryCacheKey(namespace, cacheId),
-    {
-      kind: "cache",
-      value,
-      metadata: options.metadata ?? {},
-      updatedAt: new Date(nowMs).toISOString(),
-      expiresAtMs: options.ttlMs === undefined ? null : nowMs + options.ttlMs,
-    } satisfies MemoryCacheRecord,
-  );
+  const record: KvCacheRecord = {
+    kind: "cache",
+    value,
+    metadata: options.metadata ?? {},
+    updatedAt: new Date(nowMs).toISOString(),
+    expiresAtMs: options.ttlMs === undefined ? null : nowMs + options.ttlMs,
+  };
+  await withKv(async (kv) => {
+    await kvSetJson(
+      kv,
+      cacheKvKey(namespace, cacheId),
+      record,
+      options.ttlMs === undefined || options.ttlMs <= 0 ? undefined : { expireIn: options.ttlMs },
+    );
+  });
 }
 
-function memoryGetCache<T>(namespace: string, cacheId: string): T | null {
-  const key = memoryCacheKey(namespace, cacheId);
-  const record = memoryStore.get(key);
-  if (!isMemoryCacheRecord(record)) return null;
-  if (memoryCacheExpired(record)) {
-    memoryStore.delete(key);
-    return null;
-  }
-  return record.value as T;
-}
-
-function pruneExpiredMemoryCache(namespace: string): void {
-  const prefix = `cache:${namespace}:`;
-  for (const [key, value] of memoryStore.entries()) {
-    if (key.startsWith(prefix) && isMemoryCacheRecord(value) && memoryCacheExpired(value)) {
-      memoryStore.delete(key);
+async function kvGetCache<T>(namespace: string, cacheId: string): Promise<T | null> {
+  return await withKv(async (kv) => {
+    const key = cacheKvKey(namespace, cacheId);
+    const record = await kvGetJson<KvCacheRecord>(kv, key);
+    if (!isKvCacheRecord(record)) return null;
+    if (kvCacheExpired(record)) {
+      await kvDeleteJson(kv, key);
+      return null;
     }
-  }
+    return record.value as T;
+  });
 }
 
-function isMemoryCacheRecord(value: unknown): value is MemoryCacheRecord {
+async function kvListCacheValues<T>(
+  namespace: string,
+  limit = 1000,
+): Promise<Array<{ cacheId: string; value: T; metadata: JsonRecord; updatedAt: string }>> {
+  return await withKv(async (kv) => {
+    const items: Array<{ cacheId: string; value: T; metadata: JsonRecord; updatedAt: string }> = [];
+    for await (
+      const entry of kv.list<KvJsonRecord | KvCacheRecord>({ prefix: ["cache", namespace] }, {
+        limit,
+      })
+    ) {
+      const record = await kvDecodeJson<KvCacheRecord>(kv, entry.key, entry.value);
+      if (!isKvCacheRecord(record)) continue;
+      const cacheId = String(entry.key[2] ?? "");
+      if (kvCacheExpired(record)) {
+        await kvDeleteJson(kv, entry.key);
+        continue;
+      }
+      items.push({
+        cacheId,
+        value: record.value as T,
+        metadata: record.metadata,
+        updatedAt: record.updatedAt,
+      });
+    }
+    return items
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+      .slice(0, limit);
+  });
+}
+
+function isKvCacheRecord(value: unknown): value is KvCacheRecord {
   return Boolean(
     value && typeof value === "object" && (value as { kind?: unknown }).kind === "cache",
   );
 }
 
-function memoryCacheExpired(record: MemoryCacheRecord): boolean {
+function isKvJsonRecord(value: unknown): value is KvJsonRecord {
+  return Boolean(
+    value && typeof value === "object" && (value as { kind?: unknown }).kind === "kv-json",
+  );
+}
+
+function isKvJsonChunkedRecord(
+  value: unknown,
+): value is Extract<KvJsonRecord, { storage: "chunked" }> {
+  return isKvJsonRecord(value) && value.storage === "chunked";
+}
+
+function kvCacheExpired(record: KvCacheRecord): boolean {
   return record.expiresAtMs !== null && record.expiresAtMs <= Date.now();
 }

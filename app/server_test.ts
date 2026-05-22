@@ -13,6 +13,7 @@ import {
   statusLabelForScheduleStatus,
   visibleAgentGatewayError,
 } from "./server.ts";
+import { deleteCacheValue, readStateValue, writeCacheValue } from "./lib/postgres_store.ts";
 
 function assertEquals(actual: unknown, expected: unknown) {
   const actualJson = JSON.stringify(actual);
@@ -26,6 +27,39 @@ const ADMIN_STATE_HEADERS = {
   "content-type": "application/json",
   cookie: "techweek_session=test-session",
 };
+
+async function registrationStartHeadersForCurrentStore(): Promise<{
+  headers: Record<string, string>;
+  cleanup: () => Promise<void> | void;
+}> {
+  const headers = { "content-type": "application/json" };
+  const userIds = await readStateValue<string[]>("auth:users:v1") ?? [];
+  if (!userIds.length) return { headers, cleanup: () => undefined };
+
+  for (const userId of userIds) {
+    const user = await readStateValue<{ id: string; isAdmin: boolean }>(`auth:user:${userId}`);
+    if (!user?.isAdmin) continue;
+    const token = `test-session-${crypto.randomUUID()}`;
+    await writeCacheValue(
+      "auth-session",
+      token,
+      {
+        token,
+        userId: user.id,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      },
+      { ttlMs: 60_000, metadata: { userId: user.id } },
+    );
+    return {
+      headers: { ...headers, cookie: `techweek_session=${token}` },
+      cleanup: async () => {
+        await deleteCacheValue("auth-session", token);
+      },
+    };
+  }
+  throw new Error("Expected an admin account in the existing auth store.");
+}
 
 function useAdminSessionForTest() {
   setAccountSessionForTest({
@@ -278,6 +312,250 @@ Deno.test("Partiful sync endpoint ingests browser response snapshots and exposes
   setAccountSessionForTest(undefined);
 });
 
+Deno.test("planner endpoints allow authenticated non-admin users to import and plan", async () => {
+  const userId = `planner_${crypto.randomUUID()}`;
+  useAccountSessionForTest({
+    id: userId,
+    handle: "planner-user",
+    isAdmin: false,
+  });
+  const headers = {
+    "content-type": "application/json",
+    cookie: "techweek_session=test-session",
+  };
+
+  try {
+    const imported = await router(
+      new Request("http://localhost/api/planner/imports", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          name: "General planner test",
+          sourceType: "csv",
+          sourceText:
+            "title,start,end,location,score\nMorning session,2026-06-01 10:00,2026-06-01 11:00,Hall A,80\nEvening mixer,2026-06-01 18:00,2026-06-01 20:00,Hall B,90",
+        }),
+      }),
+    );
+    if (imported.status !== 200) {
+      throw new Error(`Expected planner import status 200, got ${imported.status}`);
+    }
+    const importedBody = await imported.json() as Record<string, unknown>;
+    const importedEvents = getPath(importedBody, ["import", "events"]);
+    if (!Array.isArray(importedEvents) || importedEvents.length !== 2) {
+      throw new Error(`Expected two imported events, got ${JSON.stringify(importedEvents)}`);
+    }
+
+    const planned = await router(
+      new Request("http://localhost/api/planner/plan", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({}),
+      }),
+    );
+    if (planned.status !== 200) {
+      throw new Error(`Expected planner plan status 200, got ${planned.status}`);
+    }
+    const plannedBody = await planned.json() as Record<string, unknown>;
+    const summary = getPath(plannedBody, ["plan", "summary"]) as Record<string, unknown>;
+    if (Number(summary.selectedEvents) < 1) {
+      throw new Error(
+        `Expected selected events in planner summary, got ${JSON.stringify(summary)}`,
+      );
+    }
+    if (Number(summary.generatedLogisticsBlocks) < 1) {
+      throw new Error(
+        `Expected generated logistics in planner summary, got ${JSON.stringify(summary)}`,
+      );
+    }
+  } finally {
+    setAccountSessionForTest(undefined);
+    await Deno.remove(new URL(`../.codex/planner-states/${userId}.json`, import.meta.url)).catch(
+      () => undefined,
+    );
+    await Deno.remove(new URL("../.codex/planner-states/", import.meta.url), { recursive: false })
+      .catch(() => undefined);
+  }
+});
+
+Deno.test("planner event endpoints create and update manual calendar events", async () => {
+  const userId = `planner_events_${crypto.randomUUID()}`;
+  useAccountSessionForTest({
+    id: userId,
+    handle: "planner-event-user",
+    isAdmin: false,
+  });
+  const headers = {
+    "content-type": "application/json",
+    cookie: "techweek_session=test-session",
+  };
+
+  try {
+    const created = await router(
+      new Request("http://localhost/api/planner/events", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          title: "Manual calendar block",
+          start: "2026-06-02T13:00",
+          end: "2026-06-02T14:00",
+          location: "Hall C",
+          description: "Created from the calendar timeline.",
+        }),
+      }),
+    );
+    if (created.status !== 200) {
+      throw new Error(`Expected planner event create status 200, got ${created.status}`);
+    }
+    const createdBody = await created.json() as Record<string, unknown>;
+    const eventId = String(getPath(createdBody, ["event", "id"]) || "");
+    if (!eventId.startsWith("manual_")) {
+      throw new Error(`Expected manual event id, got ${eventId}`);
+    }
+    assertEquals(getPath(createdBody, ["event", "start"]), "2026-06-02 13:00");
+    if (Number(getPath(createdBody, ["plan", "summary", "selectedEvents"])) < 1) {
+      throw new Error(
+        `Expected created event to generate a plan, got ${JSON.stringify(createdBody)}`,
+      );
+    }
+
+    const updated = await router(
+      new Request(`http://localhost/api/planner/events/${encodeURIComponent(eventId)}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          title: "Updated calendar block",
+          start: "2026-06-02T15:00",
+          end: "2026-06-02T16:15",
+          location: "Hall D",
+          description: "Edited from the calendar timeline.",
+        }),
+      }),
+    );
+    if (updated.status !== 200) {
+      throw new Error(`Expected planner event update status 200, got ${updated.status}`);
+    }
+    const updatedBody = await updated.json() as Record<string, unknown>;
+    assertEquals(getPath(updatedBody, ["event", "title"]), "Updated calendar block");
+    assertEquals(getPath(updatedBody, ["event", "start"]), "2026-06-02 15:00");
+    const blocks = getPath(updatedBody, ["plan", "blocks"]);
+    if (
+      !Array.isArray(blocks) ||
+      !blocks.some((block) =>
+        getPath(block, ["sourceEventId"]) === eventId &&
+        getPath(block, ["title"]) === "Updated calendar block"
+      )
+    ) {
+      throw new Error(`Expected updated event block in plan, got ${JSON.stringify(blocks)}`);
+    }
+  } finally {
+    setAccountSessionForTest(undefined);
+    await Deno.remove(new URL(`../.codex/planner-states/${userId}.json`, import.meta.url)).catch(
+      () => undefined,
+    );
+    await Deno.remove(new URL("../.codex/planner-states/", import.meta.url), { recursive: false })
+      .catch(() => undefined);
+  }
+});
+
+Deno.test("planner chat saves generated agendas that can be renamed and reactivated", async () => {
+  const userId = `planner_history_${crypto.randomUUID()}`;
+  useAccountSessionForTest({
+    id: userId,
+    handle: "planner-history-user",
+    isAdmin: false,
+  });
+  const headers = {
+    "content-type": "application/json",
+    cookie: "techweek_session=test-session",
+  };
+
+  try {
+    const imported = await router(
+      new Request("http://localhost/api/planner/imports", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          name: "Agenda history test",
+          sourceType: "csv",
+          sourceText:
+            "title,start,end,location,score\nMorning session,2026-06-03 10:00,2026-06-03 11:00,Hall A,80",
+        }),
+      }),
+    );
+    if (imported.status !== 200) {
+      throw new Error(`Expected planner import status 200, got ${imported.status}`);
+    }
+
+    const chatted = await router(
+      new Request("http://localhost/api/planner/chat", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ prompt: "Plan the strongest calendar for this day" }),
+      }),
+    );
+    if (chatted.status !== 200) {
+      throw new Error(`Expected planner chat status 200, got ${chatted.status}`);
+    }
+    const chattedBody = await chatted.json() as Record<string, unknown>;
+    assertEquals(getPath(chattedBody, ["calendarUpdated"]), true);
+    const toolCalls = getPath(chattedBody, ["toolCalls"]);
+    if (
+      !Array.isArray(toolCalls) ||
+      !toolCalls.some((call) => getPath(call, ["name"]) === "render_calendar")
+    ) {
+      throw new Error(`Expected render_calendar tool call, got ${JSON.stringify(toolCalls)}`);
+    }
+    const firstPlanId = String(getPath(chattedBody, ["plan", "id"]) || "");
+    assertEquals(
+      getPath(chattedBody, ["plan", "name"]),
+      "Plan the strongest calendar for this day",
+    );
+
+    const created = await router(
+      new Request("http://localhost/api/planner/events", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          title: "Manual follow-up",
+          start: "2026-06-04T13:00",
+          end: "2026-06-04T14:00",
+          location: "Hall B",
+        }),
+      }),
+    );
+    if (created.status !== 200) {
+      throw new Error(`Expected planner event create status 200, got ${created.status}`);
+    }
+    const createdBody = await created.json() as Record<string, unknown>;
+    const secondPlanId = String(getPath(createdBody, ["plan", "id"]) || "");
+    if (!firstPlanId || !secondPlanId || firstPlanId === secondPlanId) {
+      throw new Error(`Expected two saved plans, got ${firstPlanId} and ${secondPlanId}`);
+    }
+
+    const renamed = await router(
+      new Request(`http://localhost/api/planner/plans/${encodeURIComponent(firstPlanId)}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ name: "Baseline agenda", active: true }),
+      }),
+    );
+    if (renamed.status !== 200) {
+      throw new Error(`Expected planner plan update status 200, got ${renamed.status}`);
+    }
+    const renamedBody = await renamed.json() as Record<string, unknown>;
+    assertEquals(getPath(renamedBody, ["planner", "activePlanId"]), firstPlanId);
+    assertEquals(getPath(renamedBody, ["plan", "name"]), "Baseline agenda");
+  } finally {
+    setAccountSessionForTest(undefined);
+    await Deno.remove(new URL(`../.codex/planner-states/${userId}.json`, import.meta.url)).catch(
+      () => undefined,
+    );
+    await Deno.remove(new URL("../.codex/planner-states/", import.meta.url), { recursive: false })
+      .catch(() => undefined);
+  }
+});
+
 Deno.test("Partiful sync POST endpoints reject unauthenticated requests", async () => {
   setAccountSessionForTest(null);
   try {
@@ -348,14 +626,17 @@ Deno.test("Google Calendar write sync endpoint is removed", async () => {
   }
 });
 
-Deno.test("account session reports setup state without a local session cookie", async () => {
+Deno.test("account session reports unauthenticated state without a local session cookie", async () => {
   try {
     const response = await router(new Request("http://localhost/api/account/session"));
     assertEquals(response.status, 200);
     const body = await response.json() as Record<string, unknown>;
     assertEquals(getPath(body, ["session", "authenticated"]), false);
-    assertEquals(getPath(body, ["session", "auth"]), "setup_required");
-    assertEquals(getPath(body, ["session", "setupRequired"]), true);
+    const auth = getPath(body, ["session", "auth"]);
+    if (auth !== "setup_required" && auth !== "passkey") {
+      throw new Error(`Expected setup_required or passkey auth, got ${String(auth)}`);
+    }
+    assertEquals(getPath(body, ["session", "bootstrapConfigured"]), true);
   } finally {
     setAccountSessionForTest(undefined);
   }
@@ -363,26 +644,35 @@ Deno.test("account session reports setup state without a local session cookie", 
 
 Deno.test("auth registration start returns a standalone WebAuthn user id", async () => {
   setAccountSessionForTest(undefined);
-  const response = await router(
-    new Request("http://localhost/api/auth/register/start", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        handle: "Nik Pavlovcik",
-        client_origin: "http://localhost",
+  const registration = await registrationStartHeadersForCurrentStore();
+  try {
+    const handle = `Nik Pavlovcik ${crypto.randomUUID()}`;
+    const response = await router(
+      new Request("http://localhost/api/auth/register/start", {
+        method: "POST",
+        headers: registration.headers,
+        body: JSON.stringify({
+          handle,
+          admin: true,
+          client_origin: "http://localhost",
+        }),
       }),
-    }),
-  );
-  assertEquals(response.status, 200);
-  const body = await response.json() as Record<string, unknown>;
-  assertEquals(getPath(body, ["handle"]), "nik-pavlovcik");
-  assertEquals(getPath(body, ["admin"]), true);
-  const webAuthnUserId = decodeBase64urlText(String(getPath(body, ["publicKey", "user", "id"])));
-  if (!webAuthnUserId.startsWith("user_")) {
-    throw new Error(`Expected generated internal WebAuthn user id, got ${webAuthnUserId}`);
-  }
-  if (webAuthnUserId.includes("nik")) {
-    throw new Error(`Expected WebAuthn user id not to expose handle, got ${webAuthnUserId}`);
+    );
+    assertEquals(response.status, 200);
+    const body = await response.json() as Record<string, unknown>;
+    if (!String(getPath(body, ["handle"])).startsWith("nik-pavlovcik-")) {
+      throw new Error(`Expected normalized handle, got ${String(getPath(body, ["handle"]))}`);
+    }
+    assertEquals(getPath(body, ["admin"]), true);
+    const webAuthnUserId = decodeBase64urlText(String(getPath(body, ["publicKey", "user", "id"])));
+    if (!webAuthnUserId.startsWith("user_")) {
+      throw new Error(`Expected generated internal WebAuthn user id, got ${webAuthnUserId}`);
+    }
+    if (webAuthnUserId.includes("nik")) {
+      throw new Error(`Expected WebAuthn user id not to expose handle, got ${webAuthnUserId}`);
+    }
+  } finally {
+    await registration.cleanup();
   }
 });
 

@@ -4,8 +4,10 @@ import {
   listCacheValues,
   PUBLIC_STORE_HEALTH_ERROR,
   readCacheValue,
+  readStateValue,
   storeHealth,
   writeCacheValue,
+  writeStateValue,
 } from "./postgres_store.ts";
 
 function assertEquals(actual: unknown, expected: unknown) {
@@ -16,7 +18,7 @@ function assertEquals(actual: unknown, expected: unknown) {
   }
 }
 
-Deno.test("memory cache honors TTL expiration for read, list, and counts", async () => {
+Deno.test("local KV cache honors TTL expiration for read, list, and counts", async () => {
   if (Deno.env.get("DATABASE_URL")) return;
   const namespace = `ttl-test-${crypto.randomUUID()}`;
   await writeCacheValue(namespace, "expired", { value: 1 }, {
@@ -37,6 +39,35 @@ Deno.test("memory cache honors TTL expiration for read, list, and counts", async
   assertEquals(await cacheCounts([namespace]), { [namespace]: 1 });
 });
 
+Deno.test("local KV state persists values when Postgres is not configured", async () => {
+  if (Deno.env.get("DATABASE_URL")) return;
+  const key = `state-test-${crypto.randomUUID()}`;
+  const value = { durable: true, createdAt: new Date().toISOString() };
+
+  await writeStateValue(key, value);
+
+  assertEquals(await readStateValue(key), value);
+  const health = await storeHealth();
+  assertEquals(health, { backend: "kv", status: "ready", error: "" });
+});
+
+Deno.test("local KV state persists large planner-sized values in chunks", async () => {
+  if (Deno.env.get("DATABASE_URL")) return;
+  const key = `large-state-test-${crypto.randomUUID()}`;
+  const value = {
+    durable: true,
+    agenda: Array.from({ length: 150 }, (_, index) => ({
+      id: `block-${index}`,
+      title: `Planner block ${index}`,
+      details: "x".repeat(900),
+    })),
+  };
+
+  await writeStateValue(key, value);
+
+  assertEquals(await readStateValue(key), value);
+});
+
 Deno.test("Postgres configuration helper distinguishes database and local persistence modes", () => {
   assertEquals(isPostgresStoreConfigured(""), false);
   assertEquals(isPostgresStoreConfigured("postgres://user:secret@db.example.com/app"), true);
@@ -44,7 +75,9 @@ Deno.test("Postgres configuration helper distinguishes database and local persis
 
 Deno.test("storeHealth redacts Postgres errors from public health output", async () => {
   const previousDatabaseUrl = Deno.env.get("DATABASE_URL");
+  const previousConsoleError = console.error;
   Deno.env.set("DATABASE_URL", "postgres://user:secret@127.0.0.1:1/sensitive_db");
+  console.error = () => undefined;
   try {
     const health = await storeHealth();
     assertEquals(health, {
@@ -53,6 +86,7 @@ Deno.test("storeHealth redacts Postgres errors from public health output", async
       error: PUBLIC_STORE_HEALTH_ERROR,
     });
   } finally {
+    console.error = previousConsoleError;
     if (previousDatabaseUrl === undefined) Deno.env.delete("DATABASE_URL");
     else Deno.env.set("DATABASE_URL", previousDatabaseUrl);
   }

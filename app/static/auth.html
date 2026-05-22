@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Tech Week Auth</title>
+    <title>Planning Agent Auth</title>
     <style>
       :root {
         --bg: #f7f8fa;
@@ -11,7 +11,7 @@
         --soft: #eef2f6;
         --text: #20242b;
         --muted: #626b77;
-        --accent: #2f6f73;
+        --accent: #286f5d;
         --danger: #b42318;
         --border: #d7dde5;
         color-scheme: light;
@@ -48,7 +48,6 @@
 
       header,
       form,
-      [data-actions],
       [data-field] {
         display: grid;
         gap: 8px;
@@ -116,18 +115,9 @@
         letter-spacing: 0;
       }
 
-      button[type="button"] {
-        background: var(--soft);
-        color: var(--text);
-      }
-
       button:disabled {
         cursor: not-allowed;
         opacity: 0.58;
-      }
-
-      [data-actions] {
-        grid-template-columns: 1fr 1fr;
       }
 
       [data-message] {
@@ -152,32 +142,19 @@
         <p data-summary></p>
       </header>
 
-      <form data-login>
+      <form data-auth>
         <label data-field>
           <span>Username</span>
           <input name="handle" type="text" autocomplete="username webauthn" placeholder="Optional">
         </label>
-        <button type="submit">Sign in</button>
-      </form>
-
-      <form data-register hidden>
-        <label data-field>
-          <span>Username</span>
-          <input name="handle" type="text" autocomplete="username" required>
-        </label>
-        <label data-checkbox>
+        <label data-checkbox data-admin-field hidden>
           <input name="admin" type="checkbox">
           <span>Admin passkey</span>
         </label>
-        <button type="submit">Register passkey</button>
+        <button type="submit" data-submit>Continue</button>
       </form>
-
-      <div data-actions>
-        <button type="button" data-mode="login">Sign in</button>
-        <button type="button" data-mode="register">Register</button>
-      </div>
       <p data-message aria-live="polite"></p>
     </main>
-    <script type="module" src="/auth.js?v=20260519-standalone-auth"></script>
+    <script type="module" src="/auth.js?v=20260520-continue-auth"></script>
   </body>
 </html>

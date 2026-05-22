@@ -29,7 +29,7 @@ const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const HANDOFF_TTL_MS = 2 * 60 * 1000;
 const DEFAULT_COOKIE_NAME = "techweek_session";
-const RP_DISPLAY_NAME = "Tech Week Event Picker";
+const RP_DISPLAY_NAME = "Planning Agent";
 const TEXT_DECODER = new TextDecoder();
 
 export type AccountSessionUser = {

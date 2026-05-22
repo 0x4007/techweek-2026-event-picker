@@ -34,16 +34,17 @@ python3 scripts/sync_google_personal_day_batches.py --dry-run
 python3 scripts/check_techweek_acceptance_emails.py
 ```
 
-The Deno app runs at `http://localhost:8788` and serves a mobile route/backup/agent interface from
-`app/`. It reads `outputs/signed_up/techweek_signed_up_transport_schedule.csv`, stores mutable
-backend state in Postgres when `DATABASE_URL` is available, and uses the ignored `.env` gateway
-token for AI requests.
+The Deno app runs at `http://localhost:8788` and now serves a generalized authenticated planning
+workspace from `app/`. The first screen is organized around an agent chat, user profile prompts,
+plain-text/CSV event imports, and a generated calendar with sleep, meals, and transportation.
+Mutable backend state is stored in Postgres when `DATABASE_URL` is available, otherwise in Deno KV,
+with local `.codex/` mirrors for development.
 
 ## Standalone Passkey Auth
 
 The app owns its WebAuthn/passkey auth directly. It does not depend on the Raspberry Pi agent auth
 service. Account users, credential metadata, sessions, challenges, and handoffs are stored through
-the existing Postgres-backed app state/cache layer, with in-memory storage as the local fallback.
+the existing app state/cache layer: Postgres when configured, Deno KV otherwise.
 
 Auth endpoints:
 
@@ -55,26 +56,38 @@ Auth endpoints:
 The first registration becomes the admin account. Later registrations require an authenticated admin
 session. No new environment variables are required.
 
-For Deno Deploy, attach a managed Prisma Postgres database to the app. Generated schedule artifacts
-under `outputs/signed_up/` are treated as read-only deployment inputs; notes, leads, and dismissed
-blocks persist in Postgres across stateless requests. Deno Deploy injects `DATABASE_URL`;
-`deno.json` declares the app target, and the Deploy app should be created as a dynamic runtime with
-`app/server.ts` as the entrypoint.
+For Deno Deploy, use durable storage for the app state/cache layer. Attach a managed Prisma Postgres
+database when `DATABASE_URL` is available, or let the app use Deno KV otherwise. Generated schedule
+artifacts under `outputs/signed_up/` are treated as read-only deployment inputs; notes, leads,
+dismissed blocks, accounts, sessions, planner imports, and planner outputs persist across stateless
+requests. `deno.json` declares the app target, and the Deploy app should be created as a dynamic
+runtime with `app/server.ts` as the entrypoint.
 
 Deploy-ready dynamic planning endpoints:
 
-- `POST /api/agenda/recalculate` - creates a Postgres-persisted agenda proposal. Pass
+- `GET /api/planner` - returns the signed-in user's generalized planning profile, imports, and
+  generated plans.
+- `PUT /api/planner/profile` - updates the user's planning prompts, home base, time zone, and
+  default logistics settings.
+- `POST /api/planner/imports` - imports CSV or plain text event sources into normalized events.
+- `DELETE /api/planner/imports/:id` - removes an imported source and plans derived from it.
+- `POST /api/planner/plan` - builds a deterministic plan from imported events, including generated
+  sleep, eating, and transportation blocks.
+- `POST /api/planner/chat` - agent-chat endpoint for planning actions, local planning summaries, and
+  web-researched itinerary creation through the Responses API `web_search` tool when the existing AI
+  gateway/OpenAI token path is configured. This is serverless-friendly outbound HTTPS; no browser
+  worker or long-lived server is required.
+- `POST /api/agenda/recalculate` - creates a persisted agenda proposal. Pass
   `{ "liveRouting": false }` to use deterministic fallback travel estimates, or omit it to use
-  Nominatim/OpenStreetMap geocoding plus SubwayInfo.nyc routing with Postgres-backed caches. Pass
+  Nominatim/OpenStreetMap geocoding plus SubwayInfo.nyc routing with durable caches. Pass
   `{ "activate": true }` to make the recalculated proposal the active `/api/schedule` payload.
   Optional `preferences` can override the default agenda profile from
   `app/lib/agenda_preferences.ts`; the human prompt lives at `app/prompts/agenda-preferences.md`.
-- `GET /api/agenda/runs/:id` - reads a persisted agenda proposal from Postgres.
+- `GET /api/agenda/runs/:id` - reads a persisted agenda proposal.
 - `POST /api/sync/partiful` - accepts supplied Partiful snapshots, normalizes RSVP status changes,
-  stores them in Postgres, and can recalculate when `{ "recalculate": true }` is provided.
+  stores them durably, and can recalculate when `{ "recalculate": true }` is provided.
 - `GET /api/sync/partiful` - reads the latest stored Partiful RSVP state and status counts.
-- `GET /api/cache/routes` - reports Postgres cache counts for routing, agenda, and Partiful sync
-  records.
+- `GET /api/cache/routes` - reports cache counts for routing, agenda, and Partiful sync records.
 
 Partiful latest-state refresh has one supported sync path: headless Partiful callable API access
 using the stored Firebase token. The backend still accepts explicit snapshots for controlled

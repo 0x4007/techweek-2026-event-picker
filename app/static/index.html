@@ -4,548 +4,276 @@
     <meta charset="utf-8">
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
     >
-    <meta name="theme-color" content="#f7f9fa" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#050707" media="(prefers-color-scheme: dark)">
-    <title>Tech Week Copilot</title>
+    <meta name="theme-color" content="#f6f7f4" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0b0d0c" media="(prefers-color-scheme: dark)">
+    <title>Planning Agent</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
-  <body data-page="techweek-app">
+  <body data-page="planner">
     <svg aria-hidden="true" width="0" height="0" style="position: absolute">
       <symbol id="icon-calendar" viewBox="0 0 24 24">
         <path
           d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"
         />
       </symbol>
-      <symbol id="icon-layers" viewBox="0 0 24 24">
-        <path d="m12 3 9 5-9 5-9-5 9-5Z" />
-        <path d="m3 12 9 5 9-5" />
-        <path d="m3 16 9 5 9-5" />
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <path d="m20 6-11 11-5-5" />
+      </symbol>
+      <symbol id="icon-file-up" viewBox="0 0 24 24">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+        <path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3" />
       </symbol>
       <symbol id="icon-message" viewBox="0 0 24 24">
         <path d="M21 12a7 7 0 0 1-7 7H8l-5 3 2-5a7 7 0 1 1 16-5Z" />
       </symbol>
-      <symbol id="icon-terminal" viewBox="0 0 24 24">
-        <path d="m4 7 5 5-5 5" />
-        <path d="M12 17h8" />
-      </symbol>
-      <symbol id="icon-user-plus" viewBox="0 0 24 24">
-        <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
-        <path d="M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
-        <path d="M19 8v6M22 11h-6" />
-      </symbol>
-      <symbol id="icon-map-pin" viewBox="0 0 24 24">
-        <path d="M12 21s7-4.7 7-11a7 7 0 1 0-14 0c0 6.3 7 11 7 11Z" />
-        <path d="M12 10.5h.01" />
-      </symbol>
-      <symbol id="icon-sparkles" viewBox="0 0 24 24">
-        <path d="m12 3 1.7 5.2L19 10l-5.3 1.8L12 17l-1.7-5.2L5 10l5.3-1.8L12 3Z" />
-        <path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" />
-      </symbol>
-      <symbol id="icon-download" viewBox="0 0 24 24">
-        <path d="M12 3v12" />
-        <path d="m7 10 5 5 5-5" />
-        <path d="M5 21h14" />
-      </symbol>
-      <symbol id="icon-x" viewBox="0 0 24 24">
-        <path d="M6 6l12 12M18 6 6 18" />
+      <symbol id="icon-minus" viewBox="0 0 24 24">
+        <path d="M5 12h14" />
       </symbol>
       <symbol id="icon-send" viewBox="0 0 24 24">
         <path d="M22 2 11 13" />
         <path d="m22 2-7 20-4-9-9-4 20-7Z" />
       </symbol>
-      <symbol id="icon-plus" viewBox="0 0 24 24">
-        <path d="M12 5v14M5 12h14" />
-      </symbol>
-      <symbol id="icon-copy" viewBox="0 0 24 24">
-        <path d="M8 8h11v11H8z" />
-        <path d="M5 16H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
-      </symbol>
-      <symbol id="icon-external" viewBox="0 0 24 24">
-        <path d="M14 4h6v6" />
-        <path d="m10 14 10-10" />
-        <path d="M20 15v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h4" />
-      </symbol>
-      <symbol id="icon-check" viewBox="0 0 24 24">
-        <path d="M20 6 9 17l-5-5" />
-      </symbol>
-      <symbol id="icon-clock" viewBox="0 0 24 24">
-        <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
-        <path d="M12 7v5l3 2" />
-      </symbol>
-      <symbol id="icon-refresh" viewBox="0 0 24 24">
-        <path d="M20 12a8 8 0 0 1-13.7 5.7L4 15" />
-        <path d="M4 19v-4h4" />
-        <path d="M4 12A8 8 0 0 1 17.7 6.3L20 9" />
-        <path d="M20 5v4h-4" />
-      </symbol>
-      <symbol id="icon-slash" viewBox="0 0 24 24">
-        <path d="M4 4l16 16" />
-        <path d="M12 21a9 9 0 0 0 7.4-14.1M9.5 3.4A9 9 0 0 0 4.6 17" />
+      <symbol id="icon-sparkles" viewBox="0 0 24 24">
+        <path d="m12 3 1.7 5.2L19 10l-5.3 1.8L12 17l-1.7-5.2L5 10l5.3-1.8L12 3Z" />
+        <path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" />
       </symbol>
       <symbol id="icon-trash" viewBox="0 0 24 24">
-        <path d="M3 6h18" />
-        <path d="M8 6V4h8v2" />
-        <path d="M6 6l1 15h10l1-15" />
-        <path d="M10 11v6M14 11v6" />
+        <path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 11v6M14 11v6" />
       </symbol>
-      <symbol id="icon-camera" viewBox="0 0 24 24">
-        <path
-          d="M5 7h3l2-3h4l2 3h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"
-        />
-        <path d="M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+      <symbol id="icon-user" viewBox="0 0 24 24">
+        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+        <path d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+      </symbol>
+      <symbol id="icon-x" viewBox="0 0 24 24">
+        <path d="M18 6 6 18M6 6l12 12" />
       </symbol>
     </svg>
+
     <header>
       <section>
-        <section data-title-block>
-          <p>NYC Tech Week</p>
-          <h1 data-page-title>Agenda</h1>
-        </section>
-        <nav aria-label="Tech Week views">
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-view-button="route"
-            aria-current="page"
-          >
-            <svg><use href="#icon-calendar"></use></svg><span>Agenda</span>
-          </button>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-view-button="backup"
-          >
-            <svg><use href="#icon-layers"></use></svg><span>Events</span>
-          </button>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-view-button="invites"
-          >
-            <svg><use href="#icon-user-plus"></use></svg><span>Invites</span>
-          </button>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-view-button="crm"
-          >
-            <svg><use href="#icon-user-plus"></use></svg><span>CRM</span>
-          </button>
-        </nav>
-        <button type="button" data-motion="button" data-motion-hidden="true" data-account-button>
-          <svg><use href="#icon-user-plus"></use></svg><span data-account-label>Sign in</span>
-        </button>
+        <p>Planning Agent</p>
+        <h1>Calendar Builder</h1>
       </section>
+      <nav aria-label="Workspace sections">
+        <button type="button" data-panel-button="calendar" aria-current="page">
+          <svg><use href="#icon-calendar"></use></svg><span>Calendar</span>
+        </button>
+        <button type="button" data-panel-button="sources">
+          <svg><use href="#icon-file-up"></use></svg><span>Sources</span>
+        </button>
+        <button type="button" data-panel-button="profile">
+          <svg><use href="#icon-user"></use></svg><span>Profile</span>
+        </button>
+      </nav>
+      <button type="button" data-account-button>
+        <svg><use href="#icon-user"></use></svg><span data-account-label>Sign in</span>
+      </button>
     </header>
 
     <main>
-      <section data-panel="route">
-        <article data-next-card>
-          <p>Next</p>
-          <h2 data-next-title>Loading agenda...</h2>
-          <dl>
-            <div>
-              <dt>Time</dt>
-              <dd data-next-time></dd>
-            </div>
-            <div>
-              <dt>Place</dt>
-              <dd data-next-place></dd>
-            </div>
-          </dl>
-          <p data-agenda-status></p>
-        </article>
-
-        <section aria-label="Day picker" data-day-tabs></section>
-        <section aria-label="Agenda entries" data-route-list></section>
+      <section data-auth-gate hidden>
+        <h2>Continue with passkey</h2>
+        <menu>
+          <button type="button" data-auth-open>Continue</button>
+        </menu>
       </section>
 
-      <section data-panel="backup" hidden>
-        <section>
-          <h2>Events</h2>
-        </section>
-        <section aria-label="Event entries" data-reference-list></section>
-      </section>
-
-      <section data-panel="invites" hidden>
-        <section>
-          <h2>Invites</h2>
-          <p data-invite-status></p>
-        </section>
-        <section class="invite-panel">
-          <article data-invite-card>
-            <h3>Invite code</h3>
-            <section class="invite-row">
-              <strong data-invite-code>...</strong>
+      <section data-shell hidden>
+        <section data-agent-popover data-collapsed="false">
+          <button
+            type="button"
+            data-agent-pill
+            data-agent-toggle
+            aria-label="Open agent"
+            aria-expanded="false"
+          >
+            <svg><use href="#icon-message"></use></svg><span>Agent</span>
+          </button>
+          <section data-agent-panel>
+            <header data-agent-bar>
+              <section>
+                <p>Agent</p>
+                <h2>Calendar assistant</h2>
+              </section>
               <button
                 type="button"
-                data-motion="button"
-                data-motion-hidden="true"
-                data-invite-copy-code
+                data-agent-toggle
+                aria-label="Minimize agent"
+                aria-expanded="true"
               >
-                Copy
+                <svg><use href="#icon-minus"></use></svg>
               </button>
+            </header>
+            <section data-plan-strip>
+              <article>
+                <p>Events</p>
+                <strong data-count-events>0</strong>
+              </article>
+              <article>
+                <p>Selected</p>
+                <strong data-count-selected>0</strong>
+              </article>
+              <article>
+                <p>Logistics</p>
+                <strong data-count-logistics>0</strong>
+              </article>
             </section>
-            <p class="invite-label">Share link</p>
-            <section class="invite-row">
-              <a
-                data-motion="button"
-                data-motion-hidden="true"
-                data-invite-share-link
-                href="#"
-                target="_blank"
-                rel="noreferrer"
-              ></a>
-              <button
-                type="button"
-                data-motion="button"
-                data-motion-hidden="true"
-                data-invite-copy-link
-              >
-                Copy
+            <section data-agenda-history>
+              <header>
+                <h3>Generated agendas</h3>
+                <p data-agenda-status></p>
+              </header>
+              <label data-agenda-rename>
+                <span>Agenda name</span>
+                <input data-agenda-name autocomplete="off" placeholder="No saved agenda">
+              </label>
+              <section data-agenda-list></section>
+            </section>
+            <section data-chat-log aria-live="polite"></section>
+            <form data-chat-form>
+              <textarea
+                name="prompt"
+                rows="3"
+                autocomplete="off"
+                placeholder="Ask the agent to plan a day, compare tradeoffs, or adjust priorities."
+              ></textarea>
+              <button type="submit" aria-label="Send">
+                <svg><use href="#icon-send"></use></svg>
               </button>
-            </section>
-          </article>
-          <article class="invite-qrcode" aria-label="Invite QR code">
-            <h3>QR</h3>
-            <img data-invite-qr alt="Invite QR code" decoding="async">
-          </article>
-          <section class="invite-referrals">
-            <h3>Referred users</h3>
-            <p data-invite-referrals-count></p>
-            <ul data-invite-referrals></ul>
+            </form>
           </section>
         </section>
-      </section>
 
-      <section data-panel="crm" hidden>
-        <section data-crm-card>
-          <header>
-            <section>
-              <p>Lead capture</p>
-              <h2 data-crm-event-title>Current event</h2>
-            </section>
-          </header>
-          <form data-lead-form>
-            <label>
-              <span>Event</span>
-              <select name="calendarBlockId" data-lead-event></select>
-            </label>
-            <section data-card-scan>
-              <label
-                data-motion="button"
-                data-motion-hidden="true"
-                data-card-scan-button
-                role="button"
-                tabindex="0"
-              >
-                <input type="file" accept="image/*" capture="environment" data-card-input>
-                <svg><use href="#icon-camera"></use></svg><span>Scan card</span>
-              </label>
-              <p data-card-scan-status>Prefills only. Review before saving.</p>
-              <img alt="" data-card-preview hidden>
-            </section>
-            <section data-lead-fields>
+        <section data-panel="calendar" hidden>
+          <section data-calendar-header>
+            <h2>Calendar</h2>
+          </section>
+          <section data-calendar></section>
+        </section>
+
+        <section data-panel="sources" hidden>
+          <section data-source-grid>
+            <form data-import-form>
+              <h2>Sources</h2>
               <label>
                 <span>Name</span>
-                <input name="name" autocomplete="name">
+                <input name="name" autocomplete="off" placeholder="Conference events">
               </label>
               <label>
-                <span>Company</span>
-                <input name="company" autocomplete="organization">
+                <span>Type</span>
+                <select name="sourceType">
+                  <option value="csv">CSV</option>
+                  <option value="text">Text</option>
+                </select>
+              </label>
+              <label data-file-control>
+                <span>File</span>
+                <input name="file" type="file" accept=".csv, .txt, text/csv, text/plain">
               </label>
               <label>
-                <span>Role</span>
-                <input name="role" autocomplete="organization-title">
+                <span>Data</span>
+                <textarea
+                  name="sourceText"
+                  rows="12"
+                  placeholder="title,start,end,location&#10;Demo Day,2026-06-01 10:00,2026-06-01 11:00,Main Hall"
+                ></textarea>
               </label>
-              <label>
-                <span>Email</span>
-                <input name="email" type="email" autocomplete="email" inputmode="email">
-              </label>
-              <label>
-                <span>Phone</span>
-                <input name="phone" type="tel" autocomplete="tel" inputmode="tel">
-              </label>
-            </section>
-            <section data-lead-meta>
-              <label>
-                <span>Follow-up</span>
-                <input name="followUp" placeholder="20 min call / intro / notes">
-              </label>
-            </section>
-            <label data-send-follow-up>
-              <input type="checkbox" name="sendFollowUpEmail">
-              <span>Send follow-up email</span>
-              <small data-follow-up-email-status>Email off</small>
+              <button type="submit">
+                <svg><use href="#icon-file-up"></use></svg><span>Import</span>
+              </button>
+            </form>
+            <section data-import-list></section>
+          </section>
+        </section>
+
+        <section data-panel="profile" hidden>
+          <form data-profile-form>
+            <h2>Profile</h2>
+            <label>
+              <span>Name</span>
+              <input name="displayName" autocomplete="name">
             </label>
             <label>
-              <span>Notes</span>
-              <textarea
-                name="notes"
-                rows="3"
-                placeholder="Pain signal, context, promised follow-up..."
-              ></textarea>
+              <span>Home base</span>
+              <input name="homeBase" autocomplete="street-address">
             </label>
-            <p data-lead-error hidden></p>
-            <menu>
-              <button type="submit" data-motion="button" data-motion-hidden="true">
-                <svg><use href="#icon-check"></use></svg><span>Save lead</span>
-              </button>
-            </menu>
+            <section data-two-col>
+              <label>
+                <span>Time zone</span>
+                <input name="timeZone" autocomplete="off">
+              </label>
+              <label>
+                <span>Travel buffer</span>
+                <input name="defaultTravelMinutes" type="number" min="1" step="1">
+              </label>
+            </section>
+            <label>
+              <span>Preferences</span>
+              <textarea name="preferencePrompt" rows="5"></textarea>
+            </label>
+            <label>
+              <span>Priorities</span>
+              <textarea name="priorityPrompt" rows="5"></textarea>
+            </label>
+            <label>
+              <span>Logistics</span>
+              <textarea name="logisticsPrompt" rows="4"></textarea>
+            </label>
+            <p data-profile-status></p>
           </form>
         </section>
-        <section aria-label="Captured leads" data-leads-list></section>
       </section>
     </main>
 
-    <button
-      type="button"
-      data-motion="button"
-      data-motion-hidden="true"
-      data-chat-fab
-      data-chat-open
-    >
-      <svg><use href="#icon-message"></use></svg><span>Ask</span>
-    </button>
-    <button
-      type="button"
-      aria-label="Open development chat"
-      data-motion="button"
-      data-motion-hidden="true"
-      data-dev-chat-fab
-      data-chat-fab-side="left"
-      data-dev-chat-open
-      hidden
-    >
-      <svg><use href="#icon-terminal"></use></svg><span>Dev</span>
-    </button>
-
-    <div data-event-backdrop hidden></div>
-    <aside data-event-modal role="dialog" aria-modal="true" aria-label="Block details" hidden>
-      <header>
-        <section>
-          <p data-event-type></p>
-          <h2 data-event-title></h2>
-        </section>
-        <button
-          type="button"
-          aria-label="Close details"
-          data-motion="button"
-          data-motion-hidden="true"
-          data-event-close
-          data-icon-only
-        >
-          <svg><use href="#icon-x"></use></svg>
-        </button>
-      </header>
-      <dl>
-        <div>
-          <dt>Time</dt>
-          <dd data-event-time></dd>
-        </div>
-        <div>
-          <dt>Place</dt>
-          <dd data-event-place></dd>
-        </div>
-      </dl>
-      <section data-event-detail></section>
-      <menu data-event-actions></menu>
-    </aside>
-
-    <div data-agent-backdrop hidden></div>
-    <aside data-agent-drawer role="dialog" aria-modal="true" aria-label="Tech Week agent" hidden>
-      <section data-agent-header>
-        <section>
-          <p>Agent</p>
-          <h2>Executive assistant</h2>
-        </section>
-        <menu data-agent-tools>
-          <button
-            type="button"
-            aria-label="New chat"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-chat-new
-            data-icon-only
-          >
-            <svg><use href="#icon-plus"></use></svg>
-          </button>
-          <button
-            type="button"
-            aria-label="Chat history"
-            aria-expanded="false"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-chat-history-toggle
-            data-icon-only
-          >
-            <svg><use href="#icon-clock"></use></svg>
-          </button>
-          <button
-            type="button"
-            aria-label="Close agent"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-chat-close
-            data-icon-only
-          >
-            <svg><use href="#icon-x"></use></svg>
-          </button>
-        </menu>
-      </section>
-      <section aria-label="Chat history" data-chat-history hidden></section>
-      <section data-chat-log aria-live="polite"></section>
-      <section data-agent-composer>
-        <section aria-label="Quick prompts" data-prompts>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-agenda-recalculate
-            data-variant="primary"
-          >
-            <svg><use href="#icon-sparkles"></use></svg><span>Optimize</span>
-          </button>
-          <a href="/api/ics/operational" data-motion="button" data-motion-hidden="true">
-            <svg><use href="#icon-download"></use></svg><span>ICS</span>
-          </a>
-          <button type="button" data-motion="button" data-motion-hidden="true" data-partiful-sync>
-            <svg><use href="#icon-refresh"></use></svg><span>Partiful</span>
-          </button>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-ask="What should I do next?"
-          >
-            <svg><use href="#icon-calendar"></use></svg><span>Next</span>
-          </button>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-ask="Can I make the next event on time?"
-          >
-            <svg><use href="#icon-clock"></use></svg><span>Timing</span>
-          </button>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-ask="Which event option should I use tonight if the primary falls through?"
-          >
-            <svg><use href="#icon-layers"></use></svg><span>Options</span>
-          </button>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-ask="Give me the opening line and ask for the next event."
-          >
-            <svg><use href="#icon-sparkles"></use></svg><span>Pitch</span>
-          </button>
-        </section>
-        <p data-agent-agenda-status data-agenda-status></p>
-        <form data-chat-form>
-          <textarea
-            name="prompt"
-            rows="2"
-            autocomplete="off"
-            placeholder="Message Tech Week agent"
-          ></textarea>
-          <button type="submit" aria-label="Send message" data-icon-only disabled>
-            <svg><use href="#icon-send"></use></svg>
-          </button>
-        </form>
-      </section>
-    </aside>
-
-    <div data-agent-backdrop data-agent-side="left" data-dev-agent-backdrop hidden></div>
+    <section data-event-editor-backdrop hidden></section>
     <aside
-      data-agent-drawer
-      data-agent-side="left"
-      data-dev-agent-drawer
-      data-repo-id="0x4007/techweek-2026-event-picker"
-      data-repo-label="techweek-2026-event-picker"
-      data-deploy="false"
+      data-event-editor
+      hidden
       role="dialog"
       aria-modal="true"
-      aria-label="Development agent"
-      hidden
+      aria-labelledby="event-editor-title"
     >
-      <section data-agent-header>
-        <button
-          type="button"
-          aria-label="Back to development threads"
-          data-dev-chat-back
-          data-icon-only
-          hidden
-        >
-          <svg><use href="#icon-layers"></use></svg>
-        </button>
-        <section>
-          <p data-dev-chat-kicker>Development</p>
-          <h2 data-dev-chat-title>Threads</h2>
-          <small data-dev-chat-subtitle></small>
-        </section>
-        <menu data-agent-tools>
-          <button
-            type="button"
-            aria-label="New development chat"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-dev-chat-new
-            data-icon-only
-          >
-            <svg><use href="#icon-plus"></use></svg>
-          </button>
-          <button
-            type="button"
-            aria-label="Close development agent"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-dev-chat-close
-            data-icon-only
-          >
+      <form data-event-form>
+        <header>
+          <h2 id="event-editor-title" data-event-editor-title>Event</h2>
+          <button type="button" data-event-editor-close aria-label="Close">
             <svg><use href="#icon-x"></use></svg>
           </button>
-        </menu>
-      </section>
-      <section data-dev-chat-log data-empty="true" aria-live="polite">
-        <section data-message="assistant" data-empty-message>
-          <div data-message-content>
-            <p>Development agent ready.</p>
-          </div>
-        </section>
-      </section>
-      <section data-agent-composer>
-        <label data-dev-deploy-control hidden>
-          <input type="checkbox" data-dev-deploy>
-          <span>Auto deploy</span>
+        </header>
+        <input type="hidden" name="id">
+        <label>
+          <span>Title</span>
+          <input name="title" autocomplete="off" required>
         </label>
-        <form data-dev-chat-form>
-          <textarea
-            name="prompt"
-            rows="2"
-            autocomplete="off"
-            placeholder="Message development agent"
-          ></textarea>
-          <button type="submit" aria-label="Send development message" data-icon-only disabled>
-            <svg><use href="#icon-send"></use></svg>
+        <section data-two-col>
+          <label>
+            <span>Start</span>
+            <input name="start" type="datetime-local" required>
+          </label>
+          <label>
+            <span>End</span>
+            <input name="end" type="datetime-local" required>
+          </label>
+        </section>
+        <label>
+          <span>Location</span>
+          <input name="location" autocomplete="off">
+        </label>
+        <label>
+          <span>Notes</span>
+          <textarea name="description" rows="4"></textarea>
+        </label>
+        <menu>
+          <button type="button" data-event-editor-close>Cancel</button>
+          <button type="submit">
+            <svg><use href="#icon-check"></use></svg><span data-event-submit-label>Save</span>
           </button>
-          <p data-dev-composer-error hidden></p>
-        </form>
-      </section>
+        </menu>
+      </form>
     </aside>
 
-    <script src="/vendor/markdown-it-14.1.1.min.js"></script>
-    <script src="/vendor/dompurify-3.4.5.min.js"></script>
     <script type="module" src="/app.js"></script>
   </body>
 </html>

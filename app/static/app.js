@@ -1,3740 +1,894 @@
-const MOTION_IMPORT_SOURCE = "https://esm.sh/motion@12.6.4?bundle";
-let motionAnimate = null;
-
-const CHAT_STORAGE_KEY = "techweek-chat";
-const CHAT_HISTORY_KEY = "techweek-chat-history";
-const ACTIVE_CHAT_KEY = "techweek-chat-active-id";
-const MODEL_CONTEXT_CACHE_KEY = "techweek-model-context";
-const ACCOUNT_ANONYMOUS_STORAGE_ID = "anonymous";
-const ACCOUNT_AUTH_MESSAGE_TYPE = "techweek-auth-complete";
-const CHAT_MESSAGE_LIMIT = 24;
-const CHAT_SESSION_LIMIT = 18;
-const MODEL_CONTEXT_CACHE_TTL_MS = 5 * 60 * 1000;
-const EVENT_CHAT_CONTEXT_VERSION = 1;
-const CARD_DB_NAME = "techweek-card-images";
-const CARD_DB_VERSION = 1;
-const CARD_STORE = "cards";
-const CARD_IMAGE_LIMIT = 30;
-const OCR_IMAGE_TARGET_CHARS = 1_800_000;
-const OCR_MAX_REQUEST_ATTEMPTS = 3;
-const OCR_REQUEST_TIMEOUT_MS = 45_000;
-const OCR_ANALYSIS_LONGEST_EDGE = 900;
-const OCR_IMAGE_ATTEMPTS = [
-  { longestEdge: 1800, quality: 0.88, ocrSource: "canvas_auto_edge_crop" },
-  { longestEdge: 1400, quality: 0.84, ocrSource: "canvas_auto_edge_crop" },
-  { longestEdge: 1500, quality: 0.82, ocrSource: "canvas_full_frame_fallback" },
-];
-const OCR_ROTATION_CANDIDATES = [0, 270, 90, 180];
-const LEAD_EVENT_REFRESH_MS = 60_000;
-const PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS = 1_500;
-const PARTIFUL_AUTO_SYNC_STATUS_POLL_MS = 20_000;
-const PARTIFUL_AUTO_SYNC_MAX_POLLS = 8;
-const PARTIFUL_FAST_SYNC_TIMEOUT_MS = 60_000;
-const LIVE_ROUTE_REFRESH_TIMEOUT_MS = 150_000;
-const CHAT_EMPTY_GUIDE = [
-  "Action shortcuts",
-  "",
-  "Optimize: rebuild the agenda around approvals, locations, and timing.",
-  "ICS: download the current agenda calendar file.",
-  "Partiful: sync approvals, statuses, and discovered events.",
-  "Next: ask what to do next for the current tab and day.",
-  "Timing: check whether the next event is reachable.",
-  "Options: compare backup choices when the plan changes.",
-  "Pitch: get an opening line and ask for the next event.",
-].join("\n");
-const DEV_AUTH_POPUP_POLL_MS = 500;
-const DEV_AUTH_POPUP_TIMEOUT_MS = 2 * 60_000;
-const MOTION_REDUCE_OK = !globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-const FORCE_MOTION = false;
-const MOTION_CARD_STAGGER_MS = 28;
-const MOTION_BUTTON_STAGGER_MS = 14;
-let motionApiLoadPromise = null;
-const DEV_AGENT_SAME_SITE_ORIGIN = "https://techweek.pavlovcik.com";
-const DEV_AGENT_LEGACY_HOSTNAMES = new Set(["techweek-2026-event-picker.0x4007.deno.net"]);
-const DEV_AGENT_SESSION_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000];
-const DEV_AGENT_SELECTED_THREAD_KEY = "techweek-dev-agent-selected-thread";
-const DEV_AGENT_LAST_EVENT_KEY_PREFIX = "techweek-dev-agent-last-event:";
-const DEV_AGENT_EVENT_TYPES = [
-  "user.message",
-  "agent.message",
-  "progress.message",
-  "phase.changed",
-  "error",
-  "result",
-  "codex.session",
-  "command.started",
-  "command.finished",
-  "files.changed",
-  "git.branch.created",
-  "git.integration.started",
-  "git.integration.finished",
-  "deploy.started",
-  "deploy.finished",
-  "raw.codex.event",
-];
-const DEV_AGENT_VISIBLE_TYPES = new Set([
-  "user.message",
-  "agent.message",
-  "progress.message",
-  "error",
-  "result",
-]);
-const DEV_AGENT_VISIBLE_PHASES = new Set([
-  "failed",
-  "needs attention",
-  "queued",
-  "finalizing",
-  "deploying",
-  "succeeded",
-  "cancelled",
-  "canceled",
-]);
-const VIEW_HASH_SEGMENTS = {
-  route: "agenda",
-  backup: "events",
-  crm: "crm",
-  invites: "invites",
-};
-const HASH_VIEW_ALIASES = {
-  agenda: "route",
-  route: "route",
-  events: "backup",
-  event: "backup",
-  backup: "backup",
-  backups: "backup",
-  crm: "crm",
-  invites: "invites",
-  invite: "invites",
-  ref: "invites",
-};
-const INVITE_QR_IMAGE_URL = "https://api.qrserver.com/v1/create-qr-code/";
-const PENDING_REFERRAL_STORAGE_KEY = "techweek-pending-referral-code";
-const MARKDOWN_RENDERER = createMarkdownRenderer();
-let scheduleLoadPromise = null;
-
-function loadMotionLibrary() {
-  if (motionApiLoadPromise) return motionApiLoadPromise;
-  motionApiLoadPromise = import(MOTION_IMPORT_SOURCE).then((module) => {
-    motionAnimate = typeof module?.animate === "function" ? module.animate : null;
-  }).catch(() => {
-    motionAnimate = null;
-  });
-  return motionApiLoadPromise;
-}
+const AUTH_COMPLETE_MESSAGE = "planner-auth-complete";
+const PROFILE_SAVE_DELAY_MS = 650;
+const AGENDA_NAME_SAVE_DELAY_MS = 550;
+const TIMELINE_SLOT_MINUTES = 15;
+const EMPTY_SLOT_MINUTES = 30;
+const FULL_DAY_START_MINUTES = 0;
+const FULL_DAY_END_MINUTES = 24 * 60;
+const DEFAULT_NEW_EVENT_START_MINUTES = 9 * 60;
 
 const state = {
-  payload: null,
-  activeView: "route",
-  activeDay: "",
-  entriesByBlock: new Map(),
-  invitePayload: null,
-  inviteLoading: false,
-  accountSession: null,
-  accountLoading: false,
-  accountError: "",
-  accountAuthPopupTimer: 0,
-  accountStorageId: ACCOUNT_ANONYMOUS_STORAGE_ID,
-  messages: readJsonStorage(
-    scopedStorageKey(CHAT_STORAGE_KEY, ACCOUNT_ANONYMOUS_STORAGE_ID),
-    readJsonStorage(CHAT_STORAGE_KEY, []),
-  ),
-  sessions: readJsonStorage(
-    scopedStorageKey(CHAT_HISTORY_KEY, ACCOUNT_ANONYMOUS_STORAGE_ID),
-    readJsonStorage(CHAT_HISTORY_KEY, []),
-  ),
-  activeSessionId: localStorage.getItem(
-    scopedStorageKey(ACTIVE_CHAT_KEY, ACCOUNT_ANONYMOUS_STORAGE_ID),
-  ) || localStorage.getItem(ACTIVE_CHAT_KEY) || createSessionId(),
-  activeSessionMeta: null,
-  modelContext: readCachedModelContext(),
-  historyOpen: false,
-  agentBusy: false,
-  agendaBusy: false,
-  partifulSyncBusy: false,
-  liveRouteRefreshBusy: false,
-  partifulAutoSyncRequestBusy: false,
-  partifulAutoSyncRequestTimer: 0,
-  partifulAutoSyncPollTimer: 0,
-  routeTransitionDirection: "none",
-  leadEventManuallySelected: false,
-  followUpEmailTouched: false,
-  ocrMetadata: null,
-};
-const initialNavigation = readHashNavigation();
-state.activeView = initialNavigation.view || state.activeView;
-state.activeDay = initialNavigation.day || state.activeDay;
-
-const viewButtons = document.querySelectorAll("[data-view-button]");
-const panels = document.querySelectorAll("[data-panel]");
-const dayTabs = document.querySelector("[data-day-tabs]");
-const routeList = document.querySelector("[data-route-list]");
-const referenceList = document.querySelector("[data-reference-list]");
-const chatLog = document.querySelector("[data-chat-log]");
-const chatForm = document.querySelector("[data-chat-form]");
-const promptButtons = document.querySelectorAll("[data-ask]");
-const chatDrawer = document.querySelector("[data-agent-drawer]");
-const chatBackdrop = document.querySelector("[data-agent-backdrop]");
-const chatOpenButtons = document.querySelectorAll("[data-chat-open]");
-const chatCloseButton = document.querySelector("[data-chat-close]");
-const chatNewButton = document.querySelector("[data-chat-new]");
-const chatHistory = document.querySelector("[data-chat-history]");
-const chatHistoryToggle = document.querySelector("[data-chat-history-toggle]");
-const devChatOpenButton = document.querySelector("[data-dev-chat-open]");
-const devChatDrawer = document.querySelector("[data-dev-agent-drawer]");
-const devChatBackdrop = document.querySelector("[data-dev-agent-backdrop]");
-const devChatCloseButton = document.querySelector("[data-dev-chat-close]");
-const devChatNewButton = document.querySelector("[data-dev-chat-new]");
-const devChatBackButton = document.querySelector("[data-dev-chat-back]");
-const devChatLog = document.querySelector("[data-dev-chat-log]");
-const devChatForm = document.querySelector("[data-dev-chat-form]");
-const devChatTitle = document.querySelector("[data-dev-chat-title]");
-const devChatSubtitle = document.querySelector("[data-dev-chat-subtitle]");
-const devDeployControl = document.querySelector("[data-dev-deploy-control]");
-const devDeployCheckbox = document.querySelector("[data-dev-deploy]");
-const devComposerError = document.querySelector("[data-dev-composer-error]");
-const eventModal = document.querySelector("[data-event-modal]");
-const eventBackdrop = document.querySelector("[data-event-backdrop]");
-const eventCloseButton = document.querySelector("[data-event-close]");
-const pageTitle = document.querySelector("[data-page-title]");
-const accountButton = document.querySelector("[data-account-button]");
-const accountLabel = document.querySelector("[data-account-label]");
-const inviteStatus = document.querySelector("[data-invite-status]");
-const inviteCode = document.querySelector("[data-invite-code]");
-const inviteCopyCodeButton = document.querySelector("[data-invite-copy-code]");
-const inviteShareLink = document.querySelector("[data-invite-share-link]");
-const inviteCopyLinkButton = document.querySelector("[data-invite-copy-link]");
-const inviteQrImage = document.querySelector("[data-invite-qr]");
-const inviteReferralsCount = document.querySelector("[data-invite-referrals-count]");
-const inviteReferralsList = document.querySelector("[data-invite-referrals]");
-const leadForm = document.querySelector("[data-lead-form]");
-const leadEventSelect = document.querySelector("[data-lead-event]");
-const leadsList = document.querySelector("[data-leads-list]");
-const crmEventTitle = document.querySelector("[data-crm-event-title]");
-const leadError = document.querySelector("[data-lead-error]");
-const cardInput = document.querySelector("[data-card-input]");
-const cardScanButton = document.querySelector("[data-card-scan-button]");
-const cardScanStatus = document.querySelector("[data-card-scan-status]");
-const cardPreview = document.querySelector("[data-card-preview]");
-const followUpEmailStatus = document.querySelector("[data-follow-up-email-status]");
-const agendaRecalculateButton = document.querySelector("[data-agenda-recalculate]");
-const partifulSyncButton = document.querySelector("[data-partiful-sync]");
-const agendaStatusItems = document.querySelectorAll("[data-agenda-status]");
-const SVG_NS = "http://www.w3.org/2000/svg";
-const VIEW_TITLES = {
-  route: "Agenda",
-  backup: "Events",
-  crm: "CRM",
-  invites: "Invites",
-};
-const devAgent = createDevAgentState();
-const devAgentEnabled = Boolean(devAgent.config.ready);
-const motionButtonsAnimated = new WeakSet();
-const motionCardsAnimated = new WeakSet();
-const BUTTON_MOTION_SELECTOR = "button, a[href], [role='button'], [data-motion='button']";
-const BUTTON_MOTION_INITIAL = {
-  opacity: "0",
-  transform: "translateY(2px)",
-};
-const BUTTON_MOTION_VISIBLE = {
-  opacity: "1",
-  transform: "translateY(0px)",
+  session: null,
+  planner: null,
+  activePanel: "calendar",
+  busy: false,
+  agentCollapsed: false,
+  profileTimer: 0,
+  agendaNameTimer: 0,
+  authPollTimer: 0,
+  authPopup: null,
+  messages: [
+    {
+      role: "assistant",
+      content:
+        "Bring me events, priorities, and constraints. I will turn them into a calendar with sleep, meals, and transportation.",
+    },
+  ],
 };
 
-function runMotion(target, keyframes, options = {}) {
-  if (!MOTION_REDUCE_OK && !FORCE_MOTION) return;
-  if (!target) return;
-  const { onComplete, ...motionOptions } = options;
-  if (keyframes) {
-    for (const [property, values] of Object.entries(keyframes)) {
-      const firstValue = Array.isArray(values) ? values[0] : values;
-      if (typeof firstValue !== "undefined") target.style[property] = firstValue;
-    }
-  }
+const els = {
+  accountButton: document.querySelector("[data-account-button]"),
+  accountLabel: document.querySelector("[data-account-label]"),
+  authGate: document.querySelector("[data-auth-gate]"),
+  shell: document.querySelector("[data-shell]"),
+  panelButtons: Array.from(document.querySelectorAll("[data-panel-button]")),
+  panels: Array.from(document.querySelectorAll("[data-panel]")),
+  chatLog: document.querySelector("[data-chat-log]"),
+  chatForm: document.querySelector("[data-chat-form]"),
+  agendaList: document.querySelector("[data-agenda-list]"),
+  agendaName: document.querySelector("[data-agenda-name]"),
+  agendaStatus: document.querySelector("[data-agenda-status]"),
+  agentPopover: document.querySelector("[data-agent-popover]"),
+  agentToggleButtons: Array.from(document.querySelectorAll("[data-agent-toggle]")),
+  countEvents: document.querySelector("[data-count-events]"),
+  countSelected: document.querySelector("[data-count-selected]"),
+  countLogistics: document.querySelector("[data-count-logistics]"),
+  calendar: document.querySelector("[data-calendar]"),
+  eventEditor: document.querySelector("[data-event-editor]"),
+  eventEditorBackdrop: document.querySelector("[data-event-editor-backdrop]"),
+  eventEditorTitle: document.querySelector("[data-event-editor-title]"),
+  eventForm: document.querySelector("[data-event-form]"),
+  eventSubmitLabel: document.querySelector("[data-event-submit-label]"),
+  importForm: document.querySelector("[data-import-form]"),
+  importList: document.querySelector("[data-import-list]"),
+  profileForm: document.querySelector("[data-profile-form]"),
+  profileStatus: document.querySelector("[data-profile-status]"),
+};
 
-  const animationOptions = {
-    duration: Math.round((motionOptions.duration || 0) * 1000),
-    delay: motionOptions.delay || 0,
-    easing: motionOptions.easing || "ease-out",
-    fill: motionOptions.fill || "both",
-  };
-  void loadMotionLibrary().then(() => {
-    let animation = null;
-    if (typeof motionAnimate === "function") {
-      animation = motionAnimate(target, keyframes, motionOptions);
-    } else {
-      animation = target.animate(keyframes, animationOptions);
-    }
-    if (typeof onComplete !== "function") return;
-    if (animation?.finished && typeof animation.finished.then === "function") {
-      void animation.finished.then(onComplete, onComplete);
-      return;
-    }
-    globalThis.setTimeout(
-      onComplete,
-      Math.round(((motionOptions.delay || 0) + (motionOptions.duration || 0)) * 1000),
-    );
-  });
-}
-
-function animateButtonCluster(root) {
-  if (!root) return;
-  const buttons = motionButtonTargets(root);
-  const eligibleButtons = buttons.filter(isMotionButtonEligible);
-  for (const button of buttons) {
-    if (!isMotionButtonEligible(button) && button.dataset.motionHidden === "true") {
-      showMotionButton(button);
-    }
-  }
-
-  if (!MOTION_REDUCE_OK && !FORCE_MOTION) {
-    for (const button of buttons) {
-      showMotionButton(button);
-    }
-    return;
-  }
-
-  eligibleButtons.forEach((button, index) => {
-    if (motionButtonsAnimated.has(button)) return;
-    hideMotionButton(button);
-    const delay = Number.isFinite(button.dataset.motionDelay)
-      ? Number(button.dataset.motionDelay)
-      : (index + 1) * (MOTION_BUTTON_STAGGER_MS / 1000);
-    runMotion(button, {
-      opacity: [0, 1],
-      transform: ["translateY(2px)", "translateY(0px)"],
-    }, {
-      duration: 0.22,
-      easing: "ease-out",
-      delay,
-      fill: "both",
-      onComplete: () => showMotionButton(button),
-    });
-    motionButtonsAnimated.add(button);
-  });
-}
-
-function motionButtonTargets(root) {
-  const targets = [];
-  if (root.matches?.(BUTTON_MOTION_SELECTOR)) targets.push(root);
-  targets.push(...root.querySelectorAll?.(BUTTON_MOTION_SELECTOR) || []);
-  return Array.from(new Set(targets));
-}
-
-function isMotionButtonEligible(button) {
-  return !button.hidden && !button.disabled;
-}
-
-function hideMotionButton(button) {
-  button.dataset.motion = "button";
-  button.dataset.motionHidden = "true";
-  button.style.opacity = BUTTON_MOTION_INITIAL.opacity;
-  button.style.transform = BUTTON_MOTION_INITIAL.transform;
-  return button;
-}
-
-function markMotionButton(button) {
-  if (!isMotionButtonEligible(button)) return button;
-  button.dataset.motion = "button";
-  button.dataset.motionHidden = "true";
-  return button;
-}
-
-function showMotionButton(button) {
-  button.dataset.motion = "button";
-  delete button.dataset.motionHidden;
-  button.style.opacity = BUTTON_MOTION_VISIBLE.opacity;
-  button.style.transform = BUTTON_MOTION_VISIBLE.transform;
-  return button;
-}
-
-function animateCards(root) {
-  if (!MOTION_REDUCE_OK && !FORCE_MOTION || !root) return;
-  const entries = Array.from(root.querySelectorAll("article[data-entry]"));
-  for (const [index, entry] of entries.entries()) {
-    if (motionCardsAnimated.has(entry)) continue;
-    runMotion(entry, {
-      opacity: [0, 1],
-    }, {
-      duration: 0.32,
-      delay: Math.min(0.42, (index + 1) * (MOTION_CARD_STAGGER_MS / 1000)),
-      easing: "ease-out",
-      fill: "both",
-    });
-    motionCardsAnimated.add(entry);
-  }
-}
-
-function normalizedDays(payload = state.payload) {
-  return Array.isArray(payload?.days) ? payload.days : [];
-}
-
-function normalizedReferenceDays(payload = state.payload) {
-  return Array.isArray(payload?.referenceDays) ? payload.referenceDays : [];
-}
-
-function flattenDayEntries(days = []) {
-  return (Array.isArray(days) ? days : []).flatMap((day) =>
-    Array.isArray(day?.entries) ? day.entries : []
-  );
-}
-
-document.body.dataset.view = state.activeView;
-
-viewButtons.forEach((button) => {
-  button.addEventListener("click", () => setView(button.dataset.viewButton));
-});
-
-chatOpenButtons.forEach((button) => {
-  button.addEventListener("click", openChat);
-});
-
-chatCloseButton.addEventListener("click", closeChat);
-chatNewButton.addEventListener("click", startNewChat);
-chatHistoryToggle.addEventListener("click", toggleChatHistory);
-chatBackdrop.addEventListener("click", closeChat);
-if (devAgentEnabled) {
-  devChatOpenButton.hidden = false;
-  devChatOpenButton.addEventListener("click", openDevChat);
-  devChatCloseButton.addEventListener("click", closeDevChat);
-  devChatNewButton.addEventListener("click", startNewDevThread);
-  devChatBackButton.addEventListener("click", showDevInbox);
-  devChatBackdrop.addEventListener("click", closeDevChat);
-  devChatForm.addEventListener("submit", handleDevChatSubmit);
-  devChatForm.elements.prompt.addEventListener("input", updateDevComposerState);
-  devChatForm.elements.prompt.addEventListener("keydown", handleDevChatKeydown);
-  devDeployCheckbox.addEventListener("change", () => {
-    devAgent.deploy = devDeployCheckbox.checked;
-    updateDevComposerState();
-  });
-} else if (devChatOpenButton) {
-  devChatOpenButton.hidden = true;
-}
-accountButton.addEventListener("click", handleAccountButton);
-inviteCopyCodeButton?.addEventListener("click", () => {
-  if (state.invitePayload?.code) {
-    void copyText(state.invitePayload.code);
-  }
-});
-inviteCopyLinkButton?.addEventListener("click", () => {
-  if (state.invitePayload?.shareUrl) {
-    void copyText(state.invitePayload.shareUrl);
-  }
-});
-globalThis.addEventListener("message", handleDevAuthMessage);
-globalThis.addEventListener("message", handleAccountAuthMessage);
-renderDevAgent();
-eventCloseButton.addEventListener("click", closeEventModal);
-eventBackdrop.addEventListener("click", closeEventModal);
-leadEventSelect.addEventListener("change", () => {
-  state.leadEventManuallySelected = true;
-  renderCRM();
-});
-leadForm.elements.sendFollowUpEmail.addEventListener("change", () => {
-  state.followUpEmailTouched = true;
-  renderFollowUpEmailControl();
-});
-cardScanButton.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter" && event.key !== " ") return;
-  if (cardScanButton.getAttribute("aria-disabled") === "true") return;
-  event.preventDefault();
-  cardInput.click();
-});
-cardInput.addEventListener("change", handleCardInput);
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeChat();
-  if (event.key === "Escape") closeDevChat();
-  if (event.key === "Escape") closeEventModal();
-});
-globalThis.addEventListener("hashchange", () => {
-  if (!applyHashNavigation() || !state.payload) return;
-  render();
-});
-
-hydrateChatHistory();
-renderChat();
-renderAccountButton();
-capturePendingReferralFromUrl();
-void loadAccountSession();
-
-promptButtons.forEach((button) => {
+els.panelButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    openChat();
-    askAgent(button.dataset.ask);
+    state.activePanel = button.dataset.panelButton || "calendar";
+    render();
   });
 });
 
-chatForm.addEventListener("submit", (event) => {
+els.agentToggleButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    state.agentCollapsed = !state.agentCollapsed;
+    render();
+  });
+});
+
+document.querySelectorAll("[data-auth-open]").forEach((button) => {
+  button.addEventListener("click", () => openAuth());
+});
+
+els.accountButton.addEventListener("click", async () => {
+  if (state.session?.authenticated) {
+    await requestJson("/api/auth/logout", { method: "POST" }, { empty: true });
+    state.session = null;
+    state.planner = null;
+    await loadAccount();
+    return;
+  }
+  openAuth();
+});
+
+els.chatForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const input = chatForm.elements.prompt;
+  const input = els.chatForm.elements.prompt;
   const prompt = input.value.trim();
-  if (!prompt) return;
+  if (!prompt || state.busy) return;
   input.value = "";
-  updateComposerState();
-  askAgent(prompt);
+  await sendChat(prompt);
 });
-chatForm.elements.prompt.addEventListener("input", updateComposerState);
-chatForm.elements.prompt.addEventListener("keydown", handleChatKeydown);
-agendaRecalculateButton.addEventListener("click", recalculateAgenda);
-partifulSyncButton.addEventListener("click", syncPartifulAndRecalculate);
 
-leadForm.addEventListener("submit", handleLeadSubmit);
-updateComposerState();
+els.agendaList.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-agenda-id]");
+  if (!button || state.busy) return;
+  await activateAgenda(button.dataset.agendaId || "");
+});
 
-function handleChatKeydown(event) {
-  if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+els.agendaName.addEventListener("input", () => {
+  if (state.busy) return;
+  clearTimeout(state.agendaNameTimer);
+  els.agendaStatus.textContent = "Saving...";
+  state.agendaNameTimer = globalThis.setTimeout(renameActiveAgenda, AGENDA_NAME_SAVE_DELAY_MS);
+});
+
+els.importForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (state.agentBusy || !chatForm.elements.prompt.value.trim()) return;
-  chatForm.requestSubmit();
-}
-
-function updateComposerState() {
-  const input = chatForm.elements.prompt;
-  const send = chatForm.querySelector("button[type='submit']");
-  input.style.height = "auto";
-  input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
-  send.disabled = state.agentBusy || !input.value.trim();
-}
-
-function handleDevChatKeydown(event) {
-  if (event.key !== "Enter" || event.isComposing) return;
-  if (event.shiftKey) return;
-  if (!event.metaKey && !event.ctrlKey && devAgent.view === "thread") return;
-  event.preventDefault();
-  if (!devChatForm.elements.prompt.value.trim()) return;
-  devChatForm.requestSubmit();
-}
-
-function updateDevComposerState() {
-  const input = devChatForm.elements.prompt;
-  const send = devChatForm.querySelector("button[type='submit']");
-  input.style.height = "auto";
-  input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
-  const canSend = devAgent.config.ready && devAgent.authState === "authenticated" &&
-    !devAgent.sending && Boolean(input.value.trim());
-  input.disabled = !devAgent.config.ready || devAgent.authState !== "authenticated" ||
-    devAgent.sending;
-  send.disabled = !canSend;
-  devDeployControl.hidden = !devAgent.config.deployEnabled ||
-    devAgent.authState !== "authenticated";
-  devDeployCheckbox.checked = devAgent.deploy;
-  devDeployCheckbox.disabled = devAgent.sending;
-  devComposerError.hidden = !devAgent.composerError;
-  devComposerError.textContent = devAgent.composerError;
-}
-
-async function loadAccountSession() {
-  state.accountLoading = true;
-  state.accountError = "";
-  renderAccountButton();
-  const wasAuthenticated = state.accountSession?.authenticated === true;
+  if (state.busy) return;
+  const form = new FormData(els.importForm);
+  const sourceText = String(form.get("sourceText") || "").trim();
+  if (!sourceText) return;
+  setBusy(true);
   try {
-    const response = await fetch("/api/account/session", {
-      cache: "no-store",
-      credentials: "include",
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(body?.error?.message || "Could not check account session.");
-    }
-    applyAccountSession(body.session || null);
-    if (body?.session?.authenticated) {
-      if (!wasAuthenticated || !state.payload) {
-        await loadScheduleAfterAuthentication();
-      }
-      await loadInviteDataForAuthenticatedSession();
-    } else {
-      state.invitePayload = null;
-      renderInvite();
-    }
-  } catch (error) {
-    state.accountError = error instanceof Error
-      ? error.message
-      : "Could not check account session.";
-    applyAccountSession(null);
-    state.invitePayload = null;
-    renderInvite();
-  } finally {
-    state.accountLoading = false;
-    renderAccountButton();
-  }
-}
-
-function pendingReferralCode() {
-  try {
-    return String(localStorage.getItem(PENDING_REFERRAL_STORAGE_KEY) || "").trim().toUpperCase()
-      .replace(
-        /[^A-Z0-9]/g,
-        "",
-      );
-  } catch {
-    return "";
-  }
-}
-
-function clearPendingReferralCode() {
-  try {
-    localStorage.removeItem(PENDING_REFERRAL_STORAGE_KEY);
-  } catch {
-    // ignore localStorage errors
-  }
-}
-
-function capturePendingReferralFromUrl() {
-  const target = new URL(globalThis.location.href);
-  const raw = target.searchParams.get("ref");
-  const cleaned = String(raw || "")
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 10);
-  if (cleaned) {
-    try {
-      localStorage.setItem(PENDING_REFERRAL_STORAGE_KEY, cleaned);
-    } catch {
-      // local storage unavailable in this context
-    }
-  }
-  target.searchParams.delete("ref");
-  if (target.toString() !== globalThis.location.href) {
-    history.replaceState(null, "", target.toString());
-  }
-}
-
-async function loadInviteDataForAuthenticatedSession() {
-  if (!state.accountSession?.authenticated) {
-    state.invitePayload = null;
-    renderInvite();
-    return;
-  }
-  state.inviteLoading = true;
-  renderInvite();
-  const referralCode = pendingReferralCode();
-  try {
-    if (referralCode) {
-      const claim = await fetch("/api/account/invite", {
-        method: "POST",
-        cache: "no-store",
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ referralCode }),
-      });
-      if (claim.ok) clearPendingReferralCode();
-    }
-
-    const response = await fetch("/api/account/invite", {
-      cache: "no-store",
-      credentials: "include",
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(body?.error?.message || "Could not load invite data.");
-    }
-    state.invitePayload = body?.invite && typeof body.invite === "object" ? body.invite : null;
-    renderInvite();
-  } catch (error) {
-    state.invitePayload = null;
-    renderInvite();
-    state.accountError = error instanceof Error ? error.message : "Could not load invite data.";
-  } finally {
-    state.inviteLoading = false;
-    renderInvite();
-  }
-}
-
-function applyAccountSession(session) {
-  const normalized = normalizeAccountSession(session);
-  const nextStorageId = normalized?.authenticated && normalized.user?.id
-    ? normalized.user.id
-    : ACCOUNT_ANONYMOUS_STORAGE_ID;
-  const changed = nextStorageId !== state.accountStorageId;
-  if (changed) persistMessages();
-
-  state.accountSession = normalized;
-  if (changed) loadChatStorageForAccount(nextStorageId);
-  renderAccountButton();
-}
-
-function normalizeAccountSession(session) {
-  if (!session || typeof session !== "object") {
-    return { authenticated: false, auth: "passkey" };
-  }
-  const user = session.user && typeof session.user === "object"
-    ? {
-      id: String(session.user.id || ""),
-      handle: String(session.user.handle || ""),
-      isAdmin: session.user.isAdmin === true,
-    }
-    : null;
-  return {
-    authenticated: session.authenticated === true && Boolean(user?.id),
-    auth: String(session.auth || "passkey"),
-    user,
-    expiresAt: String(session.expiresAt || ""),
-    setupRequired: session.setupRequired === true,
-    bootstrapConfigured: session.bootstrapConfigured === true,
-    registrationAllowed: session.registrationAllowed === true,
-  };
-}
-
-function handleAccountButton() {
-  if (state.accountLoading) return;
-  if (state.accountSession?.authenticated) {
-    void signOutAccount();
-    return;
-  }
-  openAccountAuth(state.accountSession?.setupRequired ? "register" : "login");
-}
-
-function renderAccountButton() {
-  const authenticated = state.accountSession?.authenticated === true;
-  const setupRequired = state.accountSession?.setupRequired === true;
-  const handle = state.accountSession?.user?.handle || "Account";
-  accountButton.dataset.authState = state.accountLoading
-    ? "loading"
-    : authenticated
-    ? "authenticated"
-    : setupRequired
-    ? "setup"
-    : "unauthenticated";
-  accountButton.disabled = state.accountLoading;
-  accountButton.title = authenticated ? `Signed in as ${handle}. Click to sign out.` : "";
-  accountButton.setAttribute(
-    "aria-label",
-    authenticated
-      ? `Signed in as ${handle}. Sign out.`
-      : setupRequired
-      ? "Create the first passkey"
-      : "Sign in with passkey",
-  );
-  accountLabel.textContent = state.accountLoading
-    ? "Checking"
-    : authenticated
-    ? "Sign out"
-    : setupRequired
-    ? "Set up"
-    : "Sign in";
-}
-
-async function signOutAccount() {
-  state.accountLoading = true;
-  state.accountError = "";
-  renderAccountButton();
-  try {
-    const response = await fetch("/api/auth/logout", {
+    const body = await requestJson("/api/planner/imports", {
       method: "POST",
-      cache: "no-store",
-      credentials: "include",
-      headers: { Accept: "application/json" },
+      body: JSON.stringify({
+        name: form.get("name"),
+        sourceType: form.get("sourceType"),
+        sourceText,
+      }),
     });
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      throw new Error(body?.error?.message || "Could not sign out.");
-    }
-    state.invitePayload = null;
-    applyAccountSession({ authenticated: false, auth: "passkey" });
-    renderInvite();
+    state.planner = body.planner;
+    els.importForm.elements.sourceText.value = "";
+    appendMessage("assistant", `Imported ${body.import.events.length} events.`);
   } catch (error) {
-    state.accountError = error instanceof Error ? error.message : "Could not sign out.";
-    await loadAccountSession();
+    appendMessage("assistant", errorMessage(error));
   } finally {
-    state.accountLoading = false;
-    renderAccountButton();
+    setBusy(false);
+    render();
   }
-}
+});
 
-function openAccountAuth(mode) {
-  clearAccountAuthPopupWatcher();
-  const url = accountAuthUrl("/auth.html");
-  url.searchParams.set("mode", mode);
-  url.searchParams.set("embedOrigin", globalThis.location.origin);
-  url.searchParams.set("returnUrl", globalThis.location.href);
-  state.accountError = "";
-  renderAccountButton();
-  const popup = globalThis.open(
-    url.toString(),
-    "techweek-account-auth",
-    "popup,width=460,height=720",
-  );
-  if (!popup) {
-    globalThis.location.href = url.toString();
-    return;
+els.importForm.elements.file.addEventListener("change", async () => {
+  const file = els.importForm.elements.file.files?.[0];
+  if (!file) return;
+  els.importForm.elements.name.value ||= file.name.replace(/\.[^.]+$/, "");
+  els.importForm.elements.sourceType.value = file.name.toLowerCase().endsWith(".csv")
+    ? "csv"
+    : "text";
+  els.importForm.elements.sourceText.value = await file.text();
+});
+
+els.importList.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-delete-import]");
+  if (!button || state.busy) return;
+  setBusy(true);
+  try {
+    const body = await requestJson(
+      `/api/planner/imports/${encodeURIComponent(button.dataset.deleteImport)}`,
+      {
+        method: "DELETE",
+      },
+    );
+    state.planner = body.planner;
+  } catch (error) {
+    appendMessage("assistant", errorMessage(error));
+  } finally {
+    setBusy(false);
+    render();
   }
-  popup.focus?.();
-  const openedAt = Date.now();
-  state.accountAuthPopupTimer = globalThis.setInterval(() => {
-    if (popup.closed) {
-      clearAccountAuthPopupWatcher();
-      void loadAccountSession();
-      return;
-    }
-    if (Date.now() - openedAt > DEV_AUTH_POPUP_TIMEOUT_MS) {
-      clearAccountAuthPopupWatcher();
-    }
-  }, DEV_AUTH_POPUP_POLL_MS);
-}
+});
 
-function handleAccountAuthMessage(event) {
+els.calendar.addEventListener("click", (event) => handleCalendarClick(event));
+els.calendar.addEventListener("keydown", (event) => handleCalendarKeydown(event));
+
+els.eventForm.addEventListener("submit", (event) => saveEventFromEditor(event));
+document.querySelectorAll("[data-event-editor-close]").forEach((button) => {
+  button.addEventListener("click", () => closeEventEditor());
+});
+els.eventEditorBackdrop.addEventListener("click", () => closeEventEditor());
+globalThis.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !els.eventEditor.hidden) closeEventEditor();
+});
+
+els.profileForm.addEventListener("input", () => {
+  els.profileStatus.textContent = "Saving...";
+  clearTimeout(state.profileTimer);
+  state.profileTimer = setTimeout(saveProfile, PROFILE_SAVE_DELAY_MS);
+});
+
+globalThis.addEventListener("message", async (event) => {
   if (event.origin !== globalThis.location.origin) return;
-  if (event.data?.type !== ACCOUNT_AUTH_MESSAGE_TYPE) return;
-  clearAccountAuthPopupWatcher();
-  void loadAccountSession();
+  if (event.data?.type !== AUTH_COMPLETE_MESSAGE) return;
+  stopAuthRefreshPoll();
+  await loadAccount();
+  render();
+});
+
+boot();
+
+async function boot() {
+  await loadAccount();
+  render();
 }
 
-function clearAccountAuthPopupWatcher() {
-  if (!state.accountAuthPopupTimer) return;
-  globalThis.clearInterval(state.accountAuthPopupTimer);
-  state.accountAuthPopupTimer = 0;
-}
-
-function accountAuthUrl(path) {
-  return new URL(path, globalThis.location.origin);
-}
-
-function setView(view, options = {}) {
-  if (!VIEW_TITLES[view]) return;
-  state.activeView = view;
-  document.body.dataset.view = view;
-  pageTitle.textContent = VIEW_TITLES[view] || "Agenda";
-  viewButtons.forEach((button) => {
-    button.setAttribute("aria-current", button.dataset.viewButton === view ? "page" : "false");
-  });
-  panels.forEach((panel) => {
-    panel.hidden = panel.dataset.panel !== view;
-  });
-  if (view === "crm") renderCRM();
-  if (view === "invites") renderInvite();
-  if (options.updateHash !== false) writeHashNavigation();
-}
-
-function openChat() {
-  closeDevChat();
-  chatDrawer.hidden = false;
-  chatBackdrop.hidden = false;
-  document.body.dataset.chatOpen = "true";
-  void getModelContext().catch(() => null);
-  requestAnimationFrame(() => {
-    updateComposerState();
-    chatDrawer.querySelector("textarea").focus({ preventScroll: true });
-    chatLog.scrollTop = chatLog.scrollHeight;
-  });
-}
-
-function closeChat() {
-  chatDrawer.hidden = true;
-  chatBackdrop.hidden = true;
-  document.body.dataset.chatOpen = "false";
-}
-
-function openDevChat() {
-  closeChat();
-  if (redirectDevAgentToSameSite()) return;
-  devChatDrawer.hidden = false;
-  devChatBackdrop.hidden = false;
-  document.body.dataset.devChatOpen = "true";
-  devAgent.open = true;
-  renderDevAgent();
-  if (!devAgent.bootstrapped && !devAgent.loadingSession) {
-    void bootstrapDevAgent();
-  } else if (devAgent.authState === "authenticated" && devAgent.view === "inbox") {
-    void loadDevThreads({ silent: true });
-  }
-  requestAnimationFrame(() => {
-    updateDevComposerState();
-    devChatDrawer.querySelector("textarea").focus({ preventScroll: true });
-    devChatLog.scrollTop = devChatLog.scrollHeight;
-  });
-}
-
-function closeDevChat() {
-  clearDevSessionRetry();
-  devChatDrawer.hidden = true;
-  devChatBackdrop.hidden = true;
-  document.body.dataset.devChatOpen = "false";
-  devAgent.open = false;
-}
-
-function startNewDevThread() {
-  closeDevThreadStream();
-  devAgent.view = "inbox";
-  devAgent.thread = null;
-  devAgent.events = [];
-  devAgent.currentThreadId = "";
-  devAgent.lastEventId = 0;
-  devAgent.composerError = "";
-  devChatForm.elements.prompt.value = "";
-  localStorage.removeItem(DEV_AGENT_SELECTED_THREAD_KEY);
-  renderDevAgent();
-  requestAnimationFrame(() => devChatForm.elements.prompt.focus({ preventScroll: true }));
-}
-
-function showDevInbox() {
-  closeDevThreadStream();
-  devAgent.view = "inbox";
-  devAgent.thread = null;
-  devAgent.events = [];
-  devAgent.currentThreadId = "";
-  devAgent.lastEventId = 0;
-  devAgent.error = "";
-  localStorage.removeItem(DEV_AGENT_SELECTED_THREAD_KEY);
-  renderDevAgent();
-  if (devAgent.authState === "authenticated") {
-    void loadDevThreads({ silent: true });
-  }
-}
-
-async function handleDevChatSubmit(event) {
-  event.preventDefault();
-  if (!devAgent.config.ready || devAgent.authState !== "authenticated" || devAgent.sending) return;
-  const input = devChatForm.elements.prompt;
-  const prompt = input.value.trim();
-  if (!prompt) return;
-
-  devAgent.sending = true;
-  devAgent.composerError = "";
-  updateDevComposerState();
-
-  const inThread = devAgent.view === "thread" && devAgent.thread?.threadId;
-  const body = {
-    prompt,
-    deploy: devAgent.config.deployEnabled ? devAgent.deploy : false,
-  };
-  if (devAgent.config.repo) body.repo = devAgent.config.repo;
-  if (devAgent.config.repoId) body.repoId = devAgent.config.repoId;
-  if (!inThread) body.title = devTitleFromPrompt(prompt);
-
-  const endpoint = inThread
-    ? `/api/threads/${encodeURIComponent(devAgent.thread.threadId)}/runs`
-    : "/api/runs";
-
+async function loadAccount(options = {}) {
   try {
-    const created = await devFetchJson(endpoint, {
-      method: "POST",
-      body: JSON.stringify(body),
+    const body = await requestJson("/api/account/session", { method: "GET" });
+    state.session = body.session;
+    if (state.session?.authenticated) {
+      await loadPlanner();
+    }
+  } catch (error) {
+    if (!options.quiet) appendMessage("assistant", errorMessage(error));
+  }
+}
+
+async function loadPlanner() {
+  const body = await requestJson("/api/planner", { method: "GET" });
+  state.planner = body.planner;
+  populateProfile();
+}
+
+async function saveProfile() {
+  if (!state.session?.authenticated || state.busy) return;
+  const form = new FormData(els.profileForm);
+  try {
+    const body = await requestJson("/api/planner/profile", {
+      method: "PUT",
+      body: JSON.stringify({
+        displayName: form.get("displayName"),
+        homeBase: form.get("homeBase"),
+        timeZone: form.get("timeZone"),
+        defaultTravelMinutes: Number(form.get("defaultTravelMinutes")),
+        preferencePrompt: form.get("preferencePrompt"),
+        priorityPrompt: form.get("priorityPrompt"),
+        logisticsPrompt: form.get("logisticsPrompt"),
+      }),
     });
-    input.value = "";
-    resizeDevPrompt();
-    await loadDevThreads({ silent: true });
-    if (created?.threadId) {
-      await openDevThread(created.threadId);
-    } else if (inThread) {
-      await openDevThread(devAgent.thread.threadId);
-    } else {
-      renderDevAgent();
-    }
+    state.planner = body.planner;
+    els.profileStatus.textContent = "Saved";
+    renderCounts();
   } catch (error) {
-    if (isAuthStatus(error)) {
-      markDevUnauthenticated("Your development agent session expired. Sign in again.");
-      renderDevAgent();
-    } else {
-      devAgent.composerError = devFriendlyError(error, "Could not send prompt.");
-      renderDevAgent();
-    }
-  } finally {
-    devAgent.sending = false;
-    updateDevComposerState();
+    els.profileStatus.textContent = errorMessage(error);
   }
 }
 
-function resizeDevPrompt() {
-  const input = devChatForm.elements.prompt;
-  input.style.height = "auto";
-  input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
-}
-
-function createDevAgentState() {
-  const config = readDevAgentConfig();
-  return {
-    config,
-    open: false,
-    bootstrapped: false,
-    authState: "booting",
-    session: null,
-    view: "inbox",
-    threads: [],
-    thread: null,
-    events: [],
-    loadingSession: false,
-    loadingThreads: false,
-    loadingThread: false,
-    sending: false,
-    error: "",
-    authStatus: "",
-    authPopupTimer: 0,
-    sessionRetryTimer: 0,
-    sessionRetryAttempt: 0,
-    composerError: "",
-    stream: null,
-    streamState: "idle",
-    repoFilterResolved: Boolean(config.repoId || !config.repo),
-    repoFilterId: config.repoId,
-    derivedRepoId: config.repo ? slugFromPath(config.repo) : "",
-    currentThreadId: localStorage.getItem(DEV_AGENT_SELECTED_THREAD_KEY) || "",
-    lastEventId: 0,
-    deploy: config.deployEnabled,
-  };
-}
-
-function readDevAgentConfig() {
-  const dataset = devChatDrawer?.dataset || {};
-  const apiBase = normalizeApiBase(dataset.agentApi || "");
-  const authBase = normalizeApiBase(dataset.agentAuth || "");
-  const repo = String(dataset.repo || "").trim();
-  const repoId = String(dataset.repoId || "").trim();
-  const repoLabel = String(dataset.repoLabel || repoName(repo) || repoId || "Development repo")
-    .trim();
-  return {
-    apiBase,
-    authBase,
-    repo,
-    repoId,
-    repoLabel,
-    deployEnabled: dataset.deploy === "true",
-    ready: Boolean(apiBase && authBase && (repo || repoId)),
-  };
-}
-
-async function bootstrapDevAgent(options = {}) {
-  if (!devAgent.config.ready) {
-    devAgent.bootstrapped = true;
-    devAgent.authState = "config_error";
-    devAgent.error = "Missing development API origin or repository configuration.";
-    renderDevAgent();
-    return;
-  }
-  if (!options.retrying) clearDevSessionRetry();
-  if (redirectDevAgentToSameSite()) return;
-
-  devAgent.loadingSession = true;
-  devAgent.error = "";
-  renderDevAgent();
+async function activateAgenda(planId) {
+  if (!planId || state.busy) return;
+  setBusy(true);
   try {
-    const session = await devFetchJson("/api/session");
-    devAgent.session = session && typeof session === "object" ? session : {};
-    devAgent.bootstrapped = true;
-    devAgent.authState = devSessionState(devAgent.session);
-    clearDevSessionRetry();
-    if (devAgent.authState === "authenticated") {
-      devAgent.authStatus = "";
-      await loadDevThreads({ silent: true });
-      if (devAgent.currentThreadId) {
-        await openDevThread(devAgent.currentThreadId, { silent: true });
-      }
-    }
+    const body = await requestJson(`/api/planner/plans/${encodeURIComponent(planId)}`, {
+      method: "PUT",
+      body: JSON.stringify({ active: true }),
+    });
+    state.planner = body.planner;
+    state.activePanel = "calendar";
   } catch (error) {
-    if (isAuthStatus(error)) {
-      markDevUnauthenticated("Your development agent session expired. Sign in again.");
-      return;
-    }
-    devAgent.bootstrapped = true;
-    devAgent.authState = "error";
-    devAgent.error = devFriendlyError(error, "Could not reach the development agent API.");
-    if (scheduleDevSessionRetry()) {
-      devAgent.error = `${devAgent.error} Retrying automatically.`;
-    }
+    appendMessage("assistant", errorMessage(error));
   } finally {
-    devAgent.loadingSession = false;
-    renderDevAgent();
+    setBusy(false);
+    render();
   }
 }
 
-function redirectDevAgentToSameSite() {
-  if (!shouldRedirectDevAgentToSameSite()) return false;
-  const destination = new URL(globalThis.location.href);
-  const sameSite = new URL(DEV_AGENT_SAME_SITE_ORIGIN);
-  destination.protocol = sameSite.protocol;
-  destination.host = sameSite.host;
-  globalThis.location.replace(destination.toString());
-  return true;
-}
-
-function shouldRedirectDevAgentToSameSite() {
-  if (globalThis.location.origin === DEV_AGENT_SAME_SITE_ORIGIN) return false;
-  return DEV_AGENT_LEGACY_HOSTNAMES.has(globalThis.location.hostname);
-}
-
-function scheduleDevSessionRetry() {
-  if (!devAgent.open || devAgent.sessionRetryTimer) return false;
-  const index = Math.min(
-    devAgent.sessionRetryAttempt,
-    DEV_AGENT_SESSION_RETRY_DELAYS_MS.length - 1,
-  );
-  const delay = DEV_AGENT_SESSION_RETRY_DELAYS_MS[index];
-  devAgent.sessionRetryAttempt += 1;
-  devAgent.sessionRetryTimer = globalThis.setTimeout(() => {
-    devAgent.sessionRetryTimer = 0;
-    void bootstrapDevAgent({ retrying: true });
-  }, delay);
-  return true;
-}
-
-function clearDevSessionRetry() {
-  if (devAgent.sessionRetryTimer) {
-    globalThis.clearTimeout(devAgent.sessionRetryTimer);
+async function renameActiveAgenda() {
+  const plan = activePlan();
+  if (!plan) {
+    els.agendaStatus.textContent = "";
+    return;
   }
-  devAgent.sessionRetryTimer = 0;
-  devAgent.sessionRetryAttempt = 0;
-}
-
-function markDevUnauthenticated(message) {
-  clearDevSessionRetry();
-  closeDevThreadStream();
-  devAgent.bootstrapped = true;
-  devAgent.authState = "unauthenticated";
-  devAgent.session = null;
-  devAgent.view = "inbox";
-  devAgent.thread = null;
-  devAgent.events = [];
-  devAgent.currentThreadId = "";
-  devAgent.error = "";
-  devAgent.composerError = "";
-  devAgent.authStatus = message || "Sign in on the development origin to continue.";
-  localStorage.removeItem(DEV_AGENT_SELECTED_THREAD_KEY);
-}
-
-function devSessionState(session) {
-  if (session?.authenticated === true) return "authenticated";
-  if (session?.auth === "not_configured" || session?.authConfigured === false) {
-    return "not_configured";
-  }
-  return "unauthenticated";
-}
-
-async function loadDevThreads(options = {}) {
-  if (!devAgent.config.ready || devAgent.loadingThreads) return;
-  devAgent.loadingThreads = !options.silent;
-  devAgent.error = "";
-  renderDevAgent();
   try {
-    await resolveDevRepoFilter();
-    const threads = await devFetchJson("/api/threads");
-    devAgent.threads = Array.isArray(threads)
-      ? threads.map(normalizeDevThread).sort((a, b) =>
-        dateValue(b.updatedAt) - dateValue(a.updatedAt)
-      )
-      : [];
+    const body = await requestJson(`/api/planner/plans/${encodeURIComponent(plan.id)}`, {
+      method: "PUT",
+      body: JSON.stringify({ name: els.agendaName.value }),
+    });
+    state.planner = body.planner;
+    renderAgendaHistory();
+    els.agendaStatus.textContent = "Saved";
   } catch (error) {
-    if (isAuthStatus(error)) {
-      markDevUnauthenticated("Your development agent session expired. Sign in again.");
-    } else {
-      devAgent.error = devFriendlyError(error, "Could not load development threads.");
-    }
-  } finally {
-    devAgent.loadingThreads = false;
-    renderDevAgent();
+    els.agendaStatus.textContent = errorMessage(error);
   }
 }
 
-async function resolveDevRepoFilter() {
-  if (devAgent.repoFilterResolved || devAgent.repoFilterId || !devAgent.config.repo) {
-    devAgent.repoFilterResolved = true;
-    return;
-  }
-
-  devAgent.repoFilterResolved = true;
+async function sendChat(prompt) {
+  if (!prompt) return;
+  appendMessage("user", prompt);
+  setBusy(true);
   try {
-    const repos = await devFetchJson("/api/repos");
-    const normalizedRepo = normalizePath(devAgent.config.repo);
-    const match = Array.isArray(repos)
-      ? repos.find((repo) => normalizePath(repo?.path) === normalizedRepo)
-      : null;
-    if (match?.repoId) {
-      devAgent.repoFilterId = String(match.repoId);
+    const body = await requestJson("/api/planner/chat", {
+      method: "POST",
+      body: JSON.stringify({ prompt }),
+    });
+    state.planner = body.planner;
+    if (
+      body.calendarUpdated ||
+      body.toolCalls?.some((call) => call?.name === "render_calendar")
+    ) {
+      state.activePanel = "calendar";
     }
-  } catch {
-    devAgent.repoFilterId = "";
-  }
-}
-
-async function openDevThread(threadId, options = {}) {
-  const id = String(threadId || "");
-  if (!id) return;
-
-  closeDevThreadStream();
-  devAgent.view = "thread";
-  devAgent.currentThreadId = id;
-  devAgent.thread = null;
-  devAgent.events = [];
-  devAgent.lastEventId = 0;
-  devAgent.loadingThread = !options.silent;
-  devAgent.error = "";
-  devAgent.composerError = "";
-  localStorage.setItem(DEV_AGENT_SELECTED_THREAD_KEY, id);
-  renderDevAgent();
-
-  try {
-    const detail = await devFetchJson(`/api/threads/${encodeURIComponent(id)}`);
-    devAgent.thread = normalizeDevThread(detail);
-    devAgent.events = normalizeDevEvents(detail?.messages);
-    devAgent.lastEventId = maxDevEventId(devAgent.events);
-    storeDevLastEventId(id, devAgent.lastEventId);
-    upsertDevThread(devAgent.thread);
-    startDevThreadStream(id);
+    appendMessage("assistant", body.message || "Done.");
   } catch (error) {
-    if (isAuthStatus(error)) {
-      markDevUnauthenticated("Your development agent session expired. Sign in again.");
-    } else {
-      devAgent.error = devFriendlyError(error, "Could not load development thread.");
-    }
+    appendMessage("assistant", errorMessage(error));
   } finally {
-    devAgent.loadingThread = false;
-    renderDevAgent();
+    setBusy(false);
+    render();
   }
 }
 
-function startDevThreadStream(threadId) {
-  if (!globalThis.EventSource || !devAgent.config.ready) {
-    devAgent.streamState = "unsupported";
-    renderDevAgent();
-    return;
-  }
-
-  const url = devApiUrl(`/api/threads/${encodeURIComponent(threadId)}/events`);
-  const after = Math.max(devAgent.lastEventId, readDevLastEventId(threadId));
-  if (after > 0) url.searchParams.set("after", String(after));
-
-  const source = new EventSource(url.toString(), { withCredentials: true });
-  devAgent.stream = source;
-  devAgent.streamState = "connecting";
-  DEV_AGENT_EVENT_TYPES.forEach((type) => {
-    source.addEventListener(type, handleDevStreamEvent);
-  });
-  source.onmessage = handleDevStreamEvent;
-  source.onopen = () => {
-    devAgent.streamState = "open";
-    renderDevAgent();
-  };
-  source.onerror = () => {
-    devAgent.streamState = "reconnecting";
-    renderDevAgent();
-  };
-  renderDevAgent();
-}
-
-function closeDevThreadStream() {
-  if (devAgent.stream) {
-    devAgent.stream.close();
-  }
-  devAgent.stream = null;
-  devAgent.streamState = "idle";
-}
-
-function handleDevStreamEvent(message) {
-  let event;
-  try {
-    event = JSON.parse(message.data);
-  } catch {
-    return;
-  }
-  if (!event || typeof event !== "object") return;
-  addDevEvent({ ...event, type: event.type || message.type });
-}
-
-function addDevEvent(event) {
-  if (event.threadId && devAgent.currentThreadId && event.threadId !== devAgent.currentThreadId) {
-    return;
-  }
-  const previousLength = devAgent.events.length;
-  devAgent.events = normalizeDevEvents(devAgent.events.concat(event));
-  if (devAgent.events.length === previousLength && event.id) return;
-
-  devAgent.lastEventId = Math.max(devAgent.lastEventId, Number(event.id) || 0);
-  if (devAgent.currentThreadId) {
-    storeDevLastEventId(devAgent.currentThreadId, devAgent.lastEventId);
-  }
-  if (devAgent.thread) {
-    const text = devMeaningfulText(event);
-    if (text) devAgent.thread.latestText = text;
-    if (event.phase) devAgent.thread.phase = event.phase;
-    devAgent.thread.updatedAt = event.createdAt || new Date().toISOString();
-    upsertDevThread(devAgent.thread);
-  }
-  renderDevAgent();
-}
-
-function renderDevAgent() {
-  devChatBackButton.hidden = devAgent.view !== "thread";
-  devChatNewButton.disabled = devAgent.sending;
-  devChatLog.replaceChildren();
-  delete devChatLog.dataset.empty;
-
-  if (devAgent.view === "thread") {
-    renderDevThread();
-  } else {
-    renderDevInbox();
-  }
-  updateDevComposerState();
-}
-
-function renderDevInbox() {
-  devChatTitle.textContent = "Threads";
-  const threads = visibleDevThreads();
-  devChatSubtitle.textContent = devAgent.config.repoLabel
-    ? `${devAgent.config.repoLabel} - ${threads.length} ${
-      threads.length === 1 ? "thread" : "threads"
-    }`
-    : `${threads.length} ${threads.length === 1 ? "thread" : "threads"}`;
-
-  if (!devAgent.config.ready) {
-    devChatLog.dataset.empty = "true";
-    devChatLog.append(devNotice("Setup needed", devAgent.error, null));
-    return;
-  }
-  if (devAgent.loadingSession || !devAgent.bootstrapped) {
-    devChatLog.dataset.empty = "true";
-    devChatLog.append(devEmptyState("Checking development agent session."));
-    return;
-  }
-  if (devAgent.authState === "not_configured") {
-    devChatLog.dataset.empty = "true";
-    devChatLog.append(devNotice(
-      "development agent auth is not configured.",
-      "Finish the development agent auth setup before sending development prompts.",
-      () => bootstrapDevAgent(),
-    ));
-    return;
-  }
-  if (devAgent.authState === "unauthenticated") {
-    devChatLog.dataset.empty = "true";
-    devChatLog.append(devAuthNotice());
-    return;
-  }
-  if (devAgent.authState === "error") {
-    devChatLog.dataset.empty = "true";
-    devChatLog.append(
-      devNotice("development agent unavailable.", devAgent.error, () => bootstrapDevAgent()),
-    );
-    return;
-  }
-  if (devAgent.loadingThreads && !devAgent.threads.length) {
-    devChatLog.dataset.empty = "true";
-    devChatLog.append(devEmptyState("Loading threads."));
-    return;
-  }
-  if (devAgent.error) {
-    devChatLog.dataset.empty = "true";
-    devChatLog.append(devNotice("Threads unavailable.", devAgent.error, () => loadDevThreads()));
-    return;
-  }
-  if (!threads.length) {
-    devChatLog.dataset.empty = "true";
-    devChatLog.append(devEmptyState("No threads yet."));
-    return;
-  }
-
-  const list = document.createElement("section");
-  list.dataset.devThreadList = "";
-  threads.forEach((thread) => list.append(devThreadRow(thread)));
-  devChatLog.append(list);
-}
-
-function renderDevThread() {
-  const thread = devAgent.thread;
-  devChatTitle.textContent = thread?.title || "Thread";
-  const phase = thread ? formatPhase(thread.phase) : devAgent.loadingThread ? "Loading" : "Thread";
-  const time = thread?.updatedAt ? formatRelative(thread.updatedAt) : "";
-  const stream = devAgent.streamState === "reconnecting" ? " - reconnecting" : "";
-  devChatSubtitle.textContent = [phase, time].filter(Boolean).join(" - ") + stream;
-
-  if (devAgent.loadingThread) {
-    devChatLog.dataset.empty = "true";
-    devChatLog.append(devEmptyState("Loading thread."));
-    return;
-  }
-  if (devAgent.error) {
-    devChatLog.dataset.empty = "true";
-    devChatLog.append(devNotice(
-      "Thread unavailable.",
-      devAgent.error,
-      () => openDevThread(devAgent.currentThreadId),
-    ));
-    return;
-  }
-
-  const visible = devAgent.events.filter(isVisibleDevEvent);
-  const technical = devAgent.events.filter((event) => !isVisibleDevEvent(event));
-  if (!visible.length) {
-    devChatLog.dataset.empty = "true";
-    devChatLog.append(devEmptyState("No messages yet."));
-  } else {
-    visible.forEach((event) => renderDevEvent(event));
-  }
-
-  if (technical.length) {
-    devChatLog.append(devTechnicalDetails(technical));
-  }
-  requestAnimationFrame(() => {
-    devChatLog.scrollTop = devChatLog.scrollHeight;
-  });
-}
-
-function devThreadRow(thread) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.dataset.devThreadRow = "";
-  if (thread.unread) button.dataset.unread = "true";
-  button.addEventListener("click", () => openDevThread(thread.threadId));
-
-  const head = document.createElement("span");
-  head.dataset.devThreadHead = "";
-  const title = document.createElement("strong");
-  title.textContent = thread.title || "New request";
-  const time = document.createElement("time");
-  time.dateTime = thread.updatedAt || "";
-  time.textContent = formatRelative(thread.updatedAt);
-  head.append(title, time);
-
-  const latest = document.createElement("span");
-  latest.dataset.devThreadLatest = "";
-  latest.textContent = thread.latestText || "No updates yet.";
-
-  const phase = document.createElement("small");
-  phase.textContent = formatPhase(thread.phase);
-  button.append(head, latest, phase);
-  return button;
-}
-
-function renderDevEvent(event) {
-  const text = devMeaningfulText(event) || devEventLabel(event);
-  const role = event.type === "user.message" ? "user" : "assistant";
-  const item = appendChatMessage(devChatLog, role, text, { suppressTools: true });
-  item.dataset.devEventType = devEventKind(event);
-  const meta = document.createElement("small");
-  meta.dataset.devEventMeta = "";
-  meta.textContent = `${devEventLabel(event)}${
-    event.createdAt ? ` - ${formatRelative(event.createdAt)}` : ""
-  }`;
-  item.prepend(meta);
-
-  if (event.type === "result" && event.data && typeof event.data === "object") {
-    const body = item.querySelector("[data-message-content]");
-    const details = devResultData(event.data);
-    if (details) body.append(details);
-  }
-}
-
-function devResultData(data) {
-  const entries = Object.entries(data)
-    .filter(([, value]) =>
-      typeof value === "string" || typeof value === "number" || typeof value === "boolean"
-    )
-    .slice(0, 6);
-  if (!entries.length) return null;
-  const list = document.createElement("dl");
-  list.dataset.devResultData = "";
-  for (const [key, value] of entries) {
-    const term = document.createElement("dt");
-    term.textContent = labelize(key);
-    const description = document.createElement("dd");
-    description.textContent = String(value);
-    list.append(term, description);
-  }
-  return list;
-}
-
-function devTechnicalDetails(events) {
-  const details = document.createElement("details");
-  details.dataset.devTechnical = "";
-  const summary = document.createElement("summary");
-  summary.textContent = `Technical details (${events.length})`;
-  const list = document.createElement("ol");
-  for (const event of events) {
-    const item = document.createElement("li");
-    const title = document.createElement("strong");
-    title.textContent = `${event.type || "event"}${
-      event.createdAt ? ` - ${formatRelative(event.createdAt)}` : ""
-    }`;
-    item.append(title);
-    const text = devMeaningfulText(event);
-    if (text) {
-      const paragraph = document.createElement("p");
-      paragraph.textContent = text;
-      item.append(paragraph);
-    }
-    if (event.data && typeof event.data === "object" && Object.keys(event.data).length) {
-      const pre = document.createElement("pre");
-      pre.textContent = truncate(JSON.stringify(event.data, null, 2), 3000);
-      item.append(pre);
-    }
-    list.append(item);
-  }
-  details.append(summary, list);
-  return details;
-}
-
-function devNotice(title, message, retry) {
-  const wrapper = document.createElement("section");
-  wrapper.dataset.devNotice = "";
-  const heading = document.createElement("strong");
-  heading.textContent = title;
-  const paragraph = document.createElement("p");
-  paragraph.textContent = message || "";
-  wrapper.append(heading, paragraph);
-  if (retry) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = "Retry";
-    button.addEventListener("click", retry);
-    wrapper.append(button);
-  }
-  return wrapper;
-}
-
-function devAuthNotice() {
-  const wrapper = devNotice(
-    "Sign in required.",
-    devAgent.authStatus || "Use the development agent passkey flow to continue.",
-    null,
-  );
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = "Sign in";
-  button.addEventListener("click", () => openDevAuth("login"));
-  wrapper.append(button);
-  return wrapper;
-}
-
-function devEmptyState(text) {
-  const wrapper = document.createElement("section");
-  wrapper.dataset.devNotice = "";
-  wrapper.textContent = text;
-  return wrapper;
-}
-
-function visibleDevThreads() {
-  const all = devAgent.threads.slice().sort((a, b) =>
-    dateValue(b.updatedAt) - dateValue(a.updatedAt)
-  );
-  if (devAgent.repoFilterId) {
-    return all.filter((thread) => thread.repoId === devAgent.repoFilterId);
-  }
-  if (devAgent.derivedRepoId) {
-    const matching = all.filter((thread) => thread.repoId === devAgent.derivedRepoId);
-    if (matching.length || all.length === 0) return matching;
-  }
-  return all;
-}
-
-function upsertDevThread(thread) {
-  if (!thread?.threadId) return;
-  const index = devAgent.threads.findIndex((item) => item.threadId === thread.threadId);
-  if (index >= 0) {
-    devAgent.threads[index] = { ...devAgent.threads[index], ...thread };
-  } else {
-    devAgent.threads.unshift(thread);
-  }
-  devAgent.threads.sort((a, b) => dateValue(b.updatedAt) - dateValue(a.updatedAt));
-}
-
-function normalizeDevThread(thread) {
-  return {
-    threadId: String(thread?.threadId || ""),
-    repoId: String(thread?.repoId || ""),
-    title: String(thread?.title || ""),
-    latestText: String(thread?.latestText || ""),
-    phase: String(thread?.phase || ""),
-    unread: Boolean(thread?.unread),
-    activeRunIds: Array.isArray(thread?.activeRunIds) ? thread.activeRunIds.map(String) : [],
-    createdAt: String(thread?.createdAt || ""),
-    updatedAt: String(thread?.updatedAt || ""),
-  };
-}
-
-function normalizeDevEvents(events) {
-  const byId = new Map();
-  const withoutId = [];
-  for (const event of Array.isArray(events) ? events : []) {
-    if (!event || typeof event !== "object") continue;
-    const id = Number(event.id);
-    const normalized = { ...event, id: Number.isFinite(id) && id > 0 ? id : event.id };
-    if (Number.isFinite(id) && id > 0) {
-      byId.set(id, normalized);
-    } else {
-      withoutId.push(normalized);
-    }
-  }
-  return [...byId.values(), ...withoutId].sort((a, b) => {
-    const left = Number(a.id) || Number.MAX_SAFE_INTEGER;
-    const right = Number(b.id) || Number.MAX_SAFE_INTEGER;
-    return left - right;
-  });
-}
-
-function maxDevEventId(events) {
-  return events.reduce((max, event) => Math.max(max, Number(event.id) || 0), 0);
-}
-
-function isVisibleDevEvent(event) {
-  if (DEV_AGENT_VISIBLE_TYPES.has(event.type)) return true;
-  if (event.type !== "phase.changed") return false;
-  if (devMeaningfulText(event)) return true;
-  return DEV_AGENT_VISIBLE_PHASES.has(normalizePhaseKey(event.phase));
-}
-
-function devEventKind(event) {
-  if (event.type === "user.message") return "user";
-  if (event.type === "error") return "error";
-  if (event.type === "result") return "result";
-  if (event.type === "progress.message" || event.type === "phase.changed") return "progress";
-  return "agent";
-}
-
-function devEventLabel(event) {
-  switch (event.type) {
-    case "user.message":
-      return "You";
-    case "agent.message":
-      return "Agent";
-    case "progress.message":
-      return "Progress";
-    case "phase.changed":
-      return formatPhase(event.phase || "Progress");
-    case "error":
-      return "Error";
-    case "result":
-      return "Result";
-    default:
-      return event.type || "Event";
-  }
-}
-
-function devMeaningfulText(event) {
-  if (!event) return "";
-  if (typeof event.text === "string" && event.text.trim()) return event.text.trim();
-  const data = event.data && typeof event.data === "object" ? event.data : {};
-  for (const key of ["message", "summary", "title", "error", "content"]) {
-    if (typeof data[key] === "string" && data[key].trim()) return data[key].trim();
-  }
-  return "";
-}
-
-async function devFetchJson(path, options = {}) {
-  const init = {
-    credentials: "include",
-    headers: { Accept: "application/json" },
-    ...options,
-  };
-  if (init.body) {
-    init.headers = { ...init.headers, "Content-Type": "application/json" };
-  }
-  const response = await fetch(devApiUrl(path).toString(), init);
-  const contentType = response.headers.get("content-type") || "";
-  const payload = contentType.includes("application/json")
-    ? await response.json().catch(() => null)
-    : await response.text().catch(() => "");
-  if (!response.ok) {
-    const error = new Error(devErrorMessage(payload) || response.statusText || "Request failed.");
-    error.status = response.status;
-    throw error;
-  }
-  return payload;
-}
-
-function devApiUrl(path) {
-  return devBaseUrl(devAgent.config.apiBase, path);
-}
-
-function devAuthUrl(path) {
-  return devBaseUrl(devAgent.config.authBase, path);
-}
-
-function devBaseUrl(base, path) {
-  const normalizedBase = String(base || "").replace(/\/+$/, "");
-  const normalizedPath = String(path || "").replace(/^\/+/, "");
-  return new URL(normalizedPath, `${normalizedBase}/`);
-}
-
-function devFriendlyError(error, fallback) {
-  if (isAuthStatus(error)) return "Sign in on the development origin to continue.";
-  return error?.message || fallback;
-}
-
-function devErrorMessage(payload) {
-  if (!payload) return "";
-  if (typeof payload === "string") return payload;
-  if (typeof payload?.error?.message === "string") return payload.error.message;
-  if (typeof payload?.message === "string") return payload.message;
-  return "";
-}
-
-function isAuthStatus(error) {
-  return error?.status === 401 || error?.status === 403;
-}
-
-function openDevAuth(mode) {
-  clearDevAuthPopupWatcher();
-  const url = devAuthUrl("/auth.html");
-  url.searchParams.set("mode", mode);
+function openAuth() {
+  const url = new URL("/auth.html", globalThis.location.origin);
   url.searchParams.set("embedOrigin", globalThis.location.origin);
-  url.searchParams.set("returnUrl", globalThis.location.href);
-  devAgent.authStatus = "Waiting for passkey sign-in in the development window.";
-  renderDevAgent();
-  const popup = globalThis.open(url.toString(), "techweek-dev-auth", "popup,width=460,height=720");
-  if (!popup) {
-    devAgent.authStatus = "Opening the development passkey page in this tab.";
-    renderDevAgent();
-    globalThis.location.href = url.toString();
-    return;
-  }
-  popup.focus?.();
-  const openedAt = Date.now();
-  devAgent.authPopupTimer = globalThis.setInterval(() => {
-    if (popup.closed) {
-      clearDevAuthPopupWatcher();
-      void refreshDevAuthAfterWindow();
-      return;
-    }
-    if (Date.now() - openedAt > DEV_AUTH_POPUP_TIMEOUT_MS) {
-      clearDevAuthPopupWatcher();
-      devAgent.authStatus = "The development sign-in window is still open.";
-      renderDevAgent();
-    }
-  }, DEV_AUTH_POPUP_POLL_MS);
-}
-
-function handleDevAuthMessage(event) {
-  if (!devAgent?.config?.authBase) return;
-  if (event.origin !== new URL(devAgent.config.authBase).origin) return;
-  if (event.data?.type !== "techweek-dev-auth-complete") return;
-  clearDevAuthPopupWatcher();
-  void refreshDevAuthAfterWindow();
-}
-
-function clearDevAuthPopupWatcher() {
-  if (!devAgent.authPopupTimer) return;
-  globalThis.clearInterval(devAgent.authPopupTimer);
-  devAgent.authPopupTimer = 0;
-}
-
-async function refreshDevAuthAfterWindow() {
-  devAgent.authStatus = "Checking development agent session after passkey sign-in.";
-  renderDevAgent();
-  await bootstrapDevAgent();
-  if (devAgent.authState === "authenticated") return;
-  if (devAgent.authState === "unauthenticated") {
-    devAgent.authStatus =
-      "The development sign-in window closed, but the shared app session is still missing. Sign in again to refresh it.";
-    renderDevAgent();
-  }
-}
-
-function readDevLastEventId(threadId) {
-  return Number(localStorage.getItem(`${DEV_AGENT_LAST_EVENT_KEY_PREFIX}${threadId}`) || "0") || 0;
-}
-
-function storeDevLastEventId(threadId, eventId) {
-  if (!threadId || !eventId) return;
-  localStorage.setItem(`${DEV_AGENT_LAST_EVENT_KEY_PREFIX}${threadId}`, String(eventId));
-}
-
-function normalizeApiBase(value) {
-  try {
-    return new URL(value, document.baseURI).toString().replace(/\/+$/, "");
-  } catch {
-    return "";
-  }
-}
-
-function normalizePath(value) {
-  return String(value || "").replace(/\/+$/, "");
-}
-
-function repoName(repo) {
-  const clean = normalizePath(repo);
-  if (!clean) return "";
-  return clean.split("/").filter(Boolean).pop() || clean;
-}
-
-function slugFromPath(path) {
-  return repoName(path).toLowerCase()
-    .replace(/[^a-z0-9\s._/-]/g, "")
-    .replace(/[\/\s._]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function normalizePhaseKey(phase) {
-  return String(phase || "").replace(/[_-]+/g, " ").trim().toLowerCase();
-}
-
-function formatPhase(phase) {
-  const value = normalizePhaseKey(phase || "idle");
-  if (!value) return "Idle";
-  return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function formatRelative(value) {
-  const time = dateValue(value);
-  if (!time) return "";
-  const diff = Date.now() - time;
-  if (diff < -45_000) return "soon";
-  const seconds = Math.max(0, Math.round(diff / 1000));
-  if (seconds < 45) return "now";
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(time).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function dateValue(value) {
-  const time = value ? new Date(value).getTime() : 0;
-  return Number.isFinite(time) ? time : 0;
-}
-
-function truncate(value, maxLength) {
-  const text = String(value || "");
-  return text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 3))}...` : text;
-}
-
-function labelize(value) {
-  return String(value || "")
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function devTitleFromPrompt(prompt) {
-  const firstLine = String(prompt || "").split(/\r?\n/).find((line) => line.trim()) ||
-    "New request";
-  return truncate(firstLine.trim().replace(/\s+/g, " "), 80);
-}
-
-function readHashNavigation() {
-  let hash = "";
-  try {
-    hash = decodeURIComponent(globalThis.location.hash.replace(/^#\/?/, "")).trim();
-  } catch {
-    return {};
-  }
-  if (!hash) return {};
-  const [viewPart = "", dayPart = ""] = hash.split("/").map((part) => part.trim());
-  return {
-    view: HASH_VIEW_ALIASES[viewPart.toLowerCase()] || "",
-    day: /^\d{4}-\d{2}-\d{2}$/.test(dayPart) ? dayPart : "",
-  };
-}
-
-function applyHashNavigation() {
-  const next = readHashNavigation();
-  const previousView = state.activeView;
-  const previousDay = state.activeDay;
-  if (next.view) state.activeView = next.view;
-  if (next.day) state.activeDay = next.day;
-  if (state.payload) normalizeActiveDay();
-  state.routeTransitionDirection = routeTransitionDirection(previousDay, state.activeDay);
-  document.body.dataset.view = state.activeView;
-  return previousView !== state.activeView || previousDay !== state.activeDay;
-}
-
-function writeHashNavigation(options = {}) {
-  const view = VIEW_HASH_SEGMENTS[state.activeView] || "agenda";
-  const day = state.activeDay ? `/${state.activeDay}` : "";
-  const nextHash = `#${view}${day}`;
-  if (globalThis.location.hash === nextHash) return;
-  if (options.replace) {
-    history.replaceState(null, "", nextHash);
-  } else {
-    history.pushState(null, "", nextHash);
-  }
-}
-
-function normalizeActiveDay() {
-  const days = normalizedDays();
-  if (!days.length) return;
-  if (!days.some((day) => day.date === state.activeDay)) {
-    state.activeDay = days[0]?.date || "";
-  }
-}
-
-function routeTransitionDirection(previousDay, nextDay) {
-  const days = normalizedDays();
-  if (!previousDay || !nextDay || previousDay === nextDay || !days.length) {
-    return "none";
-  }
-  const previousIndex = days.findIndex((day) => day.date === previousDay);
-  const nextIndex = days.findIndex((day) => day.date === nextDay);
-  if (previousIndex < 0 || nextIndex < 0 || previousIndex === nextIndex) return "none";
-  return nextIndex > previousIndex ? "forward" : "backward";
-}
-
-function toggleChatHistory() {
-  state.historyOpen = !state.historyOpen;
-  chatHistoryToggle.setAttribute("aria-expanded", String(state.historyOpen));
-  renderChatHistory();
-}
-
-async function loadSchedule() {
-  const response = await fetch("/api/schedule", { cache: "no-store", credentials: "include" });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload?.error?.message || "Could not load schedule.");
-  }
-  state.payload = payload;
-  const payloadDays = normalizedDays(payload);
-  const payloadReferenceDays = normalizedReferenceDays(payload);
-  state.entriesByBlock = new Map([
-    ...flattenDayEntries(payloadDays),
-    ...flattenDayEntries(payloadReferenceDays),
-  ].map((entry) => [entry.calendarBlockId, entry]));
-  state.activeDay ||= payloadDays[0]?.date || "";
-  normalizeActiveDay();
-  render();
-  surfacePartifulAutoSyncStatus();
-  writeHashNavigation({ replace: true });
-}
-
-async function loadScheduleForApp(options = {}) {
-  if (scheduleLoadPromise) return await scheduleLoadPromise;
-  if (options.showLoading) {
-    document.querySelector("[data-next-title]").textContent = "Loading events...";
-    setAgendaStatus("Loading events...");
-  }
-  scheduleLoadPromise = loadSchedule().then(() => {
-    if (options.scheduleAutoSync) scheduleServerPartifulAutoSync();
-  }).catch((error) => {
-    const message = error instanceof Error ? error.message : "Could not load schedule.";
-    document.querySelector("[data-next-title]").textContent = message;
-    setAgendaStatus(message);
-    animateButtonCluster(document);
-    throw error;
-  }).finally(() => {
-    scheduleLoadPromise = null;
-  });
-  return await scheduleLoadPromise;
-}
-
-async function loadScheduleAfterAuthentication() {
-  if (state.accountSession?.authenticated !== true) return;
-  try {
-    await loadScheduleForApp({ showLoading: !state.payload, scheduleAutoSync: true });
-  } catch {
-    if (state.accountSession?.authenticated === true) {
-      await loadScheduleForApp({ showLoading: true, scheduleAutoSync: true }).catch(() => {});
-    }
-  }
-}
-
-async function recalculateAgenda() {
-  if (state.agendaBusy || state.partifulSyncBusy || state.liveRouteRefreshBusy) return;
-  setAgendaBusy(true, "Optimizing schedule...");
-  try {
-    const response = await fetchWithTimeout(
-      "/api/agenda/recalculate",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ liveRouting: true, activate: true }),
-      },
-      LIVE_ROUTE_REFRESH_TIMEOUT_MS,
-    );
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(body?.error?.message || "Could not recalculate agenda.");
-    }
-    if (body.schedule) {
-      applySchedulePayload(body.schedule);
-    } else if (body.agenda) {
-      applyAgendaProposal(body.agenda);
-    }
-    const selected = body.agenda?.summary?.selectedEvents ?? countScheduleEvents();
-    const dropped = body.agenda?.summary?.droppedEvents ?? 0;
-    setAgendaBusy(false, `Optimized ${selected} events; ${dropped} alternatives left out.`);
-  } catch (error) {
-    setAgendaBusy(false, error instanceof Error ? error.message : "Could not recalculate agenda.");
-  }
-}
-
-async function syncPartifulAndRecalculate() {
-  await syncPartifulAndRecalculateInTwoPhases({ background: false });
-}
-
-async function syncPartifulAndRecalculateInTwoPhases({ background = false } = {}) {
-  if (state.agendaBusy || state.partifulSyncBusy || state.liveRouteRefreshBusy) {
-    if (!background) setAgendaStatus("Agenda refresh is already running.");
-    return false;
-  }
-
-  state.partifulSyncBusy = true;
-  updateAgendaControls();
-  if (!background) {
-    setAgendaStatus("Syncing Partiful approvals... live routes will refine in the background.");
-  }
-
-  try {
-    const response = await fetchWithTimeout(
-      "/api/sync/partiful/headless",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ liveRouting: false, recalculate: true, activate: true }),
-      },
-      PARTIFUL_FAST_SYNC_TIMEOUT_MS,
-    );
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(body?.error?.message || "Could not sync Partiful.");
-    }
-    if (body.schedule) applySchedulePayload(body.schedule);
-    const selected = body.agenda?.summary?.selectedEvents ?? countScheduleEvents();
-    const discovered = body.headless?.targetCount ?? body.ingestion?.snapshotCount ?? 0;
-    const failed = body.headless?.failureCount ?? 0;
-    if (!background) {
-      setAgendaStatus(
-        `Synced ${discovered} Partiful events; agenda now has ${selected} selected.${
-          failed ? ` ${failed} fetches failed.` : ""
-        } Refining live routes in the background.`,
-      );
-    }
-    void refreshLiveRoutesInBackground({ silent: background });
-    return true;
-  } catch (error) {
-    if (background) {
-      console.warn(error);
-    } else {
-      setAgendaStatus(error instanceof Error ? error.message : "Could not sync Partiful.");
-    }
-    return false;
-  } finally {
-    state.partifulSyncBusy = false;
-    updateAgendaControls();
-  }
-}
-
-async function refreshLiveRoutesInBackground({ silent = true } = {}) {
-  if (state.liveRouteRefreshBusy) return false;
-  state.liveRouteRefreshBusy = true;
-  updateAgendaControls();
-  if (!silent) setAgendaStatus("Refreshing live routes in the background...");
-
-  try {
-    const response = await fetchWithTimeout(
-      "/api/agenda/recalculate",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ liveRouting: true, activate: true }),
-      },
-      LIVE_ROUTE_REFRESH_TIMEOUT_MS,
-    );
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(body?.error?.message || "Could not refresh live routes.");
-    }
-    if (body.schedule) {
-      applySchedulePayload(body.schedule);
-    } else if (body.agenda) {
-      applyAgendaProposal(body.agenda);
-    }
-    if (!silent) {
-      const selected = body.agenda?.summary?.selectedEvents ?? countScheduleEvents();
-      setAgendaStatus(`Live routes refreshed; agenda has ${selected} selected events.`);
-    }
-    return true;
-  } catch (error) {
-    if (silent) {
-      console.warn(error);
-    } else {
-      const message = error instanceof Error ? error.message : "Could not refresh live routes.";
-      setAgendaStatus(`Partiful sync completed; ${message}`);
-    }
-    return false;
-  } finally {
-    state.liveRouteRefreshBusy = false;
-    updateAgendaControls();
-  }
-}
-
-function applySchedulePayload(payload) {
-  state.payload = payload;
-  const payloadDays = normalizedDays(payload);
-  const payloadReferenceDays = normalizedReferenceDays(payload);
-  state.entriesByBlock = new Map([
-    ...flattenDayEntries(payloadDays),
-    ...flattenDayEntries(payloadReferenceDays),
-  ].map((entry) => [entry.calendarBlockId, entry]));
-  normalizeActiveDay();
-  render();
-  writeHashNavigation({ replace: true });
-}
-
-function applyAgendaProposal(agenda) {
-  const selectedIds = new Set(
-    (agenda.selectedEvents || []).flatMap((entry) =>
-      [entry.techweekId, entry.partifulId, entry.rerankId].filter(Boolean)
-    ),
+  state.authPopup = globalThis.open(
+    url,
+    "planner-account-auth",
+    "width=460,height=640,popup=yes",
   );
-  const previousReference = [
-    ...flattenDayEntries(normalizedDays(state.payload)),
-    ...flattenDayEntries(normalizedReferenceDays(state.payload)),
-  ].filter((entry) => entry.blockType === "event" && !entryMatchesAnyId(entry, selectedIds));
-  const scheduleEntries = (agenda.selectedBlocks || []).map(agendaBlockToEntry);
-  state.payload = {
-    ...state.payload,
-    generatedAt: agenda.generatedAt,
-    source: `agenda:${agenda.agendaRunId}`,
-    next: currentSchedulePointerFromEntries(scheduleEntries),
-    counts: scheduleCounts(scheduleEntries, previousReference),
-    days: groupEntriesByDay(scheduleEntries),
-    referenceDays: groupEntriesByDay(previousReference.map(referenceEntryFromEvent)),
-  };
-  state.entriesByBlock = new Map([
-    ...flattenDayEntries(normalizedDays(state.payload)),
-    ...flattenDayEntries(normalizedReferenceDays(state.payload)),
-  ].map((entry) => [entry.calendarBlockId, entry]));
-  normalizeActiveDay();
-  render();
-  writeHashNavigation({ replace: true });
+  startAuthRefreshPoll();
 }
 
-function setAgendaBusy(busy, message) {
-  state.agendaBusy = busy;
-  updateAgendaControls();
-  setAgendaStatus(message || "");
-}
-
-function updateAgendaControls() {
-  const busy = state.agendaBusy || state.partifulSyncBusy || state.liveRouteRefreshBusy;
-  agendaRecalculateButton.disabled = busy;
-  partifulSyncButton.disabled = busy;
-}
-
-function setAgendaStatus(message) {
-  agendaStatusItems.forEach((item) => {
-    item.textContent = message || "";
-  });
-}
-
-function scheduleServerPartifulAutoSync(delayMs = PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS) {
-  if (state.accountSession?.authenticated !== true) return;
-  if (state.partifulAutoSyncRequestTimer) {
-    globalThis.clearTimeout(state.partifulAutoSyncRequestTimer);
-  }
-  state.partifulAutoSyncRequestTimer = globalThis.setTimeout(() => {
-    state.partifulAutoSyncRequestTimer = 0;
-    void requestServerPartifulAutoSync();
-  }, delayMs);
-}
-
-async function requestServerPartifulAutoSync() {
-  if (state.accountSession?.authenticated !== true) return;
-  if (state.partifulAutoSyncRequestBusy || document.hidden) return;
-  state.partifulAutoSyncRequestBusy = true;
-  try {
-    const response = await fetch("/api/sync/partiful/auto", { method: "POST" });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(
-        body?.error?.message || `Partiful auto-sync request failed with HTTP ${response.status}.`,
-      );
+function startAuthRefreshPoll() {
+  stopAuthRefreshPoll();
+  let attempts = 0;
+  state.authPollTimer = globalThis.setInterval(async () => {
+    attempts += 1;
+    const popupClosed = state.authPopup?.closed === true;
+    try {
+      await loadAccount({ quiet: true });
+      if (state.session?.authenticated) {
+        stopAuthRefreshPoll();
+        render();
+        return;
+      }
+    } catch {
+      // The popup may still be mid-auth; keep polling until the short window expires.
     }
-    if (response.status === 202 || body.action === "started" || body.action === "already_running") {
-      schedulePartifulAutoSyncSchedulePoll();
-    }
-    if (body.partifulAutoSync?.status === "failed" && body.partifulAutoSync?.lastError) {
-      setAgendaStatus(`Partiful auto-sync failed: ${body.partifulAutoSync.lastError}`);
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Partiful auto-sync request failed.";
-    console.error(error);
-    setAgendaStatus(message);
-  } finally {
-    state.partifulAutoSyncRequestBusy = false;
-  }
+    if (popupClosed || attempts >= 150) stopAuthRefreshPoll();
+  }, 800);
 }
 
-function schedulePartifulAutoSyncSchedulePoll(
-  delayMs = PARTIFUL_AUTO_SYNC_STATUS_POLL_MS,
-  attempt = 0,
-) {
-  if (state.partifulAutoSyncPollTimer) {
-    globalThis.clearTimeout(state.partifulAutoSyncPollTimer);
-  }
-  state.partifulAutoSyncPollTimer = globalThis.setTimeout(() => {
-    state.partifulAutoSyncPollTimer = 0;
-    void pollPartifulAutoSyncSchedule(attempt);
-  }, delayMs);
-}
-
-async function pollPartifulAutoSyncSchedule(attempt = 0) {
-  if (document.hidden) return;
-  try {
-    await loadSchedule();
-  } catch (error) {
-    console.error(error);
-    setAgendaStatus(
-      error instanceof Error ? error.message : "Could not read Partiful auto-sync status.",
-    );
-  }
-  const autoSync = state.payload?.sync?.partifulAuto;
-  if (autoSync?.status === "failed" && autoSync.lastError) {
-    setAgendaStatus(`Partiful auto-sync failed: ${autoSync.lastError}`);
-    return;
-  }
-  if (autoSync?.status === "running" && attempt < PARTIFUL_AUTO_SYNC_MAX_POLLS) {
-    schedulePartifulAutoSyncSchedulePoll(PARTIFUL_AUTO_SYNC_STATUS_POLL_MS, attempt + 1);
-  }
-}
-
-function surfacePartifulAutoSyncStatus() {
-  const autoSync = state.payload?.sync?.partifulAuto;
-  if (autoSync?.status === "failed" && autoSync.lastError) {
-    setAgendaStatus(`Partiful auto-sync failed: ${autoSync.lastError}`);
-  }
+function stopAuthRefreshPoll() {
+  if (!state.authPollTimer) return;
+  globalThis.clearInterval(state.authPollTimer);
+  state.authPollTimer = 0;
 }
 
 function render() {
-  renderNext();
-  renderDayTabs();
-  renderRouteList();
-  renderReferenceList();
-  renderCRM();
-  renderInvite();
-  animateButtonCluster(document);
-  animateCards(routeList);
-  animateCards(referenceList);
+  const authenticated = state.session?.authenticated === true;
+  els.authGate.hidden = authenticated;
+  els.shell.hidden = !authenticated;
+  els.accountLabel.textContent = authenticated
+    ? state.session.user?.handle || "Account"
+    : "Sign in";
+  els.shell.dataset.agentCollapsed = state.agentCollapsed ? "true" : "false";
+  els.agentPopover.dataset.collapsed = state.agentCollapsed ? "true" : "false";
+  els.agentToggleButtons.forEach((button) => {
+    button.setAttribute("aria-expanded", state.agentCollapsed ? "false" : "true");
+  });
+  els.panelButtons.forEach((button) => {
+    button.setAttribute(
+      "aria-current",
+      button.dataset.panelButton === state.activePanel ? "page" : "false",
+    );
+  });
+  els.panels.forEach((panel) => {
+    panel.hidden = panel.dataset.panel !== state.activePanel;
+  });
+  renderCounts();
+  renderAgendaHistory();
+  renderChat();
+  renderCalendar();
+  renderImports();
 }
 
-function renderInvite() {
-  if (!inviteStatus) return;
-  if (!state.invitePayload) {
-    const isSignedIn = state.accountSession?.authenticated === true;
-    const setupRequired = state.accountSession?.setupRequired === true;
-    inviteStatus.textContent = state.inviteLoading
-      ? "Loading invite data..."
-      : state.accountError
-      ? state.accountError
-      : isSignedIn
-      ? "Invite data is not available yet."
-      : setupRequired
-      ? "Create the first passkey before sharing invites."
-      : "Sign in to create and share your invite.";
-    inviteCode.textContent = "—";
-    inviteCopyCodeButton?.setAttribute("disabled", "true");
-    inviteShareLink.textContent = "—";
-    inviteShareLink.removeAttribute("href");
-    inviteCopyLinkButton?.setAttribute("disabled", "true");
-    inviteQrImage.src = "";
-    inviteQrImage.hidden = true;
-    if (inviteReferralsCount) inviteReferralsCount.textContent = "";
-    if (inviteReferralsList) inviteReferralsList.replaceChildren();
+function renderCounts() {
+  const planner = state.planner;
+  const plan = activePlan();
+  const eventCount = planner?.imports?.reduce((count, item) => count + item.events.length, 0) ?? 0;
+  els.countEvents.textContent = String(eventCount);
+  els.countSelected.textContent = String(plan?.summary?.selectedEvents ?? 0);
+  els.countLogistics.textContent = String(plan?.summary?.generatedLogisticsBlocks ?? 0);
+}
+
+function renderAgendaHistory() {
+  const plans = sortedPlansByStartDate(state.planner?.plans ?? []);
+  const active = activePlan();
+  els.agendaList.replaceChildren();
+  els.agendaName.disabled = !active || state.busy;
+  if (document.activeElement !== els.agendaName) {
+    els.agendaName.value = active ? planDisplayName(active) : "";
+  }
+  if (!plans.length) {
+    els.agendaList.append(emptyState("No generated agendas yet."));
+    els.agendaStatus.textContent = "";
     return;
   }
 
-  const payload = state.invitePayload;
-  const referrals = Array.isArray(payload.referrals) ? payload.referrals : [];
-  inviteStatus.textContent = `Share URL: ${
-    payload.createdAt ? `created ${payload.createdAt}` : "updated"
-  }`.trim();
-  inviteCode.textContent = payload.code || "—";
-  inviteShareLink.textContent = payload.shareUrl || "";
-  inviteShareLink.href = payload.shareUrl || "#";
-  inviteCopyCodeButton?.removeAttribute("disabled");
-  inviteCopyLinkButton?.removeAttribute("disabled");
-  if (payload.shareUrl) {
-    inviteQrImage.src = `${INVITE_QR_IMAGE_URL}?size=220x220&data=${
-      encodeURIComponent(payload.shareUrl)
-    }`;
-    inviteQrImage.hidden = false;
-  } else {
-    inviteQrImage.hidden = true;
-  }
-  if (inviteReferralsCount) {
-    inviteReferralsCount.textContent = `${referrals.length} referral${
-      referrals.length === 1 ? "" : "s"
-    }`;
-  }
-  if (inviteReferralsList) {
-    if (!referrals.length) {
-      inviteReferralsList.replaceChildren(
-        Object.assign(document.createElement("li"), { textContent: "No referrals yet." }),
-      );
-    } else {
-      inviteReferralsList.replaceChildren(...referrals.map((referral) => {
-        const item = document.createElement("li");
-        item.textContent = `${referral.userHandle || "User"} (${referral.userId || "id"})`;
-        return item;
-      }));
-    }
-  }
-}
-
-function renderNext() {
-  const next = state.payload?.next;
-  document.querySelector("[data-next-title]").textContent = next?.displayTitle ||
-    "No agenda loaded";
-  document.querySelector("[data-next-time]").textContent = next
-    ? `${next.weekday} ${next.timeRange}`
-    : "";
-  document.querySelector("[data-next-place]").replaceChildren(
-    next ? renderPlaceLink(next, next.location || next.venueQuery) : "",
-  );
-}
-
-function renderDayTabs() {
-  dayTabs.replaceChildren();
-  for (const day of normalizedDays()) {
+  for (const plan of plans) {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = day.weekday;
-    button.title = day.date;
-    button.setAttribute("aria-selected", String(day.date === state.activeDay));
-    button.addEventListener("click", () => {
-      const previousDay = state.activeDay;
-      if (previousDay === day.date) {
-        return;
-      }
-      state.activeDay = day.date;
-      state.routeTransitionDirection = routeTransitionDirection(previousDay, state.activeDay);
-      renderDayTabs();
-      renderRouteList();
-      animateButtonCluster(dayTabs);
-      animateCards(routeList);
-      writeHashNavigation();
-    });
-    dayTabs.append(button);
+    button.dataset.agendaId = plan.id;
+    button.setAttribute("aria-current", plan.id === state.planner?.activePlanId ? "page" : "false");
+
+    const title = document.createElement("h4");
+    title.textContent = planDisplayName(plan);
+    const meta = document.createElement("p");
+    meta.textContent = [
+      planDateRange(plan),
+      `${plan.blocks?.length ?? 0} blocks`,
+      plan.generatedAt ? `saved ${shortDateTime(plan.generatedAt)}` : "",
+    ].filter(Boolean).join(" · ");
+    button.append(title, meta);
+    els.agendaList.append(button);
   }
 }
 
-function renderRouteList() {
-  const day = normalizedDays().find((item) => item.date === state.activeDay);
-  const entries = day?.entries || [];
-  const optionEntries = sameDayOptionEntries(state.activeDay);
-  const lanes = computeCollisionLanes(entries);
-  const optionLanes = computeCollisionLanes(optionEntries);
-  const timeline = document.createElement("section");
-  timeline.dataset.timeline = "";
-  timeline.dataset.transition = state.routeTransitionDirection || "none";
-  timeline.style.setProperty("--slots", "96");
-  timeline.append(
-    renderTimeRail(),
-    ...entries.map((entry) => renderTimelineEntry(entry, lanes)),
-    ...optionEntries.map((entry) => renderTimelineEntry(entry, optionLanes)),
-  );
-  routeList.replaceChildren(timeline);
-  state.routeTransitionDirection = "none";
-}
-
-function sameDayOptionEntries(dayKey) {
-  const day = normalizedReferenceDays().find((item) => item.date === dayKey);
-  return (day?.entries || [])
-    .filter((entry) => entry.blockType === "event")
-    .map((entry) => ({
-      ...entry,
-      optionLabel: optionLabel(entry),
-    }));
-}
-
-function optionLabel(entry) {
-  const status = entry.statusLabel || entry.status || "option";
-  const label = labelize(status).replace(/\bbackup\b/gi, "").replace(/\s+/g, " ").trim();
-  return entry.status === "registered" ? "Registered option" : `${label || "Event"} option`;
-}
-
-function renderReferenceList() {
-  const entries = eventEntries()
-    .sort((a, b) => eventStartEpochMs(a) - eventStartEpochMs(b));
-  referenceList.replaceChildren(...entries.map(renderEntry));
-}
-
-function eventEntries() {
-  if (!state.payload) return [];
-  const schedule = flattenDayEntries(state.payload?.days)
-    .filter((entry) => entry.blockType === "event");
-  const reference = flattenDayEntries(state.payload?.referenceDays)
-    .filter((entry) => entry.blockType === "event");
-  return [...schedule, ...reference];
-}
-
-function defaultLeadEventId(entries = eventEntries()) {
-  const now = Date.now();
-  const schedule = entries
-    .filter((entry) => entry.calendar === "schedule" && entry.blockType === "event")
-    .sort((a, b) => eventStartEpochMs(a) - eventStartEpochMs(b));
-  const current = schedule.find((entry) =>
-    eventStartEpochMs(entry) <= now && now < eventEndEpochMs(entry)
-  );
-  const previous = [...schedule].reverse().find((entry) => eventStartEpochMs(entry) <= now);
-  const firstUpcoming = schedule.find((entry) => eventStartEpochMs(entry) > now);
-
-  return current?.calendarBlockId ||
-    previous?.calendarBlockId ||
-    firstUpcoming?.calendarBlockId ||
-    entries[0]?.calendarBlockId ||
-    "";
-}
-
-function renderCRM() {
-  if (!state.payload) return;
-  const entries = eventEntries();
-  const previous = leadEventSelect.value;
-  const selectedId = state.leadEventManuallySelected &&
-      entries.some((entry) => entry.calendarBlockId === previous)
-    ? previous
-    : defaultLeadEventId(entries);
-
-  leadEventSelect.replaceChildren(...entries.map((entry) => {
-    const option = document.createElement("option");
-    option.value = entry.calendarBlockId;
-    option.textContent = `${
-      entry.calendar === "schedule" ? "Agenda" : "Event"
-    } - ${entry.weekday} ${entry.timeRange} - ${entry.displayTitle}`;
-    return option;
-  }));
-  leadEventSelect.value = selectedId;
-
-  const selected = entries.find((entry) => entry.calendarBlockId === leadEventSelect.value);
-  crmEventTitle.textContent = selected?.displayTitle || "Lead capture";
-  renderFollowUpEmailControl();
-  renderLeadList(selected?.calendarBlockId || "");
-}
-
-function renderFollowUpEmailControl() {
-  const input = leadForm.elements.sendFollowUpEmail;
-  const configured = Boolean(state.payload?.email?.followUpConfigured);
-  input.disabled = !configured;
-  if (!configured) input.checked = false;
-  if (!state.followUpEmailTouched && !leadFormHasDraft()) {
-    input.checked = configured;
-  }
-  followUpEmailStatus.textContent = configured
-    ? (input.checked ? "Resend ready" : "Email off")
-    : "Resend not configured";
-}
-
-function refreshAutomaticLeadEvent() {
-  if (state.activeView !== "crm" || state.leadEventManuallySelected || leadFormHasDraft()) return;
-  renderCRM();
-}
-
-function leadFormHasDraft() {
-  return ["name", "company", "role", "email", "phone", "followUp", "notes"].some((field) =>
-    String(leadForm.elements[field]?.value || "").trim()
+function sortedPlansByStartDate(plans) {
+  return [...plans].sort((a, b) =>
+    planStartValue(a) - planStartValue(b) ||
+    dateTimeValue(b.generatedAt) - dateTimeValue(a.generatedAt)
   );
 }
 
-function eventStartEpochMs(entry) {
-  return Number(entry.actualStartEpochMs || entry.startEpochMs || 0);
+function planStartValue(plan) {
+  const values = (plan.blocks ?? []).map((block) => dateTimeValue(block.start)).filter(Boolean);
+  return values.length ? Math.min(...values) : dateTimeValue(plan.generatedAt) || Number.MAX_VALUE;
 }
 
-function eventEndEpochMs(entry) {
-  return Number(entry.actualEndEpochMs || entry.endEpochMs || eventStartEpochMs(entry));
+function planDisplayName(plan) {
+  return plan?.name || `${planDateRange(plan) || "Saved"} agenda`;
 }
 
-function agendaBlockToEntry(block) {
-  const start = block.start || "";
-  const end = block.end || "";
-  const actualStart = block.actualStart || start;
-  const actualEnd = block.actualEnd || end;
-  const dayKey = block.dayKey || start.slice(0, 10);
-  const title = block.title || "";
-  return {
-    calendar: block.calendar || "schedule",
-    techweekId: block.techweekId || "",
-    calendarBlockId: block.calendarBlockId || block.agendaBlockId || "",
-    partifulId: block.partifulId || "",
-    rerankId: block.rerankId || "",
-    entryType: block.entryType || block.blockType || "",
-    blockType: block.blockType || "other",
-    status: block.status || "",
-    category: block.category || "",
-    start,
-    end,
-    actualStart,
-    actualEnd,
-    startEpochMs: epochFromLocal(start),
-    endEpochMs: epochFromLocal(end),
-    actualStartEpochMs: epochFromLocal(actualStart),
-    actualEndEpochMs: epochFromLocal(actualEnd),
-    dayKey,
-    weekday: weekdayForDay(dayKey),
-    timeRange: timeRange(start, end),
-    title,
-    displayTitle: title.replace(/^\[[^\]]+\]\s*/, ""),
-    statusLabel: statusLabelFromTitle(title),
-    location: block.location || "",
-    venueQuery: block.venueQuery || "",
-    venuePrecision: block.venuePrecision || "",
-    routeMode: block.routeMode || "",
-    travelMinutes: block.travelMinutes ?? "",
-    routeDetails: block.routeDetails || "",
-    transitRisk: block.transitRisk || "",
-    note: block.note || block.generatedReason || "",
-    salesCoaching: "",
-    rank: block.rank || "",
-    tier: block.tier || "",
-    opportunityScore: block.opportunityScore || "",
-    eventUrl: block.eventUrl || "",
-    googleMapsUrl: block.googleMapsUrl || "",
-  };
+function planDateRange(plan) {
+  const start = planStartDate(plan);
+  const end = planEndDate(plan) || start;
+  if (!start) return "";
+  return start === end ? shortDate(start) : `${shortDate(start)} to ${shortDate(end)}`;
 }
 
-function referenceEntryFromEvent(entry) {
-  const techweekId = entry.techweekId || (entry.rerankId ? `TW-${entry.rerankId}` : "");
-  return {
-    ...entry,
-    calendar: "reference",
-    calendarBlockId: techweekId ? `${techweekId}-REFERENCE` : entry.calendarBlockId,
-  };
+function planStartDate(plan) {
+  return (plan.blocks ?? []).map((block) => datePart(block.start)).filter(Boolean).sort()[0] ||
+    datePart(plan.generatedAt);
 }
 
-function currentSchedulePointerFromEntries(entries) {
-  const now = Date.now();
-  const operational = entries.filter((entry) =>
-    entry.calendar === "schedule" && ["event", "travel", "eating"].includes(entry.blockType)
-  );
-  return operational.find((entry) => eventEndEpochMs(entry) > now) ??
-    operational.find((entry) => entry.blockType === "event") ??
-    entries.find((entry) => entry.calendar === "schedule") ??
-    null;
+function planEndDate(plan) {
+  const dates = (plan.blocks ?? []).map((block) => datePart(block.end)).filter(Boolean).sort();
+  return dates.at(-1) || datePart(plan.generatedAt);
 }
 
-function scheduleCounts(scheduleEntries, referenceEntries) {
-  return {
-    scheduleBlocks: scheduleEntries.length,
-    scheduleEvents: scheduleEntries.filter((entry) => entry.blockType === "event").length,
-    referenceEvents: referenceEntries.filter((entry) => entry.blockType === "event").length,
-    eventBlocks: scheduleEntries.filter((entry) => entry.blockType === "event").length,
-    travelBlocks: scheduleEntries.filter((entry) => entry.blockType === "travel").length,
-    eatingBlocks: scheduleEntries.filter((entry) => entry.blockType === "eating").length,
-    sleepingBlocks: scheduleEntries.filter((entry) => entry.blockType === "sleeping").length,
-    mealBlocks: scheduleEntries.filter((entry) => entry.blockType === "eating").length,
-  };
-}
-
-function groupEntriesByDay(entries) {
-  const days = new Map();
-  for (const entry of entries) {
-    const current = days.get(entry.dayKey) || [];
-    current.push(entry);
-    days.set(entry.dayKey, current);
-  }
-  return [...days.entries()].map(([date, dayEntries]) => ({
-    date,
-    weekday: weekdayForDay(date),
-    entries: dayEntries.sort((a, b) => eventStartEpochMs(a) - eventStartEpochMs(b)),
-  })).sort((a, b) => a.date.localeCompare(b.date));
-}
-
-function entryMatchesAnyId(entry, ids) {
-  return ids.has(entry.techweekId) || ids.has(entry.partifulId) || ids.has(entry.rerankId);
-}
-
-function countScheduleEvents() {
-  return flattenDayEntries(state.payload?.days)
-    .filter((entry) => entry.blockType === "event").length ?? 0;
-}
-
-function epochFromLocal(value) {
-  if (!value) return 0;
-  return Date.parse(`${String(value).trim().replace(" ", "T")}:00-04:00`);
-}
-
-function weekdayForDay(dayKey) {
-  const date = new Date(`${dayKey}T12:00:00-04:00`);
-  return new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "America/New_York" })
-    .format(date);
-}
-
-function timeRange(start, end) {
-  return `${String(start || "").slice(11, 16)}-${String(end || "").slice(11, 16)}`;
-}
-
-function statusLabelFromTitle(title) {
-  return title.match(/^\[([^\]]+)\]/)?.[1] || "";
-}
-
-function renderLeadList(calendarBlockId) {
-  const leads = state.payload?.state?.leads || [];
-  const current = leads.filter((lead) => lead.calendarBlockId === calendarBlockId);
-  const recent = leads.filter((lead) => lead.calendarBlockId !== calendarBlockId).slice(0, 20);
-  leadsList.replaceChildren(
-    renderLeadGroup("This event", current, "No leads for this event yet.", false),
-    renderLeadGroup("Recent", recent, "No saved leads yet.", true),
-  );
-}
-
-function renderLeadGroup(title, leads, emptyText, showEvent) {
-  const section = document.createElement("section");
-  const heading = document.createElement("h2");
-  heading.textContent = title;
-  section.append(heading);
-  if (!leads.length) {
-    const empty = document.createElement("p");
-    empty.textContent = emptyText;
-    section.append(empty);
-    return section;
-  }
-  section.append(...leads.map((lead) => renderLead(lead, showEvent)));
-  return section;
-}
-
-function renderLead(lead, showEvent) {
-  const article = document.createElement("article");
-  article.dataset.lead = lead.id;
-
-  const header = document.createElement("header");
-  const summary = document.createElement("section");
-  const title = document.createElement("h3");
-  title.textContent = lead.name || lead.company || lead.email || lead.phone || "Lead";
-  const subtitle = document.createElement("p");
-  subtitle.textContent = [lead.company, lead.role].filter(Boolean).join(" / ");
-  summary.append(title);
-  if (subtitle.textContent) summary.append(subtitle);
-  if (showEvent && lead.eventTitle) {
-    const event = document.createElement("p");
-    event.textContent = lead.eventTitle;
-    summary.append(event);
-  }
-
-  const remove = document.createElement("button");
-  remove.type = "button";
-  remove.dataset.iconOnly = "";
-  remove.setAttribute("aria-label", `Delete ${title.textContent}`);
-  remove.append(renderIcon("trash"));
-  remove.addEventListener("click", () => applyAction({ type: "lead_delete", id: lead.id }));
-  header.append(summary, remove);
-  article.append(header);
-
-  if (lead.notes) {
-    const notes = document.createElement("p");
-    notes.textContent = lead.notes;
-    article.append(notes);
-  }
-
-  const meta = document.createElement("section");
-  meta.dataset.leadTags = "";
-  addLeadMeta(meta, lead.followUp);
-  const emailStatus = addLeadMeta(meta, followUpEmailLabel(lead.followUpEmail));
-  if (emailStatus && lead.followUpEmail?.status) {
-    emailStatus.dataset.emailStatus = lead.followUpEmail.status;
-    emailStatus.title = followUpEmailTitle(lead.followUpEmail);
-  }
-  addLeadMeta(meta, formatLeadTime(lead.createdAt));
-  if (lead.email) {
-    const email = document.createElement("a");
-    email.href = `mailto:${lead.email}`;
-    email.textContent = lead.email;
-    email.dataset.contactLink = "";
-    meta.append(email);
-  }
-  if (lead.phone) {
-    const phone = document.createElement("a");
-    phone.href = `tel:${lead.phone.replace(/[^\d+]/g, "")}`;
-    phone.textContent = lead.phone;
-    phone.dataset.contactLink = "";
-    meta.append(phone);
-  }
-  article.append(meta);
-  return article;
-}
-
-function addLeadMeta(parent, text) {
-  if (!text) return null;
-  const item = document.createElement("span");
-  item.textContent = text;
-  parent.append(item);
-  return item;
-}
-
-function followUpEmailLabel(email) {
-  if (!email?.status) return "";
-  if (email.status === "sent") return "Email sent";
-  if (email.status === "failed") return "Email failed";
-  if (email.status === "skipped") return "Email skipped";
-  return "";
-}
-
-function followUpEmailTitle(email) {
-  if (!email) return "";
-  return [email.to, email.subject, email.error].filter(Boolean).join(" / ");
-}
-
-function formatLeadTime(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-US", {
+function shortDate(day) {
+  if (!day) return "";
+  const date = new Date(`${day}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return day;
+  return new Intl.DateTimeFormat(undefined, {
     month: "short",
     day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function shortDateTime(value) {
+  if (!value) return "";
+  const date = new Date(String(value).replace(" ", "T"));
+  if (Number.isNaN(date.getTime())) return shortDate(datePart(value));
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
 }
 
-async function handleLeadSubmit(event) {
-  event.preventDefault();
-  setLeadError("");
-  const formData = new FormData(leadForm);
-  const action = {
-    type: "lead_create",
-    calendarBlockId: String(formData.get("calendarBlockId") || ""),
-    name: String(formData.get("name") || ""),
-    company: String(formData.get("company") || ""),
-    role: String(formData.get("role") || ""),
-    email: String(formData.get("email") || ""),
-    phone: String(formData.get("phone") || ""),
-    followUp: String(formData.get("followUp") || ""),
-    ocr: state.ocrMetadata,
-    notes: String(formData.get("notes") || ""),
-    sendFollowUpEmail: Boolean(
-      leadForm.elements.sendFollowUpEmail.checked &&
-        !leadForm.elements.sendFollowUpEmail.disabled,
-    ),
-  };
+function renderChat() {
+  els.chatLog.replaceChildren();
+  for (const message of state.messages) {
+    const article = document.createElement("article");
+    article.dataset.messageRole = message.role;
+    appendLinkedText(article, message.content);
+    els.chatLog.append(article);
+  }
+  els.chatLog.scrollTop = els.chatLog.scrollHeight;
+}
 
-  if (
-    !action.name.trim() && !action.company.trim() && !action.email.trim() && !action.phone.trim()
-  ) {
-    setLeadError("Add at least a name, company, email, or phone.");
-    leadForm.elements.name.focus();
+function renderCalendar() {
+  els.calendar.replaceChildren();
+  const blocks = calendarBlocks();
+  if (!blocks.length) {
+    els.calendar.append(renderTimelineDay(todayKey(), []));
     return;
   }
-
-  const submit = leadForm.querySelector("button[type='submit']");
-  submit.disabled = true;
-  try {
-    const response = await fetch("/api/state", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(action),
-    });
-    const body = await response.json();
-    if (!response.ok) throw new Error(body?.error?.message || "Could not save lead.");
-    state.payload.state = body.state;
-    const selectedId = action.calendarBlockId;
-    leadForm.reset();
-    leadForm.elements.calendarBlockId.value = selectedId;
-    state.followUpEmailTouched = false;
-    renderFollowUpEmailControl();
-    renderCRM();
-    state.ocrMetadata = null;
-    leadForm.elements.name.focus();
-  } catch (error) {
-    setLeadError(error instanceof Error ? error.message : "Could not save lead.");
-  } finally {
-    submit.disabled = false;
+  const groups = groupBy(expandCalendarBlocksByDay(blocks), (block) => block.dayKey);
+  for (const [day, blocks] of groups) {
+    els.calendar.append(renderTimelineDay(day, blocks));
   }
 }
 
-async function handleCardInput() {
-  const file = cardInput.files?.[0];
-  if (!file) return;
-  const requestId = createDebugId("ocr");
-  const selected = state.entriesByBlock.get(leadForm.elements.calendarBlockId.value);
-  const eventTitle = selected?.displayTitle || "";
-  setLeadError("");
-  setCardScanStatus(`Reading card... ${requestId}`);
-  setCardScanBusy(true);
-  await logClientEvent("ocr_file_selected", {
-    requestId,
-    file: fileMetadata(file),
-    eventTitle,
-    browser: browserMetadata(),
-  });
-
-  try {
-    state.ocrMetadata = null;
-    const image = await imageFileToDataUrl(file);
-    await logClientEvent("ocr_image_prepared", {
-      requestId,
-      file: fileMetadata(file),
-      image: image.metadata,
-      browser: browserMetadata(),
-    });
-
-    try {
-      await saveCardImageRecord({
-        id: requestId,
-        createdAt: new Date().toISOString(),
-        eventTitle,
-        fileName: file.name || "business-card",
-        fileType: file.type || "unknown",
-        fileSize: file.size,
-        original: file,
-        compressed: dataUrlToBlob(image.compressedDataUrl || image.dataUrl),
-        metadata: image.metadata,
-      });
-      await logClientEvent("ocr_image_stored", {
-        requestId,
-        stored: true,
-        image: image.metadata,
-      });
-    } catch (storageError) {
-      await logClientEvent("ocr_image_store_failed", {
-        requestId,
-        error: errorDetails(storageError),
-      });
-    }
-
-    cardPreview.src = image.previewDataUrl || image.dataUrl;
-    cardPreview.hidden = false;
-    setCardScanStatus(`Extracting with AI... ${requestId}`);
-
-    const body = await requestOcrDraft({ requestId, file, image, eventTitle });
-    state.ocrMetadata = body?.ocrMetadata ?? null;
-    applyLeadDraft(body.draft || {});
-    setCardScanStatus(`Card scanned. Review and save. ${requestId}`);
-  } catch (error) {
-    await logClientEvent("ocr_client_error", {
-      requestId,
-      error: errorDetails(error),
-      file: fileMetadata(file),
-      browser: browserMetadata(),
-    });
-    setCardScanStatus(`Scan failed. ${requestId}`);
-    setLeadError(error instanceof Error ? error.message : "Could not scan card.");
-  } finally {
-    setCardScanBusy(false);
-    cardInput.value = "";
-  }
-}
-
-async function requestOcrDraft({ requestId, file, image, eventTitle }) {
-  const payloads = Array.isArray(image.ocrPayloads) && image.ocrPayloads.length
-    ? image.ocrPayloads
-    : [{ dataUrl: image.dataUrl, metadata: image.metadata }];
-  const requestPayloads = payloads.slice(0, OCR_MAX_REQUEST_ATTEMPTS);
-  let lastBody = null;
-
-  for (const [attemptIndex, payload] of requestPayloads.entries()) {
-    const attemptRequestId = attemptIndex === 0 ? requestId : `${requestId}_r${attemptIndex}`;
-    if (attemptIndex > 0) {
-      setCardScanStatus(`Retrying OCR image... ${requestId}`);
-    }
-    await logClientEvent("ocr_request_attempt", {
-      requestId,
-      attemptRequestId,
-      attemptIndex,
-      image: payload.metadata,
-      browser: browserMetadata(),
-    });
-
-    let response = null;
-    try {
-      response = await fetchWithTimeout("/api/leads/ocr", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          requestId: attemptRequestId,
-          imageDataUrl: payload.dataUrl,
-          eventTitle,
-          clientMetadata: {
-            baseRequestId: requestId,
-            attemptIndex,
-            file: fileMetadata(file),
-            image: payload.metadata,
-            browser: browserMetadata(),
-            localImageStore: {
-              db: CARD_DB_NAME,
-              store: CARD_STORE,
-              key: requestId,
-            },
-          },
-        }),
-      }, OCR_REQUEST_TIMEOUT_MS);
-    } catch (error) {
-      lastBody = {
-        error: {
-          message: error instanceof DOMException && error.name === "AbortError"
-            ? "Business card OCR timed out."
-            : "Business card OCR request failed.",
-          requestId: attemptRequestId,
-          detail: errorDetails(error),
-        },
-      };
-      await logClientEvent("ocr_request_error", {
-        requestId,
-        attemptRequestId,
-        attemptIndex,
-        error: errorDetails(error),
-      });
-      const canRetry = attemptIndex < requestPayloads.length - 1;
-      if (!canRetry) break;
-      await logClientEvent("ocr_retry_after_failure", {
-        requestId,
-        failedAttemptRequestId: attemptRequestId,
-        failedStatus: 0,
-        nextAttemptIndex: attemptIndex + 1,
-        nextImage: requestPayloads[attemptIndex + 1]?.metadata,
-      });
-      continue;
-    }
-    const body = await response.json().catch(() => ({
-      error: { message: "Could not parse OCR response.", requestId: attemptRequestId },
-    }));
-    lastBody = body;
-    await logClientEvent("ocr_response", {
-      requestId,
-      attemptRequestId,
-      attemptIndex,
-      ok: response.ok,
-      status: response.status,
-      responseRequestId: body?.requestId || body?.error?.requestId || "",
-      headers: {
-        techweekRequestId: response.headers.get("x-techweek-request-id") || "",
-        uosRequestId: response.headers.get("x-uos-request-id") || "",
-        denoTraceId: response.headers.get("x-deno-trace-id") || "",
-        uosWarning: response.headers.get("x-uos-warning") || "",
-        upstream: response.headers.get("x-ubq-upstream") || "",
-      },
-      body: response.ok ? { hasDraft: Boolean(body?.draft) } : body,
-    });
-
-    if (response.ok) {
-      if (leadDraftHasUsableFields(body?.draft)) {
-        return {
-          ...body,
-          ocrMetadata: coerceLeadOcrMetadata(body?.ocrMetadata) ??
-            inferOcrMetadataFromAttempt({ attemptIndex, payload }),
-        };
-      }
-      lastBody = {
-        error: {
-          message: "Business card OCR did not find any lead fields.",
-          requestId: body?.requestId || attemptRequestId,
-        },
-      };
-    }
-    const canRetry = (response.status >= 500 || response.status === 422 || response.ok) &&
-      attemptIndex < requestPayloads.length - 1;
-    if (!canRetry) break;
-
-    await logClientEvent("ocr_retry_after_failure", {
-      requestId,
-      failedAttemptRequestId: attemptRequestId,
-      failedStatus: response.status,
-      nextAttemptIndex: attemptIndex + 1,
-      nextImage: requestPayloads[attemptIndex + 1]?.metadata,
-    });
-  }
-
-  const debugId = lastBody?.error?.requestId || requestId;
-  throw new Error(`${lastBody?.error?.message || "Could not scan card."} Debug: ${debugId}`);
-}
-
-function inferOcrMetadataFromAttempt({ attemptIndex, payload }) {
-  const metadata = payload?.metadata && typeof payload.metadata === "object"
-    ? payload.metadata
-    : {};
-  const rawOcrDataUrlCharacters = metadata.ocrDataUrlCharacters ??
-    metadata.compressedDataUrlCharacters ??
-    metadata.dataUrlCharacters;
-  return coerceLeadOcrMetadata({
-    ocrSource: typeof metadata.ocrSource === "string" ? metadata.ocrSource : "",
-    attemptIndex: Number.isFinite(Number(metadata.retryIndex ?? attemptIndex))
-      ? Number(metadata.retryIndex ?? attemptIndex)
-      : Number(attemptIndex),
-    outputWidth: Number.isFinite(Number(metadata.outputWidth))
-      ? Number(metadata.outputWidth)
-      : undefined,
-    outputHeight: Number.isFinite(Number(metadata.outputHeight))
-      ? Number(metadata.outputHeight)
-      : undefined,
-    dataUrlCharacters: Number.isFinite(Number(rawOcrDataUrlCharacters))
-      ? Number(rawOcrDataUrlCharacters)
-      : undefined,
-  });
-}
-
-function coerceLeadOcrMetadata(value) {
-  if (!value || typeof value !== "object") return null;
-  const raw = value;
-  const ocrSource = typeof raw.ocrSource === "string" && raw.ocrSource.trim()
-    ? raw.ocrSource.trim()
-    : "";
-  const attemptIndex = Number.isFinite(Number(raw.attemptIndex))
-    ? Math.max(0, Math.round(Number(raw.attemptIndex)))
-    : undefined;
-  const outputWidth = Number.isFinite(Number(raw.outputWidth))
-    ? Math.max(0, Math.round(Number(raw.outputWidth)))
-    : undefined;
-  const outputHeight = Number.isFinite(Number(raw.outputHeight))
-    ? Math.max(0, Math.round(Number(raw.outputHeight)))
-    : undefined;
-  const dataUrlCharacters = Number.isFinite(Number(raw.dataUrlCharacters))
-    ? Math.max(0, Math.round(Number(raw.dataUrlCharacters)))
-    : undefined;
-  const normalized = {
-    ...(ocrSource ? { ocrSource } : {}),
-    ...(attemptIndex !== undefined ? { attemptIndex } : {}),
-    ...(outputWidth !== undefined ? { outputWidth } : {}),
-    ...(outputHeight !== undefined ? { outputHeight } : {}),
-    ...(dataUrlCharacters !== undefined ? { dataUrlCharacters } : {}),
-    ...(raw.localOcrUsed === true || raw.localOcrUsed === "true" ? { localOcrUsed: true } : {}),
-    ...(Number.isFinite(Number(raw.localOcrMeanConfidence))
-      ? { localOcrMeanConfidence: Math.round(Number(raw.localOcrMeanConfidence)) }
-      : {}),
-  };
-  if (Object.keys(normalized).length) return normalized;
-  return null;
-}
-
-async function fetchWithTimeout(url, options, timeoutMs) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function applyLeadDraft(draft) {
-  for (const field of ["name", "company", "role", "email", "phone", "followUp", "notes"]) {
-    if (typeof draft[field] === "string" && draft[field].trim()) {
-      leadForm.elements[field].value = draft[field].trim();
-    }
-  }
-}
-
-function leadDraftHasUsableFields(draft) {
-  if (!draft || typeof draft !== "object") return false;
-  return ["name", "company", "email", "phone"].some((field) => String(draft[field] || "").trim());
-}
-
-async function imageFileToDataUrl(file) {
-  const sourceOrientation = await readImageOrientation(file);
-  const preferredRotation = rotationForOrientation(sourceOrientation);
-  const original = await fileToDataUrl(file);
-  try {
-    const image = await loadImage(original);
-    const longest = Math.max(image.naturalWidth, image.naturalHeight);
-    if (!longest) {
-      return {
-        dataUrl: original,
-        metadata: {
-          conversion: "original_no_dimensions",
-          originalDataUrlCharacters: original.length,
-        },
-      };
-    }
-    const originalMimeType = file.type || dataUrlMimeType(original) || "";
-    const crop = detectBusinessCardCrop(image, preferredRotation);
-    const fullFrameCrop = {
-      ...crop,
-      method: "full_frame_retry",
-      confidence: 0,
-      xRatio: 0,
-      yRatio: 0,
-      widthRatio: 1,
-      heightRatio: 1,
-      areaRatio: 1,
-    };
-    const renderedAttempts = OCR_IMAGE_ATTEMPTS.map((attempt) =>
-      renderDetectedCardImage(
-        image,
-        attempt.ocrSource === "canvas_full_frame_fallback" ? fullFrameCrop : crop,
-        attempt,
-      )
-    );
-    const usableAttempts = renderedAttempts.filter((attempt) =>
-      attempt.dataUrl.length <= OCR_IMAGE_TARGET_CHARS
-    );
-    const selectedAttempts =
-      (usableAttempts.length ? usableAttempts : [renderedAttempts[renderedAttempts.length - 1]])
-        .slice(0, OCR_MAX_REQUEST_ATTEMPTS);
-    const attemptMetadata = renderedAttempts.map((attempt) => ocrAttemptDebug(attempt));
-    const metadataForPayload = (attempt, retryIndex) => ({
-      conversion: "canvas_auto_edge_crop",
-      ocrSource: attempt.ocrSource,
-      originalMimeType,
-      sourceExifOrientation: sourceOrientation,
-      preferredRotationDegrees: preferredRotation,
-      ocrDataUrlCharacters: attempt.dataUrl.length,
-      ocrApproxBytes: dataUrlApproxBytes(attempt.dataUrl),
-      sourceWidth: image.naturalWidth,
-      sourceHeight: image.naturalHeight,
-      outputWidth: attempt.outputWidth,
-      outputHeight: attempt.outputHeight,
-      scale: attempt.scale,
-      quality: attempt.quality,
-      longestEdge: attempt.longestEdge,
-      rotationDegrees: attempt.rotationDegrees || 0,
-      targetDataUrlCharacters: OCR_IMAGE_TARGET_CHARS,
-      originalDataUrlCharacters: original.length,
-      compressedDataUrlCharacters: attempt.dataUrl.length,
-      compressedApproxBytes: dataUrlApproxBytes(attempt.dataUrl),
-      crop: cropDebug(attempt.crop),
-      attempts: attemptMetadata,
-      retryIndex,
-    });
-    const ocrPayloads = selectedAttempts.map((attempt, retryIndex) => ({
-      dataUrl: attempt.dataUrl,
-      metadata: metadataForPayload(attempt, retryIndex),
-    }));
-    const primaryPayload = ocrPayloads[0];
-    const preview = renderDetectedCardImage(image, crop, {
-      longestEdge: 900,
-      quality: 0.74,
-      ocrSource: "canvas_auto_edge_crop_preview",
-    });
-    return {
-      dataUrl: primaryPayload.dataUrl,
-      previewDataUrl: preview.dataUrl,
-      compressedDataUrl: primaryPayload.dataUrl,
-      metadata: primaryPayload.metadata,
-      ocrPayloads,
-    };
-  } catch (error) {
-    return {
-      dataUrl: original,
-      metadata: {
-        conversion: "original_decode_failed",
-        sourceExifOrientation: sourceOrientation,
-        preferredRotationDegrees: preferredRotation,
-        originalDataUrlCharacters: original.length,
-        error: errorDetails(error),
-      },
-    };
-  }
-}
-
-function dataUrlMimeType(dataUrl) {
-  return dataUrl.match(/^data:([^;,]+)(?:;[^,]*)?,/)?.[1] || "";
-}
-
-function prioritizedRotations(preferredRotation) {
-  const rotations = [preferredRotation, ...OCR_ROTATION_CANDIDATES];
-  const seen = new Set();
-  return rotations.filter((rotation) => {
-    const normalized = Number(rotation) || 0;
-    if (seen.has(normalized)) return false;
-    seen.add(normalized);
-    return true;
-  });
-}
-
-function detectBusinessCardCrop(image, preferredRotation) {
-  let best = null;
-  for (const rotationDegrees of prioritizedRotations(preferredRotation)) {
-    const rendered = renderOrientedImageCanvas(image, OCR_ANALYSIS_LONGEST_EDGE, rotationDegrees);
-    const detected = detectCropBounds(rendered.canvas);
-    const candidate = {
-      ...detected,
-      rotationDegrees,
-      analysisWidth: rendered.canvas.width,
-      analysisHeight: rendered.canvas.height,
-    };
-    if (!best || candidate.confidence > best.confidence) best = candidate;
-  }
-
-  if (best && best.confidence >= 0.28) return best;
-  return {
-    method: "full_frame_fallback",
-    confidence: best?.confidence || 0,
-    rotationDegrees: best?.rotationDegrees || Number(preferredRotation) || 0,
-    xRatio: 0,
-    yRatio: 0,
-    widthRatio: 1,
-    heightRatio: 1,
-    areaRatio: 1,
-    edgeWeight: best?.edgeWeight || 0,
-    analysisWidth: best?.analysisWidth || 0,
-    analysisHeight: best?.analysisHeight || 0,
-  };
-}
-
-function detectCropBounds(canvas) {
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  const width = canvas.width;
-  const height = canvas.height;
-  const imageData = context.getImageData(0, 0, width, height);
-  const border = sampleBorderColor(imageData.data, width, height);
-  const cols = new Float32Array(width);
-  const rows = new Float32Array(height);
-  const stride = Math.max(1, Math.round(Math.max(width, height) / 420));
-  let edgeWeight = 0;
-
-  for (let y = stride; y < height - stride; y += stride) {
-    for (let x = stride; x < width - stride; x += stride) {
-      const index = (y * width + x) * 4;
-      const rightIndex = (y * width + Math.min(width - 1, x + stride)) * 4;
-      const downIndex = (Math.min(height - 1, y + stride) * width + x) * 4;
-      const r = imageData.data[index];
-      const g = imageData.data[index + 1];
-      const b = imageData.data[index + 2];
-      const luma = pixelLuma(r, g, b);
-      const rightLuma = pixelLuma(
-        imageData.data[rightIndex],
-        imageData.data[rightIndex + 1],
-        imageData.data[rightIndex + 2],
-      );
-      const downLuma = pixelLuma(
-        imageData.data[downIndex],
-        imageData.data[downIndex + 1],
-        imageData.data[downIndex + 2],
-      );
-      const edge = Math.abs(luma - rightLuma) + Math.abs(luma - downLuma);
-      const saturation = Math.max(r, g, b) - Math.min(r, g, b);
-      const contrast = Math.abs(r - border.r) + Math.abs(g - border.g) +
-        Math.abs(b - border.b);
-      let weight = 0;
-      if (edge > 30) weight += 2;
-      if (contrast > 42 && (luma > 120 || saturation < 92)) weight += 1;
-      if (luma > 185 && saturation < 82 && contrast > 16) weight += 1;
-      if (!weight) continue;
-      cols[x] += weight;
-      rows[y] += weight;
-      edgeWeight += weight;
-    }
-  }
-
-  const xRange = weightedBounds(cols);
-  const yRange = weightedBounds(rows);
-  if (!xRange || !yRange) {
-    return {
-      method: "edge_detect_empty",
-      confidence: 0,
-      xRatio: 0,
-      yRatio: 0,
-      widthRatio: 1,
-      heightRatio: 1,
-      areaRatio: 1,
-      edgeWeight,
-    };
-  }
-
-  const padX = Math.max(width * 0.025, (xRange.end - xRange.start) * 0.09);
-  const padY = Math.max(height * 0.025, (yRange.end - yRange.start) * 0.12);
-  const x = clampNumber(xRange.start - padX, 0, width - 1);
-  const y = clampNumber(yRange.start - padY, 0, height - 1);
-  const right = clampNumber(xRange.end + padX, x + 1, width);
-  const bottom = clampNumber(yRange.end + padY, y + 1, height);
-  const cropWidth = right - x;
-  const cropHeight = bottom - y;
-  const areaRatio = (cropWidth * cropHeight) / (width * height);
-  const aspect = cropWidth / Math.max(1, cropHeight);
-  const aspectScore = aspect > 0.42 && aspect < 2.85 ? 0.22 : 0.06;
-  const areaScore = areaRatio > 0.06 && areaRatio < 0.94 ? 0.32 : 0.08;
-  const edgeScore = Math.min(0.34, edgeWeight / (width * height) * 18);
-  const marginScore = x > width * 0.01 || y > height * 0.01 ||
-      right < width * 0.99 || bottom < height * 0.99
-    ? 0.12
-    : 0.02;
-
-  return {
-    method: "auto_edge_detect",
-    confidence: Math.min(1, areaScore + aspectScore + edgeScore + marginScore),
-    xRatio: x / width,
-    yRatio: y / height,
-    widthRatio: cropWidth / width,
-    heightRatio: cropHeight / height,
-    areaRatio,
-    edgeWeight,
-  };
-}
-
-function weightedBounds(weights) {
-  const total = weights.reduce((sum, value) => sum + value, 0);
-  if (!total) return null;
-  const lowTarget = total * 0.015;
-  const highTarget = total * 0.985;
-  let start = 0;
-  let end = weights.length - 1;
-  let seen = 0;
-  for (let index = 0; index < weights.length; index += 1) {
-    seen += weights[index];
-    if (seen >= lowTarget) {
-      start = index;
-      break;
-    }
-  }
-  seen = 0;
-  for (let index = 0; index < weights.length; index += 1) {
-    seen += weights[index];
-    if (seen >= highTarget) {
-      end = index;
-      break;
-    }
-  }
-  return { start, end: Math.max(start + 1, end) };
-}
-
-function sampleBorderColor(data, width, height) {
-  const step = Math.max(1, Math.round(Math.max(width, height) / 64));
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  let count = 0;
-  const add = (x, y) => {
-    const index = (y * width + x) * 4;
-    r += data[index];
-    g += data[index + 1];
-    b += data[index + 2];
-    count += 1;
-  };
-  for (let x = 0; x < width; x += step) {
-    add(x, 0);
-    add(x, height - 1);
-  }
-  for (let y = 0; y < height; y += step) {
-    add(0, y);
-    add(width - 1, y);
-  }
-  return {
-    r: r / Math.max(1, count),
-    g: g / Math.max(1, count),
-    b: b / Math.max(1, count),
-  };
-}
-
-function pixelLuma(r, g, b) {
-  return 0.299 * r + 0.587 * g + 0.114 * b;
-}
-
-function renderDetectedCardImage(image, crop, attempt) {
-  const rendered = renderOrientedImageCanvas(image, attempt.longestEdge, crop.rotationDegrees);
-  const sourceRect = cropRectForCanvas(crop, rendered.canvas.width, rendered.canvas.height);
-  const canvas = document.createElement("canvas");
-  canvas.width = sourceRect.width;
-  canvas.height = sourceRect.height;
-  const context = canvas.getContext("2d");
-  context.fillStyle = "#fff";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(
-    rendered.canvas,
-    sourceRect.x,
-    sourceRect.y,
-    sourceRect.width,
-    sourceRect.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height,
+function calendarBlocks() {
+  const plan = activePlan();
+  if (plan?.blocks?.length) return plan.blocks;
+  return (state.planner?.imports ?? []).flatMap((item) =>
+    item.events.map((event) => ({
+      id: event.id,
+      type: "event",
+      source: "imported",
+      title: event.title,
+      start: event.start,
+      end: event.end,
+      dayKey: datePart(event.start),
+      location: event.location,
+      details: event.description,
+      travelMinutes: null,
+      score: event.priorityScore,
+      sourceEventId: event.id,
+      generatedReason: "",
+    }))
   );
-  return {
-    ...attempt,
-    crop,
-    rotationDegrees: crop.rotationDegrees || 0,
-    scale: rendered.scale,
-    outputWidth: canvas.width,
-    outputHeight: canvas.height,
-    dataUrl: canvas.toDataURL("image/jpeg", attempt.quality),
-  };
 }
 
-function renderOrientedImageCanvas(image, longestEdge, rotationDegrees = 0) {
-  const sourceLongest = Math.max(image.naturalWidth, image.naturalHeight);
-  const scale = Math.min(1, longestEdge / sourceLongest);
-  const outputWidth = Math.max(1, Math.round(image.naturalWidth * scale));
-  const outputHeight = Math.max(1, Math.round(image.naturalHeight * scale));
-  const rotated = rotationDegrees === 90 || rotationDegrees === 270;
-  const canvas = document.createElement("canvas");
-  canvas.width = rotated ? outputHeight : outputWidth;
-  canvas.height = rotated ? outputWidth : outputHeight;
-  const context = canvas.getContext("2d");
-  context.fillStyle = "#fff";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  if (rotationDegrees === 90) {
-    context.translate(canvas.width, 0);
-    context.rotate(Math.PI / 2);
-    context.drawImage(image, 0, 0, outputWidth, outputHeight);
-  } else if (rotationDegrees === 270) {
-    context.translate(0, canvas.height);
-    context.rotate(-Math.PI / 2);
-    context.drawImage(image, 0, 0, outputWidth, outputHeight);
-  } else if (rotationDegrees === 180) {
-    context.translate(canvas.width, canvas.height);
-    context.rotate(Math.PI);
-    context.drawImage(image, 0, 0, outputWidth, outputHeight);
-  } else {
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+function renderTimelineDay(day, dayBlocks) {
+  const blocks = [...dayBlocks].sort(compareBlocks);
+  const bounds = timelineBounds();
+  const section = document.createElement("section");
+  section.dataset.calendarDay = day;
+
+  const header = document.createElement("header");
+  const title = document.createElement("h3");
+  title.textContent = dayHeading(day);
+  const meta = document.createElement("p");
+  meta.textContent = "24-hour day";
+  header.append(title, meta);
+  section.append(header);
+
+  const timeline = document.createElement("section");
+  timeline.dataset.timeline = "";
+  timeline.style.setProperty(
+    "--slots",
+    String(Math.max(1, Math.ceil((bounds.end - bounds.start) / TIMELINE_SLOT_MINUTES))),
+  );
+  timeline.append(
+    renderTimeRail(day, bounds.start, bounds.end),
+    ...renderEmptySlots(day, bounds.start, bounds.end),
+  );
+
+  const lanes = computeCollisionLanes(blocks, day);
+  for (const block of blocks) timeline.append(renderTimelineBlock(block, lanes, day, bounds.start));
+  section.append(timeline);
+  return section;
+}
+
+function renderTimeRail(day, startMinute, endMinute) {
+  const rail = document.createElement("section");
+  rail.dataset.timeRail = "";
+  for (let minute = nextHour(startMinute); minute < endMinute; minute += 60) {
+    const tick = document.createElement("time");
+    tick.dateTime = localDateTimeFromDayMinute(day, minute);
+    tick.textContent = hourLabel(minute);
+    tick.style.gridRow = `${
+      Math.floor((minute - startMinute) / TIMELINE_SLOT_MINUTES) + 1
+    } / span 1`;
+    rail.append(tick);
   }
-  return { canvas, scale };
+  return rail;
 }
 
-function cropRectForCanvas(crop, canvasWidth, canvasHeight) {
-  const x = Math.round(clampNumber(crop.xRatio || 0, 0, 1) * canvasWidth);
-  const y = Math.round(clampNumber(crop.yRatio || 0, 0, 1) * canvasHeight);
-  const width = Math.round(clampNumber(crop.widthRatio || 1, 0.02, 1) * canvasWidth);
-  const height = Math.round(clampNumber(crop.heightRatio || 1, 0.02, 1) * canvasHeight);
-  return {
-    x: clampNumber(x, 0, Math.max(0, canvasWidth - 1)),
-    y: clampNumber(y, 0, Math.max(0, canvasHeight - 1)),
-    width: Math.max(1, Math.min(width, canvasWidth - x)),
-    height: Math.max(1, Math.min(height, canvasHeight - y)),
-  };
-}
-
-function ocrAttemptDebug(attempt) {
-  return {
-    ocrSource: attempt.ocrSource,
-    longestEdge: attempt.longestEdge,
-    quality: attempt.quality,
-    rotationDegrees: attempt.rotationDegrees || 0,
-    outputWidth: attempt.outputWidth,
-    outputHeight: attempt.outputHeight,
-    scale: attempt.scale,
-    dataUrlCharacters: attempt.dataUrl.length,
-    approxBytes: dataUrlApproxBytes(attempt.dataUrl),
-    crop: cropDebug(attempt.crop),
-  };
-}
-
-function cropDebug(crop) {
-  return {
-    method: crop?.method || "unknown",
-    confidence: Number((crop?.confidence || 0).toFixed(3)),
-    rotationDegrees: crop?.rotationDegrees || 0,
-    xRatio: Number((crop?.xRatio || 0).toFixed(4)),
-    yRatio: Number((crop?.yRatio || 0).toFixed(4)),
-    widthRatio: Number((crop?.widthRatio || 1).toFixed(4)),
-    heightRatio: Number((crop?.heightRatio || 1).toFixed(4)),
-    areaRatio: Number((crop?.areaRatio || 1).toFixed(4)),
-    edgeWeight: Math.round(crop?.edgeWeight || 0),
-    analysisWidth: crop?.analysisWidth || 0,
-    analysisHeight: crop?.analysisHeight || 0,
-  };
-}
-
-function clampNumber(value, min, max) {
-  return Math.min(max, Math.max(min, Number(value) || 0));
-}
-
-function dataUrlApproxBytes(dataUrl) {
-  return Math.round((dataUrl.split(",", 2)[1]?.length || 0) * 0.75);
-}
-
-async function readImageOrientation(file) {
-  if (!file || !/jpe?g/i.test(`${file.type} ${file.name || ""}`)) return 1;
-  try {
-    const buffer = await file.slice(0, 256 * 1024).arrayBuffer();
-    return readJpegExifOrientation(new DataView(buffer)) || 1;
-  } catch {
-    return 1;
-  }
-}
-
-function readJpegExifOrientation(view) {
-  if (view.byteLength < 4 || view.getUint16(0, false) !== 0xffd8) return 0;
-  let offset = 2;
-  while (offset + 4 < view.byteLength) {
-    if (view.getUint8(offset) !== 0xff) {
-      offset += 1;
-      continue;
-    }
-    const marker = view.getUint8(offset + 1);
-    offset += 2;
-    if (marker === 0xda || marker === 0xd9) break;
-    if (offset + 2 > view.byteLength) break;
-    const size = view.getUint16(offset, false);
-    if (size < 2 || offset + size > view.byteLength) break;
-    if (marker === 0xe1) {
-      const exifStart = offset + 2;
-      if (readAscii(view, exifStart, 6) === "Exif\0\0") {
-        return readTiffOrientation(view, exifStart + 6);
-      }
-    }
-    offset += size;
-  }
-  return 0;
-}
-
-function readTiffOrientation(view, tiffStart) {
-  if (tiffStart + 8 > view.byteLength) return 0;
-  const endian = view.getUint16(tiffStart, false);
-  const littleEndian = endian === 0x4949;
-  if (!littleEndian && endian !== 0x4d4d) return 0;
-  const firstIfdOffset = view.getUint32(tiffStart + 4, littleEndian);
-  const ifdStart = tiffStart + firstIfdOffset;
-  if (ifdStart + 2 > view.byteLength) return 0;
-  const entries = view.getUint16(ifdStart, littleEndian);
-  for (let index = 0; index < entries; index += 1) {
-    const entry = ifdStart + 2 + index * 12;
-    if (entry + 12 > view.byteLength) break;
-    if (view.getUint16(entry, littleEndian) === 0x0112) {
-      return view.getUint16(entry + 8, littleEndian);
-    }
-  }
-  return 0;
-}
-
-function readAscii(view, offset, length) {
-  if (offset + length > view.byteLength) return "";
-  let text = "";
-  for (let index = 0; index < length; index += 1) {
-    text += String.fromCharCode(view.getUint8(offset + index));
-  }
-  return text;
-}
-
-function rotationForOrientation(orientation) {
-  if (orientation === 3) return 180;
-  if (orientation === 6) return 270;
-  if (orientation === 8) return 90;
-  return 0;
-}
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => resolve(String(reader.result || "")));
-    reader.addEventListener(
-      "error",
-      () => reject(reader.error || new Error("Could not read image.")),
+function renderEmptySlots(day, startMinute, endMinute) {
+  const slots = [];
+  for (let minute = startMinute; minute < endMinute; minute += EMPTY_SLOT_MINUTES) {
+    const slot = document.createElement("button");
+    slot.type = "button";
+    slot.dataset.emptySlot = "";
+    slot.dataset.day = day;
+    slot.dataset.startMinute = String(minute);
+    slot.setAttribute(
+      "aria-label",
+      `Create event at ${formatMinute(minute)} on ${dayHeading(day)}`,
     );
-    reader.readAsDataURL(file);
-  });
-}
-
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.addEventListener("load", () => resolve(image));
-    image.addEventListener("error", () => reject(new Error("Could not decode image.")));
-    image.src = src;
-  });
-}
-
-function createDebugId(prefix) {
-  return `${prefix}_${(crypto.randomUUID?.() || `${Date.now()}_${Math.random()}`).slice(0, 8)}`;
-}
-
-function fileMetadata(file) {
-  return {
-    name: file.name || "",
-    type: file.type || "",
-    size: file.size,
-    lastModified: file.lastModified || 0,
-  };
-}
-
-function browserMetadata() {
-  return {
-    userAgent: navigator.userAgent,
-    platform: navigator.platform,
-    language: navigator.language,
-    viewport: {
-      width: innerWidth,
-      height: innerHeight,
-      devicePixelRatio,
-    },
-    online: navigator.onLine,
-  };
-}
-
-function errorDetails(error) {
-  if (error instanceof Error) {
-    return {
-      name: error.name,
-      message: error.message,
-      stack: error.stack?.split("\n").slice(0, 4).join("\n") || "",
-    };
+    slot.style.gridRow = `${
+      Math.floor((minute - startMinute) / TIMELINE_SLOT_MINUTES) + 1
+    } / span ${Math.max(1, EMPTY_SLOT_MINUTES / TIMELINE_SLOT_MINUTES)}`;
+    slots.push(slot);
   }
-  return { message: String(error) };
+  return slots;
 }
 
-async function logClientEvent(event, payload) {
-  try {
-    await fetch("/api/client-log", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      keepalive: true,
-      body: JSON.stringify({
-        requestId: payload?.requestId || "",
-        event,
-        page: location.href,
-        payload,
-      }),
-    });
-  } catch {
-    // Logging must never block the mobile flow.
-  }
-}
+function renderTimelineBlock(block, lanes, day, timelineStart) {
+  const article = document.createElement("article");
+  const blockId = block.id || block.sourceEventId || `${block.title}-${block.start}`;
+  const blockRange = blockMinutesForDay(block, day);
+  const lane = lanes.get(blockId) || { index: 0, count: 1 };
+  const rowStart = Math.floor((blockRange.start - timelineStart) / TIMELINE_SLOT_MINUTES) + 1;
+  const rowSpan = Math.max(
+    1,
+    Math.ceil((blockRange.end - blockRange.start) / TIMELINE_SLOT_MINUTES),
+  );
 
-function dataUrlToBlob(dataUrl) {
-  const [header, data = ""] = String(dataUrl).split(",", 2);
-  const mime = header.match(/^data:([^;,]+)/)?.[1] || "application/octet-stream";
-  const binary = atob(data);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index++) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return new Blob([bytes], { type: mime });
-}
-
-function openCardImageDb() {
-  return new Promise((resolve, reject) => {
-    if (!("indexedDB" in window)) {
-      reject(new Error("IndexedDB is unavailable."));
-      return;
-    }
-    const request = indexedDB.open(CARD_DB_NAME, CARD_DB_VERSION);
-    request.addEventListener("upgradeneeded", () => {
-      const database = request.result;
-      if (!database.objectStoreNames.contains(CARD_STORE)) {
-        const store = database.createObjectStore(CARD_STORE, { keyPath: "id" });
-        store.createIndex("createdAt", "createdAt");
-      }
-    });
-    request.addEventListener("success", () => resolve(request.result));
-    request.addEventListener(
-      "error",
-      () => reject(request.error || new Error("Could not open card image database.")),
-    );
-  });
-}
-
-function idbRequest(request) {
-  return new Promise((resolve, reject) => {
-    request.addEventListener("success", () => resolve(request.result));
-    request.addEventListener(
-      "error",
-      () => reject(request.error || new Error("IndexedDB failed.")),
-    );
-  });
-}
-
-function idbTransactionDone(transaction) {
-  return new Promise((resolve, reject) => {
-    transaction.addEventListener("complete", () => resolve());
-    transaction.addEventListener(
-      "abort",
-      () => reject(transaction.error || new Error("IndexedDB transaction aborted.")),
-    );
-    transaction.addEventListener(
-      "error",
-      () => reject(transaction.error || new Error("IndexedDB transaction failed.")),
-    );
-  });
-}
-
-async function saveCardImageRecord(record) {
-  const database = await openCardImageDb();
-  try {
-    const transaction = database.transaction(CARD_STORE, "readwrite");
-    const done = idbTransactionDone(transaction);
-    transaction.objectStore(CARD_STORE).put(record);
-    await done;
-    await pruneCardImageRecords(database);
-  } finally {
-    database.close();
-  }
-}
-
-async function pruneCardImageRecords(database) {
-  const readTransaction = database.transaction(CARD_STORE, "readonly");
-  const readDone = idbTransactionDone(readTransaction);
-  const records = await idbRequest(readTransaction.objectStore(CARD_STORE).getAll());
-  await readDone;
-  const sorted = Array.isArray(records)
-    ? records.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-    : [];
-  const stale = sorted.slice(CARD_IMAGE_LIMIT).filter((record) => record?.id);
-  if (!stale.length) return;
-  const transaction = database.transaction(CARD_STORE, "readwrite");
-  const done = idbTransactionDone(transaction);
-  const store = transaction.objectStore(CARD_STORE);
-  for (const record of stale) {
-    store.delete(record.id);
-  }
-  await done;
-}
-
-function setLeadError(message) {
-  leadError.textContent = message;
-  leadError.hidden = !message;
-}
-
-function setCardScanStatus(message) {
-  cardScanStatus.textContent = message;
-}
-
-function setCardScanBusy(busy) {
-  cardInput.disabled = busy;
-  cardScanButton.setAttribute("aria-disabled", String(busy));
-}
-
-function renderEntry(entry) {
-  return renderEntryCard(entry, false);
-}
-
-function renderTimelineEntry(entry, lanes) {
-  const article = renderEntryCard(entry, true);
-  const start = minuteOfDay(entry.start);
-  const end = Math.max(minuteOfDay(entry.end), start + 15);
-  const lane = lanes.get(entry.calendarBlockId) || { index: 0, count: 1 };
-  article.style.gridRow = `${Math.floor(start / 15) + 1} / span ${
-    Math.max(1, Math.ceil((end - start) / 15))
-  }`;
+  article.dataset.entry = blockId;
+  article.dataset.calendarEntry = "";
+  article.dataset.type = block.type || "event";
+  article.dataset.sourceEventId = block.sourceEventId || "";
+  article.dataset.blockId = blockId;
+  article.style.gridRow = `${rowStart} / span ${rowSpan}`;
   article.style.width = `calc(${100 / lane.count}% - ${lane.count === 1 ? 0 : 3}px)`;
   article.style.marginLeft = lane.index === 0
     ? "0"
     : `calc(${lane.index * 100 / lane.count}% + ${lane.index * 3}px)`;
-  return article;
-}
 
-function renderEntryCard(entry, compact) {
-  const localNote = state.payload.state.eventNotes[entry.calendarBlockId]?.note?.trim() || "";
-  const isOption = entry.calendar === "reference";
-  const article = document.createElement("article");
-  article.dataset.entry = entry.calendarBlockId;
-  article.dataset.type = entry.blockType;
-  article.dataset.calendar = entry.calendar || "";
-  if (isOption) article.dataset.option = "true";
-  article.tabIndex = 0;
-  article.setAttribute("role", "button");
-  article.setAttribute(
-    "aria-label",
-    `${isOption ? "Option: " : ""}${entry.displayTitle}, ${entry.timeRange}`,
-  );
-  article.addEventListener("click", () => openEventModal(entry));
-  article.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      openEventModal(entry);
-    }
-  });
+  if (block.type === "event" && block.sourceEventId) {
+    article.dataset.editable = "true";
+    article.tabIndex = 0;
+    article.setAttribute("role", "button");
+    article.setAttribute("aria-label", `Edit ${block.title}`);
+  }
 
   const header = document.createElement("header");
-  const titleRow = document.createElement("div");
+  const row = document.createElement("div");
   const title = document.createElement("h3");
-  title.textContent = compact && isOption
-    ? compactTitle(entry)
-    : compact
-    ? compactTitle(entry)
-    : entry.displayTitle;
+  title.textContent = compactBlockTitle(block);
   const time = document.createElement("time");
-  time.textContent = entry.timeRange;
-  titleRow.append(title, time);
+  time.textContent = `${formatMinute(blockRange.start)}-${formatMinute(blockRange.end)}`;
+  row.append(title, time);
+  header.append(row);
 
-  const meta = document.createElement("section");
-  meta.dataset.meta = "";
-  if (isOption) addPill(meta, entry.optionLabel || optionLabel(entry));
-  if (entry.blockType === "event") addPill(meta, entry.statusLabel || entry.status, entry.status);
-  if (entry.blockType === "event" && entry.tier) addPill(meta, entry.tier);
-  if (entry.blockType === "travel" && entry.travelMinutes) {
-    addPill(meta, `${entry.travelMinutes} min`);
-  }
-  header.append(titleRow, meta);
-
-  const location = document.createElement("p");
-  const locationText = entry.location || entry.venueQuery || "";
-  if (locationText) location.append(renderPlaceLink(entry, locationText));
-
-  const detail = document.createElement("p");
-  detail.textContent = entry.routeDetails || entry.note || firstCoachingLine(entry.salesCoaching);
-
+  const meta = document.createElement("p");
+  meta.textContent = [block.location, block.details].filter(Boolean).join(" · ");
   article.append(header);
-  if (location.textContent && !compact) article.append(location);
-  if (localNote) {
-    const note = document.createElement("p");
-    note.textContent = `Note: ${localNote}`;
-    article.append(note);
-  }
+  if (meta.textContent) article.append(meta);
   return article;
 }
 
-function computeCollisionLanes(entries) {
-  const sorted = entries
-    .map((entry) => ({
-      entry,
-      start: minuteOfDay(entry.start),
-      end: Math.max(minuteOfDay(entry.end), minuteOfDay(entry.start) + 15),
+function handleCalendarClick(event) {
+  const entry = event.target.closest("[data-calendar-entry]");
+  if (entry) {
+    openEditorForEntry(entry);
+    return;
+  }
+  const slot = event.target.closest("[data-empty-slot]");
+  if (!slot) return;
+  openEventEditor({
+    mode: "create",
+    day: slot.dataset.day || todayKey(),
+    startMinute: Number(slot.dataset.startMinute || DEFAULT_NEW_EVENT_START_MINUTES),
+  });
+}
+
+function handleCalendarKeydown(event) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const entry = event.target.closest("[data-calendar-entry]");
+  if (!entry) return;
+  event.preventDefault();
+  openEditorForEntry(entry);
+}
+
+function openEditorForEntry(entry) {
+  if (entry.dataset.editable !== "true") return;
+  const block = findCalendarBlock(entry.dataset.sourceEventId, entry.dataset.blockId);
+  if (block) openEventEditor({ mode: "edit", block });
+}
+
+function findCalendarBlock(sourceEventId, blockId) {
+  return calendarBlocks().find((block) =>
+    (sourceEventId && block.sourceEventId === sourceEventId) || (blockId && block.id === blockId)
+  );
+}
+
+function openEventEditor(options) {
+  const form = els.eventForm;
+  const mode = options.mode === "edit" ? "edit" : "create";
+  const block = options.block || null;
+  const startMinute = Number.isFinite(options.startMinute)
+    ? options.startMinute
+    : DEFAULT_NEW_EVENT_START_MINUTES;
+  const day = options.day || datePart(block?.start) || todayKey();
+  const start = block ? dateTimeLocal(block.start) : localDateTimeFromDayMinute(day, startMinute);
+  const end = block ? dateTimeLocal(block.end) : localDateTimeFromDayMinute(day, startMinute + 60);
+
+  form.dataset.mode = mode;
+  form.elements.id.value = block?.sourceEventId || "";
+  form.elements.title.value = block?.title || "";
+  form.elements.start.value = start;
+  form.elements.end.value = end;
+  form.elements.location.value = block?.location || "";
+  form.elements.description.value = block?.details || "";
+  els.eventEditorTitle.textContent = mode === "edit" ? "Edit event" : "New event";
+  els.eventSubmitLabel.textContent = mode === "edit" ? "Save" : "Create";
+  els.eventEditor.hidden = false;
+  els.eventEditorBackdrop.hidden = false;
+  globalThis.requestAnimationFrame(() => form.elements.title.focus());
+}
+
+function closeEventEditor() {
+  els.eventEditor.hidden = true;
+  els.eventEditorBackdrop.hidden = true;
+  els.eventForm.reset();
+}
+
+async function saveEventFromEditor(event) {
+  event.preventDefault();
+  if (state.busy) return;
+  const form = els.eventForm;
+  const data = new FormData(form);
+  const mode = form.dataset.mode === "edit" ? "edit" : "create";
+  const id = String(data.get("id") || "");
+  const payload = {
+    title: String(data.get("title") || "").trim(),
+    start: String(data.get("start") || ""),
+    end: String(data.get("end") || ""),
+    location: String(data.get("location") || "").trim(),
+    description: String(data.get("description") || "").trim(),
+  };
+  if (!payload.title || !payload.start || !payload.end) return;
+  if (Date.parse(payload.end) <= Date.parse(payload.start)) {
+    appendMessage("assistant", "Event end time must be after the start time.");
+    return;
+  }
+  setBusy(true);
+  try {
+    const path = mode === "edit"
+      ? `/api/planner/events/${encodeURIComponent(id)}`
+      : "/api/planner/events";
+    const body = await requestJson(path, {
+      method: mode === "edit" ? "PUT" : "POST",
+      body: JSON.stringify(payload),
+    });
+    state.planner = body.planner;
+    state.activePanel = "calendar";
+    closeEventEditor();
+  } catch (error) {
+    appendMessage("assistant", errorMessage(error));
+  } finally {
+    setBusy(false);
+    render();
+  }
+}
+
+function renderImports() {
+  els.importList.replaceChildren();
+  const imports = state.planner?.imports ?? [];
+  if (!imports.length) {
+    els.importList.append(emptyState("No sources imported."));
+    return;
+  }
+  for (const item of imports) {
+    const article = document.createElement("article");
+    const header = document.createElement("header");
+    const title = document.createElement("h3");
+    title.textContent = item.name;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.deleteImport = item.id;
+    button.setAttribute("aria-label", `Delete ${item.name}`);
+    button.innerHTML = '<svg><use href="#icon-trash"></use></svg>';
+    header.append(title, button);
+    const meta = document.createElement("p");
+    meta.textContent = `${item.sourceType.toUpperCase()} · ${item.events.length} events`;
+    article.append(header, meta);
+    if (item.warnings.length) {
+      const warning = document.createElement("p");
+      warning.dataset.warning = "";
+      warning.textContent = item.warnings.slice(0, 2).join(" ");
+      article.append(warning);
+    }
+    els.importList.append(article);
+  }
+}
+
+function populateProfile() {
+  const profile = state.planner?.profile;
+  if (!profile) return;
+  els.profileForm.elements.displayName.value = profile.displayName || "";
+  els.profileForm.elements.homeBase.value = profile.homeBase || "";
+  els.profileForm.elements.timeZone.value = profile.timeZone || "";
+  els.profileForm.elements.defaultTravelMinutes.value = profile.defaultTravelMinutes || 30;
+  els.profileForm.elements.preferencePrompt.value = profile.preferencePrompt || "";
+  els.profileForm.elements.priorityPrompt.value = profile.priorityPrompt || "";
+  els.profileForm.elements.logisticsPrompt.value = profile.logisticsPrompt || "";
+  els.profileStatus.textContent = "";
+}
+
+function appendMessage(role, content) {
+  state.messages.push({ role, content });
+  state.messages = state.messages.slice(-40);
+  renderChat();
+}
+
+function activePlan() {
+  const planner = state.planner;
+  if (!planner?.plans?.length) return null;
+  return planner.plans.find((plan) => plan.id === planner.activePlanId) || planner.plans[0];
+}
+
+function setBusy(busy) {
+  state.busy = busy;
+  document.body.dataset.busy = String(busy);
+  document.querySelectorAll("button, textarea, input, select").forEach((control) => {
+    if (control.closest("[data-profile-form]")) return;
+    control.disabled = busy;
+  });
+}
+
+async function requestJson(path, init = {}, options = {}) {
+  const headers = {
+    Accept: "application/json",
+    ...(init.headers || {}),
+  };
+  if (init.body) headers["Content-Type"] = "application/json";
+  const response = await fetch(path, {
+    credentials: "include",
+    ...init,
+    headers,
+  });
+  if (options.empty && response.status === 204) return null;
+  const text = await response.text();
+  const body = text ? parseJson(text) : null;
+  if (!response.ok) {
+    throw new Error(body?.error?.message || response.statusText || "Request failed.");
+  }
+  return body;
+}
+
+function parseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function emptyState(text) {
+  const p = document.createElement("p");
+  p.dataset.empty = "";
+  p.textContent = text;
+  return p;
+}
+
+function appendLinkedText(root, text) {
+  const value = String(text || "");
+  const pattern = /(https?:\/\/[^\s)]+[^\s).,;:])/g;
+  let cursor = 0;
+  for (const match of value.matchAll(pattern)) {
+    if (match.index > cursor) {
+      root.append(document.createTextNode(value.slice(cursor, match.index)));
+    }
+    const link = document.createElement("a");
+    link.href = match[0];
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = match[0];
+    root.append(link);
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < value.length) root.append(document.createTextNode(value.slice(cursor)));
+}
+
+function groupBy(items, getKey) {
+  const map = new Map();
+  for (const item of items) {
+    const key = getKey(item) || "";
+    const group = map.get(key) || [];
+    group.push(item);
+    map.set(key, group);
+  }
+  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+function expandCalendarBlocksByDay(blocks) {
+  return blocks.flatMap((block) =>
+    calendarDaysForBlock(block).map((day) => ({
+      ...block,
+      dayKey: day,
     }))
+  );
+}
+
+function calendarDaysForBlock(block) {
+  const startDay = datePart(block.start) || block.dayKey || todayKey();
+  const endDay = datePart(block.end) || startDay;
+  const endMinute = minuteOfDay(block.end);
+  const endExclusive = endDay > startDay && endMinute === 0;
+  const days = [];
+  for (let day = startDay; day <= endDay; day = nextDayKey(day)) {
+    if (endExclusive && day === endDay) break;
+    days.push(day);
+  }
+  return days.length ? days : [startDay];
+}
+
+function computeCollisionLanes(blocks, day) {
+  const sorted = blocks
+    .map((block) => {
+      const range = blockMinutesForDay(block, day);
+      return {
+        block,
+        id: block.id || block.sourceEventId || `${block.title}-${block.start}`,
+        start: range.start,
+        end: Math.max(range.end, range.start + TIMELINE_SLOT_MINUTES),
+      };
+    })
     .sort((a, b) => a.start - b.start || a.end - b.end);
   const groups = [];
   let current = [];
@@ -3764,7 +918,7 @@ function computeCollisionLanes(entries) {
       } else {
         laneEnds[laneIndex] = item.end;
       }
-      assignments.push({ id: item.entry.calendarBlockId, index: laneIndex });
+      assignments.push({ id: item.id, index: laneIndex });
     }
     const count = Math.max(1, laneEnds.length);
     for (const assignment of assignments) {
@@ -3774,1328 +928,127 @@ function computeCollisionLanes(entries) {
   return result;
 }
 
-function openEventModal(entry) {
-  document.querySelector("[data-event-type]").textContent = entry.calendar === "reference"
-    ? "option"
-    : entry.blockType;
-  document.querySelector("[data-event-title]").textContent = entry.displayTitle;
-  document.querySelector("[data-event-time]").textContent = `${entry.weekday} ${entry.timeRange}`;
-  document.querySelector("[data-event-place]").replaceChildren(
-    renderPlaceLink(entry, entry.location || entry.venueQuery),
-  );
-  renderEventDetail(entry);
-  const actions = document.querySelector("[data-event-actions]");
-  actions.replaceChildren(...eventActions(entry));
-  animateButtonCluster(actions);
-  eventModal.hidden = false;
-  eventBackdrop.hidden = false;
-  document.body.dataset.modalOpen = "true";
+function timelineBounds() {
+  return { start: FULL_DAY_START_MINUTES, end: FULL_DAY_END_MINUTES };
 }
 
-function closeEventModal() {
-  eventModal.hidden = true;
-  eventBackdrop.hidden = true;
-  document.body.dataset.modalOpen = "false";
+function blockMinutesForDay(block, day) {
+  const start = minuteForDay(block.start, day, false);
+  const end = Math.max(minuteForDay(block.end, day, true), start + TIMELINE_SLOT_MINUTES);
+  return {
+    start: clamp(start, 0, 24 * 60),
+    end: clamp(end, TIMELINE_SLOT_MINUTES, 24 * 60),
+  };
 }
 
-function renderEventDetail(entry) {
-  const detail = document.querySelector("[data-event-detail]");
-  const raw = entry.routeDetails || entry.note || firstCoachingLine(entry.salesCoaching) || "";
-  const text = cleanEventDetail(raw);
-  if (!text) {
-    detail.replaceChildren();
-    return;
-  }
-  detail.replaceChildren(
-    ...detailParagraphs(text).map((paragraph) => {
-      const node = document.createElement("p");
-      node.textContent = paragraph;
-      return node;
-    }),
-  );
-}
-
-function cleanEventDetail(text) {
-  return String(text)
-    .replace(/^Discovered from live Partiful account sync\.\s*/i, "")
-    .replace(/^Description:\s*/i, "")
-    .replace(/\s+Description:\s*/i, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function detailParagraphs(text) {
-  const explicit = text.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean);
-  if (explicit.length > 1) return explicit;
-
-  const sentences = text.match(/[^.!?]+[.!?]+(?:["')\]]+)?|[^.!?]+$/g) || [text];
-  const paragraphs = [];
-  let current = "";
-  for (const sentence of sentences.map((item) => item.trim()).filter(Boolean)) {
-    const next = current ? `${current} ${sentence}` : sentence;
-    if (current && next.length > 360) {
-      paragraphs.push(current);
-      current = sentence;
-    } else {
-      current = next;
-    }
-  }
-  if (current) paragraphs.push(current);
-  return paragraphs;
-}
-
-function eventActions(entry) {
-  const actions = [];
-  if (entry.eventUrl) {
-    const link = document.createElement("a");
-    link.href = entry.eventUrl;
-    link.target = "_blank";
-    link.rel = "noreferrer";
-    setButtonContent(link, "external", "Partiful");
-    markMotionButton(link);
-    actions.push(link);
-  }
-
-  if (entry.blockType === "event") {
-    const ask = document.createElement("button");
-    ask.type = "button";
-    ask.dataset.variant = "primary";
-    setButtonContent(ask, "sparkles", "Ask");
-    ask.addEventListener("click", () => {
-      if (state.agentBusy) return;
-      openEventCoachingChat(entry);
-    });
-    markMotionButton(ask);
-    actions.push(ask);
-  }
-
-  return actions;
-}
-
-function renderIcon(name) {
-  const svg = document.createElementNS(SVG_NS, "svg");
-  const use = document.createElementNS(SVG_NS, "use");
-  svg.setAttribute("aria-hidden", "true");
-  svg.setAttribute("focusable", "false");
-  use.setAttribute("href", `#icon-${name}`);
-  svg.append(use);
-  return svg;
-}
-
-function setButtonContent(element, iconName, label) {
-  const span = document.createElement("span");
-  span.textContent = label;
-  element.replaceChildren(renderIcon(iconName), span);
-}
-
-function renderPlaceLink(entry, text) {
-  const destinationLabel = String(text || "").trim();
-  if (!destinationLabel) return document.createTextNode("");
-  const displayLabel = shortPlaceLabel(destinationLabel);
-  const directions = directionsUrl(entry, destinationLabel);
-  if (!directions) return document.createTextNode(displayLabel);
-
-  const link = document.createElement("a");
-  link.href = directions;
-  link.target = "_blank";
-  link.rel = "noreferrer";
-  link.dataset.placeLink = "";
-  link.setAttribute("aria-label", `Open directions to ${destinationLabel} from current location`);
-  link.addEventListener("click", (event) => event.stopPropagation());
-  const span = document.createElement("span");
-  span.textContent = displayLabel;
-  link.append(renderIcon("map-pin"), span);
-  return link;
-}
-
-function shortPlaceLabel(value) {
-  const text = String(value || "").replace(/\s+/g, " ").trim();
-  const shortened = text
-    .replace(
-      /,\s*(?:New York|NYC|Manhattan|Brooklyn|Queens|Bronx|Staten Island)?\s*,?\s*NY(?:\s+\d{5}(?:-\d{4})?)?\s*$/i,
-      "",
-    )
-    .replace(/,\s*New York(?:\s+\d{5}(?:-\d{4})?)?\s*$/i, "")
-    .replace(/,\s*\d{5}(?:-\d{4})?\s*$/, "")
-    .trim();
-  return shortened || text;
-}
-
-function directionsUrl(entry, label) {
-  const destination = mapsDestination(entry.googleMapsUrl) || String(label || "").trim();
-  if (!destination) return "";
-
-  const url = new URL("https://www.google.com/maps/dir/");
-  url.searchParams.set("api", "1");
-  url.searchParams.set("destination", destination);
-  url.searchParams.set("dir_action", "navigate");
-
-  const travelmode = travelMode(entry);
-  if (travelmode) url.searchParams.set("travelmode", travelmode);
-  return url.toString();
-}
-
-function mapsDestination(value) {
-  try {
-    const url = new URL(value || "");
-    return url.searchParams.get("destination") || url.searchParams.get("query") || "";
-  } catch {
-    return "";
-  }
-}
-
-function travelMode(entry) {
-  const route = `${entry.routeMode || ""} ${entry.routeDetails || ""}`.toLowerCase();
-  if (route.includes("subway") || route.includes("transit")) return "transit";
-  if (route.includes("walk")) return "walking";
-  return "";
-}
-
-function renderTimeRail() {
-  const rail = document.createElement("section");
-  rail.dataset.timeRail = "";
-  for (let hour = 0; hour < 24; hour += 2) {
-    const tick = document.createElement("time");
-    tick.textContent = hourLabel(hour);
-    tick.style.gridRow = `${hour * 4 + 1} / span 1`;
-    rail.append(tick);
-  }
-  return rail;
+function minuteForDay(value, day, isEnd) {
+  const valueDay = datePart(value);
+  if (valueDay && valueDay < day) return 0;
+  if (valueDay && valueDay > day) return 24 * 60;
+  const match = String(value || "").match(/[ T](\d{2}):(\d{2})/);
+  if (!match) return isEnd ? TIMELINE_SLOT_MINUTES : 0;
+  return Number(match[1]) * 60 + Number(match[2]);
 }
 
 function minuteOfDay(value) {
-  const match = String(value || "").match(/\s(\d{2}):(\d{2})$/);
+  const match = String(value || "").match(/[ T](\d{2}):(\d{2})/);
   if (!match) return 0;
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
-function hourLabel(hour) {
-  return String(hour);
+function compareBlocks(a, b) {
+  return dateTimeValue(a.start) - dateTimeValue(b.start) ||
+    dateTimeValue(a.end) - dateTimeValue(b.end) ||
+    String(a.title || "").localeCompare(String(b.title || ""));
 }
 
-function compactTitle(entry) {
-  if (entry.blockType === "travel") return "Travel";
-  if (entry.blockType === "eating") return "Food";
-  if (entry.blockType === "sleeping") return "Sleep";
-  if (entry.entryType === "morning" || entry.category === "morning") return "Morning";
-  if (entry.entryType === "buffer" || entry.category === "buffer") return "Buffer";
-  return entry.displayTitle;
+function dateTimeValue(value) {
+  const parsed = Date.parse(String(value || "").replace(" ", "T"));
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function addPill(parent, text, status = "") {
-  if (!text) return;
-  const pill = document.createElement("span");
-  pill.textContent = text;
-  if (status) pill.dataset.status = status;
-  parent.append(pill);
+function datePart(value) {
+  return String(value || "").slice(0, 10);
 }
 
-function firstCoachingLine(value) {
-  return (value || "").split("\n").map((line) => line.trim()).find(Boolean) || "";
+function todayKey() {
+  const now = new Date();
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 
-async function openEventCoachingChat(entry) {
-  const prompt = eventCoachingPrompt(entry);
-  const meta = await eventChatMeta(entry, prompt);
-  const existing = findCachedChatSession(meta.cacheKey);
-
-  closeEventModal();
-  openChat();
-
-  if (existing) {
-    loadChatSession(existing.id);
-    return;
-  }
-
-  startNewChat({ id: meta.cacheKey, meta });
-  askAgent(prompt);
+function nextDayKey(day) {
+  const date = new Date(`${day}T12:00:00`);
+  date.setDate(date.getDate() + 1);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 
-function eventCoachingPrompt(entry) {
-  return `Give me event-specific coaching for "${entry.displayTitle}". Include room read, opening line, questions, who to meet, and follow-up.`;
+function dateTimeLocal(value) {
+  return String(value || "").replace(" ", "T").slice(0, 16);
 }
 
-async function eventChatMeta(entry, prompt) {
-  const fingerprint = {
-    version: EVENT_CHAT_CONTEXT_VERSION,
-    kind: "event_coaching",
-    prompt,
-    event: eventChatFingerprint(entry),
-    crm: crmChatFingerprint(),
-  };
-  const hash = await stableHash(JSON.stringify(fingerprint));
-  return {
-    kind: "event_coaching",
-    cacheKey: `event-chat-${hash.slice(0, 40)}`,
-    contextHash: hash,
-    version: EVENT_CHAT_CONTEXT_VERSION,
-    calendarBlockId: entry.calendarBlockId,
-    techweekId: entry.techweekId,
-    eventTitle: entry.displayTitle,
-    prompt,
-  };
+function localDateTimeFromDayMinute(day, minute) {
+  const date = new Date(`${day}T00:00:00`);
+  date.setMinutes(minute);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-") + "T" + [
+    String(date.getHours()).padStart(2, "0"),
+    String(date.getMinutes()).padStart(2, "0"),
+  ].join(":");
 }
 
-function eventChatFingerprint(entry) {
-  const keys = [
-    "calendar",
-    "techweekId",
-    "calendarBlockId",
-    "partifulId",
-    "rerankId",
-    "status",
-    "category",
-    "start",
-    "end",
-    "actualStart",
-    "actualEnd",
-    "weekday",
-    "timeRange",
-    "displayTitle",
-    "location",
-    "venueQuery",
-    "venuePrecision",
-    "note",
-    "salesCoaching",
-    "rank",
-    "tier",
-    "opportunityScore",
-    "eventUrl",
-    "googleMapsUrl",
-  ];
-  return Object.fromEntries(keys.map((key) => [key, String(entry[key] || "")]));
-}
-
-function crmChatFingerprint() {
-  const appState = state.payload?.state || {};
-  const leads = Array.isArray(appState.leads) ? appState.leads : [];
-  const eventNotes = appState.eventNotes && typeof appState.eventNotes === "object"
-    ? appState.eventNotes
-    : {};
-  return {
-    updatedAt: String(appState.updatedAt || ""),
-    eventNotes,
-    leads: leads.map((lead) => ({
-      calendarBlockId: String(lead.calendarBlockId || ""),
-      techweekId: String(lead.techweekId || ""),
-      eventTitle: String(lead.eventTitle || ""),
-      name: String(lead.name || ""),
-      company: String(lead.company || ""),
-      role: String(lead.role || ""),
-      email: String(lead.email || ""),
-      phone: String(lead.phone || ""),
-      notes: String(lead.notes || ""),
-      priority: String(lead.priority || ""),
-      followUp: String(lead.followUp || ""),
-      createdAt: String(lead.createdAt || ""),
-      updatedAt: String(lead.updatedAt || ""),
-    })),
-  };
-}
-
-async function stableHash(value) {
-  const bytes = new TextEncoder().encode(value);
-  if (globalThis.crypto?.subtle) {
-    const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
-    return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-  }
-
-  let hash = 0x811c9dc5;
-  for (const byte of bytes) {
-    hash ^= byte;
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return hash.toString(16).padStart(8, "0");
-}
-
-async function askAgent(prompt) {
-  const history = state.messages.slice(-6);
-  if (!history.length) {
-    chatLog.replaceChildren();
-    delete chatLog.dataset.empty;
-  }
-  appendMessage("user", prompt);
-  const pending = appendMessage("assistant", "Thinking", false, { suppressTools: true });
-  const pendingContent = pending.querySelector("[data-message-content]");
-  pending.dataset.streaming = "true";
-  setBusy(true);
-  try {
-    const clientContext = await readClientContext();
-    const response = await fetch("/api/agent/stream", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        prompt,
-        messages: history,
-        clientContext,
-      }),
-    });
-    if (!response.ok) throw new Error(await agentResponseErrorMessage(response));
-    if (!response.body) throw new Error("The agent response did not include a stream.");
-    const result = await readAgentStream(response.body, pendingContent);
-    pending.dataset.streaming = "false";
-    delete pendingContent.dataset.streamingRows;
-    if (!result.rendered) {
-      pendingContent.innerHTML = renderMarkdown(result.text);
-    }
-    state.messages.push({ role: "assistant", content: result.text });
-    attachMessageTools(pending, result.text);
-    renderProposedActions(pending, result.actions || []);
-    persistMessages();
-  } catch (error) {
-    pending.dataset.streaming = "false";
-    delete pendingContent.dataset.streamingRows;
-    const message = error instanceof Error ? error.message : "The agent request failed.";
-    pendingContent.innerHTML = renderMarkdown(message);
-    attachMessageTools(pending, message);
-  } finally {
-    setBusy(false);
-  }
-}
-
-async function agentResponseErrorMessage(response) {
-  const fallback = response.statusText || `Agent request failed with HTTP ${response.status}.`;
-  try {
-    const body = await response.json();
-    return body?.error?.message || body?.message || fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-async function readClientContext() {
-  const context = {
-    localIso: new Date().toISOString(),
-    localText: new Date().toLocaleString(),
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    isSecureContext: globalThis.isSecureContext,
-    locationStatus: "not_requested",
-    userFocus: currentUserFocus(),
-    viewport: {
-      width: globalThis.innerWidth,
-      height: globalThis.innerHeight,
-      devicePixelRatio: globalThis.devicePixelRatio,
-    },
-  };
-
-  const coordinates = await readCurrentPositionIfPermissionGranted();
-  if (coordinates.ok) {
-    context.coordinates = coordinates.value;
-    context.locationStatus = "available";
-  } else {
-    context.locationStatus = coordinates.reason;
-  }
-  return context;
-}
-
-function currentUserFocus() {
-  const day = state.payload?.days?.find((item) => item.date === state.activeDay) || null;
-  return {
-    view: state.activeView,
-    viewLabel: VIEW_TITLES[state.activeView] || "Agenda",
-    dayKey: state.activeDay || "",
-    weekday: day?.weekday || "",
-    date: day?.date || state.activeDay || "",
-    hash: globalThis.location.hash || "",
-  };
-}
-
-async function readCurrentPositionIfPermissionGranted() {
-  if (!("geolocation" in navigator)) {
-    return { ok: false, reason: "unavailable" };
-  }
-  if (!globalThis.isSecureContext) {
-    return { ok: false, reason: "insecure_context_requires_https" };
-  }
-
-  const permissionState = await geolocationPermissionState();
-  if (permissionState === "granted") {
-    return await readCurrentPosition();
-  }
-  if (permissionState === "denied") {
-    return { ok: false, reason: "permission_denied" };
-  }
-  if (permissionState === "prompt") {
-    return { ok: false, reason: "permission_prompt_not_requested" };
-  }
-  return { ok: false, reason: "permission_state_unavailable_not_requested" };
-}
-
-async function geolocationPermissionState() {
-  if (!navigator.permissions?.query) {
-    return "unavailable";
-  }
-
-  try {
-    const status = await Promise.race([
-      navigator.permissions.query({ name: "geolocation" }),
-      new Promise((resolve) => globalThis.setTimeout(() => resolve(null), 300)),
-    ]);
-    const state = status?.state;
-    return state === "granted" || state === "denied" || state === "prompt" ? state : "unknown";
-  } catch {
-    return "unknown";
-  }
-}
-
-function readCurrentPosition() {
-  if (!("geolocation" in navigator)) {
-    return Promise.resolve({ ok: false, reason: "unavailable" });
-  }
-  if (!globalThis.isSecureContext) {
-    return Promise.resolve({ ok: false, reason: "insecure_context_requires_https" });
-  }
-
-  return new Promise((resolve) => {
-    const timeout = globalThis.setTimeout(() => {
-      resolve({ ok: false, reason: "timeout" });
-    }, 2600);
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        globalThis.clearTimeout(timeout);
-        resolve({
-          ok: true,
-          value: {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracyMeters: position.coords.accuracy,
-            capturedAt: new Date(position.timestamp).toISOString(),
-          },
-        });
-      },
-      (error) => {
-        globalThis.clearTimeout(timeout);
-        resolve({ ok: false, reason: `error_${error.code}` });
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 30000,
-        timeout: 2400,
-      },
-    );
-  });
-}
-
-async function readAgentStream(body, target) {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let raw = "";
-  let markdown = "";
-  let finalText = "";
-  let actions = [];
-  let scheduled = false;
-  let streamRenderer = null;
-
-  const scheduleRender = () => {
-    if (scheduled) return;
-    scheduled = true;
-    requestAnimationFrame(() => {
-      streamRenderer?.update(markdown);
-      scheduled = false;
-    });
-  };
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    raw += decoder.decode(value, { stream: true });
-    const events = raw.split(/\r?\n\r?\n/);
-    raw = events.pop() || "";
-    for (const eventBlock of events) {
-      const event = parseSseEvent(eventBlock);
-      if (!event) continue;
-      if (event.event === "meta") {
-        logAgentStreamMeta(event.data);
-      } else if (event.event === "delta") {
-        markdown += String(event.data.text || "");
-        streamRenderer ??= createStreamingRenderer(target);
-        scheduleRender();
-      } else if (event.event === "done") {
-        finalText = String(event.data.text || markdown);
-        actions = Array.isArray(event.data.actions) ? event.data.actions : [];
-      } else if (event.event === "error") {
-        throw new Error(event.data.message || "Stream failed.");
-      }
-    }
-  }
-
-  if (scheduled) {
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-  }
-
-  const text = finalText || markdown;
-  const rendered = streamRenderer ? await streamRenderer.finish(text) : false;
-  return { text, actions, rendered };
-}
-
-function createStreamingRenderer(target) {
-  let visibleMarkdown = "";
-  let queuedMarkdown = "";
-  const revealQueue = [];
-  let revealTimer = 0;
-  let idleResolvers = [];
-  let lastCompletionMs = 0;
-  let averageCompletionMs = 120;
-  let nextRevealMs = 0;
-
-  return {
-    update(markdown) {
-      const nextMarkdown = completedStreamingMarkdown(markdown);
-      enqueueStreamingMarkdown(nextMarkdown);
-    },
-    async finish(markdown) {
-      const finalMarkdown = normalizeStreamingMarkdown(markdown);
-      if (!finalMarkdown.trim()) return false;
-      enqueueStreamingMarkdown(finalMarkdown, { force: true });
-      await waitForStreamingRendererIdle();
-      return true;
-    },
-  };
-
-  function enqueueStreamingMarkdown(markdown, options = {}) {
-    const nextMarkdown = normalizeStreamingMarkdown(markdown);
-    const force = Boolean(options.force);
-    if (!nextMarkdown.trim() || nextMarkdown === queuedMarkdown) return;
-
-    const snapshots = streamingMarkdownSnapshots(queuedMarkdown, nextMarkdown, force);
-    if (!snapshots.length) return;
-
-    const now = performance.now();
-    if (lastCompletionMs) {
-      const observed = Math.max(16, (now - lastCompletionMs) / snapshots.length);
-      averageCompletionMs = averageCompletionMs * 0.72 + observed * 0.28;
-    }
-    lastCompletionMs = now;
-
-    for (const snapshot of snapshots) {
-      if (snapshot !== queuedMarkdown) {
-        revealQueue.push(snapshot);
-        queuedMarkdown = snapshot;
-      }
-    }
-    scheduleStreamingReveal();
-  }
-
-  function scheduleStreamingReveal() {
-    if (revealTimer || !revealQueue.length) return;
-    const delay = Math.max(0, nextRevealMs - performance.now());
-    revealTimer = globalThis.setTimeout(runStreamingReveal, delay);
-  }
-
-  function runStreamingReveal() {
-    revealTimer = 0;
-    if (!revealQueue.length) {
-      resolveStreamingRendererIdle();
-      return;
-    }
-
-    visibleMarkdown = revealQueue.shift();
-    renderStreamingMarkdown(target, visibleMarkdown);
-    nextRevealMs = performance.now() + smoothedStreamingRevealDelay(revealQueue.length);
-
-    if (revealQueue.length) {
-      scheduleStreamingReveal();
-    } else {
-      resolveStreamingRendererIdle();
-    }
-  }
-
-  function waitForStreamingRendererIdle() {
-    if (!revealQueue.length && !revealTimer) return Promise.resolve();
-    return new Promise((resolve) => idleResolvers.push(resolve));
-  }
-
-  function resolveStreamingRendererIdle() {
-    if (revealQueue.length || revealTimer) return;
-    const resolvers = idleResolvers;
-    idleResolvers = [];
-    resolvers.forEach((resolve) => resolve());
-  }
-
-  function smoothedStreamingRevealDelay(queueDepth) {
-    const base = clampNumber(averageCompletionMs * 0.78, 72, 180);
-    const catchUp = queueDepth > 6 ? 1 + (queueDepth - 6) * 0.16 : 1;
-    return Math.max(36, base / catchUp);
-  }
-}
-
-function completedStreamingMarkdown(markdown) {
-  const value = normalizeStreamingMarkdown(markdown);
-  const lastBreak = value.lastIndexOf("\n");
-  return lastBreak >= 0 ? value.slice(0, lastBreak + 1) : "";
-}
-
-function normalizeStreamingMarkdown(markdown) {
-  return String(markdown || "").replace(/\r\n/g, "\n");
-}
-
-function streamingMarkdownSnapshots(fromMarkdown, toMarkdown, includePartial = false) {
-  const from = normalizeStreamingMarkdown(fromMarkdown);
-  const to = normalizeStreamingMarkdown(toMarkdown);
-  const baseline = to.startsWith(from) ? from : "";
-  const tail = to.slice(baseline.length);
-  const snapshots = [];
-  let lineStart = 0;
-
-  for (let index = 0; index < tail.length; index += 1) {
-    if (tail[index] !== "\n") continue;
-    const line = tail.slice(lineStart, index);
-    if (line.trim()) {
-      snapshots.push(`${baseline}${tail.slice(0, index + 1)}`);
-    }
-    lineStart = index + 1;
-  }
-
-  if (includePartial && to.trim() && snapshots.at(-1) !== to) {
-    snapshots.push(to);
-  }
-
-  return snapshots;
-}
-
-function renderStreamingMarkdown(target, markdown) {
-  const template = document.createElement("template");
-  template.innerHTML = renderMarkdown(markdown);
-  const incoming = Array.from(template.content.children);
-  if (!incoming.length) return;
-
-  if (target.dataset.streamingRows !== "true") {
-    target.replaceChildren();
-    target.dataset.streamingRows = "true";
-  }
-
-  reconcileStreamingMarkdown(target, incoming);
-}
-
-function reconcileStreamingMarkdown(target, incoming) {
-  for (let index = 0; index < incoming.length; index += 1) {
-    const next = incoming[index];
-    const current = target.children[index];
-    if (!current) {
-      markStreamingRows(next);
-      target.append(next);
-      continue;
-    }
-
-    if (streamComparableHtml(current) === streamComparableHtml(next)) continue;
-
-    if (current.tagName === next.tagName) {
-      syncRenderedElement(current, next);
-    } else {
-      markStreamingRows(next);
-      current.replaceWith(next);
-    }
-  }
-
-  while (target.children.length > incoming.length) {
-    target.lastElementChild?.remove();
-  }
-}
-
-function markStreamingRow(element) {
-  element.dataset.streamRow = "";
-}
-
-function markStreamingRows(element) {
-  if (isStreamingList(element)) {
-    element.querySelectorAll(":scope > li").forEach(markStreamingRow);
-  } else {
-    markStreamingRow(element);
-  }
-}
-
-function syncRenderedElement(current, next) {
-  if (isStreamingList(current) && isStreamingList(next)) {
-    syncRenderedList(current, next);
-    return;
-  }
-
-  syncRenderedAttributes(current, next);
-  current.replaceChildren(...Array.from(next.childNodes));
-}
-
-function syncRenderedList(current, next) {
-  syncRenderedAttributes(current, next);
-  const nextItems = Array.from(next.children);
-  for (let index = 0; index < nextItems.length; index += 1) {
-    const nextItem = nextItems[index];
-    const currentItem = current.children[index];
-    if (!currentItem) {
-      markStreamingRow(nextItem);
-      current.append(nextItem);
-      continue;
-    }
-
-    if (streamComparableHtml(currentItem) === streamComparableHtml(nextItem)) continue;
-
-    if (currentItem.tagName === nextItem.tagName) {
-      syncRenderedElement(currentItem, nextItem);
-    } else {
-      markStreamingRow(nextItem);
-      currentItem.replaceWith(nextItem);
-    }
-  }
-
-  while (current.children.length > nextItems.length) {
-    current.lastElementChild?.remove();
-  }
-}
-
-function syncRenderedAttributes(current, next) {
-  for (const attribute of Array.from(current.attributes)) {
-    if (attribute.name === "data-stream-row") continue;
-    if (!next.hasAttribute(attribute.name)) current.removeAttribute(attribute.name);
-  }
-  for (const attribute of Array.from(next.attributes)) {
-    current.setAttribute(attribute.name, attribute.value);
-  }
-}
-
-function isStreamingList(element) {
-  return element.tagName === "UL" || element.tagName === "OL";
-}
-
-function streamComparableHtml(element) {
-  const clone = element.cloneNode(true);
-  if (clone.nodeType === Node.ELEMENT_NODE) {
-    clone.removeAttribute("data-stream-row");
-    clone.querySelectorAll("[data-stream-row]").forEach((row) =>
-      row.removeAttribute("data-stream-row")
-    );
-  }
-  return clone.outerHTML;
-}
-
-function logAgentStreamMeta(data) {
-  if (data?.type !== "agent_prompt_debug") {
-    return;
-  }
-
-  if (data.modelContext) {
-    cacheModelContext({ model: data.model, modelContext: data.modelContext });
-  }
-
-  const utilization = data.utilization || {};
-  const percent = typeof utilization.percentOfEffectiveContextWindow === "number"
-    ? ` (${utilization.percentOfEffectiveContextWindow.toFixed(2)}% of effective)`
-    : "";
-  const effectiveLimit = utilization.effectiveContextWindowTokens ||
-    utilization.contextWindowTokens;
-  const rawContext =
-    utilization.contextWindowTokens && effectiveLimit !== utilization.contextWindowTokens
-      ? `; raw ${utilization.contextWindowTokens}`
-      : "";
-  const context = effectiveLimit
-    ? `${utilization.estimatedInputTokens}/${effectiveLimit} tokens${percent}${rawContext}`
-    : `${utilization.estimatedInputTokens} input tokens; context window unknown`;
-  console.log(`[agent] utilization: ${context}`);
-}
-
-function parseSseEvent(block) {
-  const eventLine = block.split(/\r?\n/).find((line) => line.startsWith("event:"));
-  const dataLine = block.split(/\r?\n/).find((line) => line.startsWith("data:"));
-  if (!eventLine || !dataLine) return null;
-  try {
-    return {
-      event: eventLine.slice(6).trim(),
-      data: JSON.parse(dataLine.slice(5).trim()),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function appendMessage(role, content, persist = true, options = {}) {
-  const item = appendChatMessage(chatLog, role, content, options);
-  if (persist && role === "user") {
-    state.messages.push({ role, content });
-    persistMessages();
-  }
-  return item;
-}
-
-function appendChatMessage(log, role, content, options = {}) {
-  const item = document.createElement("section");
-  item.dataset.message = role;
-  const body = document.createElement("div");
-  body.dataset.messageContent = "";
-  if (role === "assistant") {
-    body.innerHTML = renderMarkdown(content);
-  } else {
-    body.textContent = content;
-  }
-  item.append(body);
-  if (role === "assistant" && !options.suppressTools) {
-    attachMessageTools(item, content);
-  }
-  log.append(item);
-  log.scrollTop = log.scrollHeight;
-  return item;
-}
-
-function attachMessageTools(message, content) {
-  if (message.dataset.message !== "assistant") return;
-  message.querySelector("[data-message-tools]")?.remove();
-
-  const tools = document.createElement("menu");
-  tools.dataset.messageTools = "";
-  const copy = document.createElement("button");
-  copy.type = "button";
-  copy.dataset.iconOnly = "";
-  copy.setAttribute("aria-label", "Copy response");
-  copy.append(renderIcon("copy"));
-  copy.addEventListener("click", async () => {
-    await copyText(content);
-    copy.dataset.copied = "true";
-    copy.setAttribute("aria-label", "Copied");
-    globalThis.setTimeout(() => {
-      copy.dataset.copied = "false";
-      copy.setAttribute("aria-label", "Copy response");
-    }, 1200);
-  });
-  tools.append(copy);
-  message.append(tools);
-}
-
-async function copyText(value) {
-  const text = String(value || "");
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.append(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    textarea.remove();
-  }
-}
-
-function renderMarkdown(markdown) {
-  const source = String(markdown || "").replace(/\r\n/g, "\n");
-  if (!source.trim()) return "<p></p>";
-  if (!MARKDOWN_RENDERER) return `<p>${escapeHtml(source)}</p>`;
-  return sanitizeMarkdownHtml(MARKDOWN_RENDERER.render(source)) || "<p></p>";
-}
-
-function createMarkdownRenderer() {
-  const factory = globalThis.markdownit;
-  if (typeof factory !== "function") return null;
-
-  const renderer = factory({
-    html: false,
-    linkify: true,
-    breaks: false,
-    typographer: false,
-  });
-  const defaultLinkOpen = renderer.renderer.rules.link_open ||
-    ((tokens, index, options, _env, self) => self.renderToken(tokens, index, options));
-  renderer.renderer.rules.link_open = (tokens, index, options, env, self) => {
-    const token = tokens[index];
-    token.attrSet("target", "_blank");
-    token.attrSet("rel", "noreferrer");
-    return defaultLinkOpen(tokens, index, options, env, self);
-  };
-  return renderer;
-}
-
-function sanitizeMarkdownHtml(html) {
-  const purifier = globalThis.DOMPurify;
-  if (!purifier?.sanitize) return html;
-  return purifier.sanitize(html, {
-    ADD_ATTR: ["target", "rel"],
-    FORBID_TAGS: ["script", "style"],
-  });
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function readJsonStorage(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function scopedStorageKey(base, scope) {
-  const normalized = String(scope || ACCOUNT_ANONYMOUS_STORAGE_ID)
-    .trim()
-    .replace(/[^a-zA-Z0-9._-]+/g, "_") || ACCOUNT_ANONYMOUS_STORAGE_ID;
-  return `${base}:${normalized}`;
-}
-
-function chatStorageKey() {
-  return scopedStorageKey(CHAT_STORAGE_KEY, state.accountStorageId);
-}
-
-function chatHistoryKey() {
-  return scopedStorageKey(CHAT_HISTORY_KEY, state.accountStorageId);
-}
-
-function activeChatKey() {
-  return scopedStorageKey(ACTIVE_CHAT_KEY, state.accountStorageId);
-}
-
-function loadChatStorageForAccount(storageId) {
-  state.accountStorageId = storageId || ACCOUNT_ANONYMOUS_STORAGE_ID;
-  state.messages = readJsonStorage(chatStorageKey(), []);
-  state.sessions = readJsonStorage(chatHistoryKey(), []);
-  state.activeSessionId = localStorage.getItem(activeChatKey()) || createSessionId();
-  state.activeSessionMeta = null;
-  state.historyOpen = false;
-  chatHistoryToggle.setAttribute("aria-expanded", "false");
-  hydrateChatHistory();
-  renderChat();
-}
-
-function readCachedModelContext() {
-  const cached = readJsonStorage(MODEL_CONTEXT_CACHE_KEY, null);
-  if (!cached || typeof cached !== "object") return null;
-  if (typeof cached.expiresAt !== "number" || cached.expiresAt <= Date.now()) return null;
-  return cached;
-}
-
-function cacheModelContext(payload, ttlMs = MODEL_CONTEXT_CACHE_TTL_MS) {
-  const modelContext = payload?.modelContext;
-  if (!modelContext || typeof modelContext !== "object") return null;
-
-  const now = Date.now();
-  const cached = {
-    model: payload.model || modelContext.model || "",
-    modelContext,
-    cachedAt: now,
-    expiresAt: now + ttlMs,
-  };
-  state.modelContext = cached;
-  try {
-    localStorage.setItem(MODEL_CONTEXT_CACHE_KEY, JSON.stringify(cached));
-  } catch {
-    // Keep the in-memory copy if localStorage is unavailable.
-  }
-  return cached;
-}
-
-async function getModelContext() {
-  const cached = readCachedModelContext();
-  if (cached) {
-    state.modelContext = cached;
-    return cached;
-  }
-
-  const response = await fetch("/api/model-context");
-  if (!response.ok) return null;
-  const payload = await response.json();
-  return cacheModelContext(payload, Number(payload.cacheTtlMs) || MODEL_CONTEXT_CACHE_TTL_MS);
-}
-
-function createSessionId() {
-  return globalThis.crypto?.randomUUID?.() ||
-    `chat-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function hydrateChatHistory() {
-  state.sessions = normalizeSessions(state.sessions);
-  state.activeSessionMeta =
-    state.sessions.find((session) => session.id === state.activeSessionId)?.meta ??
-      null;
-  if (
-    state.messages.length && !state.sessions.some((session) => session.id === state.activeSessionId)
-  ) {
-    upsertCurrentSession();
-  } else {
-    persistSessions();
-  }
-  localStorage.setItem(activeChatKey(), state.activeSessionId);
-}
-
-function normalizeSessions(sessions) {
-  return Array.isArray(sessions)
-    ? sessions
-      .filter((session) => session?.id && Array.isArray(session.messages))
-      .map((session) => ({
-        id: String(session.id),
-        title: String(session.title || chatTitle(session.messages)),
-        createdAt: String(session.createdAt || session.updatedAt || new Date().toISOString()),
-        updatedAt: String(session.updatedAt || session.createdAt || new Date().toISOString()),
-        meta: normalizeSessionMeta(session.meta),
-        messages: session.messages
-          .filter((message) => message?.role === "user" || message?.role === "assistant")
-          .map((message) => ({
-            role: message.role,
-            content: String(message.content || ""),
-          }))
-          .slice(-CHAT_MESSAGE_LIMIT),
-      }))
-      .filter((session) => session.messages.length)
-      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
-      .slice(0, CHAT_SESSION_LIMIT)
-    : [];
-}
-
-function normalizeSessionMeta(meta) {
-  if (!meta || typeof meta !== "object") return null;
-  return {
-    kind: String(meta.kind || ""),
-    cacheKey: String(meta.cacheKey || ""),
-    contextHash: String(meta.contextHash || ""),
-    version: Number.isFinite(Number(meta.version)) ? Number(meta.version) : 0,
-    calendarBlockId: String(meta.calendarBlockId || ""),
-    techweekId: String(meta.techweekId || ""),
-    eventTitle: String(meta.eventTitle || ""),
-    prompt: String(meta.prompt || ""),
-  };
-}
-
-function findCachedChatSession(cacheKey) {
-  const key = String(cacheKey || "");
-  if (!key) return null;
-  return state.sessions.find((session) => session.id === key || session.meta?.cacheKey === key) ||
-    null;
-}
-
-function startNewChat(options = {}) {
-  persistMessages();
-  state.messages = [];
-  state.activeSessionId = options.id || createSessionId();
-  state.activeSessionMeta = normalizeSessionMeta(options.meta);
-  state.historyOpen = false;
-  localStorage.setItem(activeChatKey(), state.activeSessionId);
-  localStorage.setItem(chatStorageKey(), "[]");
-  chatHistoryToggle.setAttribute("aria-expanded", "false");
-  renderChat();
-  renderChatHistory();
-}
-
-function upsertCurrentSession() {
-  const messages = state.messages.slice(-CHAT_MESSAGE_LIMIT);
-  if (!messages.length) return;
-
-  const now = new Date().toISOString();
-  const existing = state.sessions.find((session) => session.id === state.activeSessionId);
-  const session = {
-    id: state.activeSessionId,
-    title: chatTitle(messages),
-    createdAt: existing?.createdAt || now,
-    updatedAt: now,
-    meta: state.activeSessionMeta || existing?.meta || null,
-    messages,
-  };
-
-  state.sessions = [session, ...state.sessions.filter((item) => item.id !== session.id)]
-    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
-    .slice(0, CHAT_SESSION_LIMIT);
-  persistSessions();
-}
-
-function persistSessions() {
-  localStorage.setItem(chatHistoryKey(), JSON.stringify(state.sessions));
-}
-
-function chatTitle(messages) {
-  const firstUser = messages.find((message) => message.role === "user")?.content;
-  const firstAssistant = messages.find((message) => message.role === "assistant")?.content;
-  const title = String(firstUser || firstAssistant || "New chat").replace(/\s+/g, " ").trim();
-  return title.length > 64 ? `${title.slice(0, 61)}...` : title;
-}
-
-function chatSessionTime(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-US", {
+function dayHeading(day) {
+  const date = new Date(`${day}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return day || "Calendar";
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
     month: "short",
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
+    year: "numeric",
   }).format(date);
 }
 
-function loadChatSession(id) {
-  const session = state.sessions.find((item) => item.id === id);
-  if (!session) return;
-  state.activeSessionId = session.id;
-  state.activeSessionMeta = session.meta || null;
-  state.messages = session.messages.slice(-CHAT_MESSAGE_LIMIT);
-  state.historyOpen = false;
-  localStorage.setItem(activeChatKey(), state.activeSessionId);
-  localStorage.setItem(chatStorageKey(), JSON.stringify(state.messages));
-  chatHistoryToggle.setAttribute("aria-expanded", "false");
-  renderChat();
-  renderChatHistory();
+function formatMinute(minute) {
+  const normalized = ((minute % (24 * 60)) + (24 * 60)) % (24 * 60);
+  const hour = Math.floor(normalized / 60);
+  const minutes = normalized % 60;
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${String(minutes).padStart(2, "0")} ${suffix}`;
 }
 
-function renderChatHistory() {
-  chatHistory.hidden = !state.historyOpen;
-  if (chatHistory.hidden) return;
-
-  chatHistory.replaceChildren();
-  const sessions = normalizeSessions(state.sessions);
-  if (!sessions.length) {
-    const empty = document.createElement("p");
-    empty.textContent = "No chat history yet.";
-    chatHistory.append(empty);
-    return;
-  }
-
-  for (const session of sessions) {
-    const item = document.createElement("article");
-    item.dataset.chatHistoryItem = "";
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.dataset.chatHistoryOpen = "";
-    button.setAttribute("aria-current", String(session.id === state.activeSessionId));
-    button.addEventListener("click", () => loadChatSession(session.id));
-
-    const label = document.createElement("span");
-    label.textContent = session.title;
-    const time = document.createElement("time");
-    time.textContent = chatSessionTime(session.updatedAt);
-    button.append(renderIcon("message"), label, time);
-
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.dataset.chatHistoryDelete = "";
-    remove.dataset.iconOnly = "";
-    remove.setAttribute("aria-label", `Delete chat: ${session.title}`);
-    remove.append(renderIcon("trash"));
-    remove.addEventListener("click", (event) => {
-      event.stopPropagation();
-      deleteChatSession(session.id);
-    });
-
-    item.append(button, remove);
-    chatHistory.append(item);
-  }
+function hourLabel(minute) {
+  const hour = Math.floor(minute / 60) % 24;
+  const suffix = hour >= 12 ? "p" : "a";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}${suffix}`;
 }
 
-function deleteChatSession(id) {
-  const sessionId = String(id || "");
-  if (!sessionId) return;
-
-  persistMessages();
-  const deletingActive = sessionId === state.activeSessionId;
-  state.sessions = normalizeSessions(state.sessions.filter((session) => session.id !== sessionId));
-  persistSessions();
-
-  if (deletingActive) {
-    const next = state.sessions[0];
-    if (next) {
-      loadChatSession(next.id);
-    } else {
-      resetEmptyChat();
-    }
-    return;
-  }
-
-  renderChatHistory();
+function nextHour(minute) {
+  return Math.ceil(minute / 60) * 60;
 }
 
-function resetEmptyChat() {
-  state.messages = [];
-  state.activeSessionId = createSessionId();
-  state.activeSessionMeta = null;
-  state.historyOpen = false;
-  localStorage.setItem(activeChatKey(), state.activeSessionId);
-  localStorage.setItem(chatStorageKey(), "[]");
-  chatHistoryToggle.setAttribute("aria-expanded", "false");
-  renderChat();
-  renderChatHistory();
+function compactBlockTitle(block) {
+  if (block.type === "travel") return "Travel";
+  if (block.type === "eating") return "Food";
+  if (block.type === "sleeping") return "Sleep";
+  return block.title || "Event";
 }
 
-function renderChat() {
-  chatLog.replaceChildren();
-  if (!state.messages.length) {
-    chatLog.dataset.empty = "true";
-    const empty = appendMessage("assistant", CHAT_EMPTY_GUIDE, false, {
-      suppressTools: true,
-    });
-    empty.dataset.emptyMessage = "";
-    state.messages = [];
-    renderChatHistory();
-    return;
-  }
-  delete chatLog.dataset.empty;
-  for (const message of state.messages.slice(-CHAT_MESSAGE_LIMIT)) {
-    appendMessage(message.role, message.content, false);
-  }
-  renderChatHistory();
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
-function renderProposedActions(messageEl, actions) {
-  if (!actions.length) return;
-  const wrap = document.createElement("section");
-  wrap.dataset.actions = "";
-  for (const action of actions) {
-    const button = document.createElement("button");
-    button.type = "button";
-    setButtonContent(button, actionIcon(action), actionLabel(action));
-    button.addEventListener("click", () => applyAction(action));
-    markMotionButton(button);
-    wrap.append(button);
-  }
-  messageEl.after(wrap);
-  animateButtonCluster(wrap);
+function errorMessage(error) {
+  return error instanceof Error ? error.message : "Request failed.";
 }
-
-function actionLabel(action) {
-  if (action.type === "event_note") return "Save note";
-  return "Apply";
-}
-
-function actionIcon(action) {
-  if (action.type === "event_note") return "sparkles";
-  return "check";
-}
-
-async function applyAction(action) {
-  const response = await fetch("/api/state", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(action),
-  });
-  const body = await response.json();
-  if (!response.ok) {
-    appendMessage("assistant", body?.error?.message || "Could not apply action.");
-    return;
-  }
-  state.payload.state = body.state;
-  render();
-}
-
-function persistMessages() {
-  state.messages = state.messages.slice(-CHAT_MESSAGE_LIMIT);
-  localStorage.setItem(chatStorageKey(), JSON.stringify(state.messages));
-  localStorage.setItem(activeChatKey(), state.activeSessionId);
-  upsertCurrentSession();
-}
-
-function setBusy(busy) {
-  state.agentBusy = busy;
-  chatNewButton.disabled = busy;
-  chatHistoryToggle.disabled = busy;
-  promptButtons.forEach((button) => {
-    button.disabled = busy;
-  });
-  updateComposerState();
-}
-
-loadScheduleForApp({ scheduleAutoSync: true }).catch(() => {});
-globalThis.setInterval(refreshAutomaticLeadEvent, LEAD_EVENT_REFRESH_MS);
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) refreshAutomaticLeadEvent();
-  if (!document.hidden) scheduleServerPartifulAutoSync();
-});

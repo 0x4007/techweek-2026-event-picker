@@ -1,7 +1,7 @@
 const params = new URLSearchParams(globalThis.location.search);
-const AUTH_COMPLETE_MESSAGE = "techweek-auth-complete";
+const AUTH_COMPLETE_MESSAGE = "planner-auth-complete";
+const LEGACY_AUTH_COMPLETE_MESSAGE = "techweek-auth-complete";
 const state = {
-  mode: params.get("mode") === "register" ? "register" : "login",
   session: null,
   busy: false,
 };
@@ -9,73 +9,70 @@ const state = {
 const els = {
   title: document.querySelector("[data-title]"),
   summary: document.querySelector("[data-summary]"),
-  login: document.querySelector("[data-login]"),
-  register: document.querySelector("[data-register]"),
+  auth: document.querySelector("[data-auth]"),
+  handle: document.querySelector("[name='handle']"),
+  admin: document.querySelector("[name='admin']"),
+  adminField: document.querySelector("[data-admin-field]"),
+  submit: document.querySelector("[data-submit]"),
   message: document.querySelector("[data-message]"),
-  modeButtons: Array.from(document.querySelectorAll("[data-mode]")),
 };
 
-els.modeButtons.forEach((button) => {
-  button.addEventListener("click", () => setMode(button.dataset.mode));
-});
-els.login.addEventListener("submit", async (event) => {
+els.auth.addEventListener("submit", async (event) => {
   event.preventDefault();
-  await signIn(new FormData(els.login));
-});
-els.register.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  await register(new FormData(els.register));
+  await continueWithPasskey(new FormData(els.auth));
 });
 
 boot();
 
 async function boot() {
   try {
-    state.session = await requestJSON("/api/account/session");
-    if (state.session?.session) state.session = state.session.session;
-    if (state.session?.setupRequired) {
-      setMode("register");
-    } else {
-      setMode(state.mode);
-    }
+    const result = await requestJSON("/api/account/session");
+    state.session = result?.session ?? result;
     render();
   } catch (error) {
     showMessage(error.message || "Could not load auth state.", true);
   }
 }
 
-function setMode(mode) {
-  state.mode = mode === "register" ? "register" : "login";
-  render();
-}
-
 function render() {
-  const registering = state.mode === "register";
+  const authenticated = state.session?.authenticated === true;
   const setupRequired = state.session?.setupRequired === true;
   const registrationAllowed = setupRequired || state.session?.registrationAllowed === true;
-  els.login.hidden = registering;
-  els.register.hidden = !registering;
-  els.title.textContent = registering ? "Register passkey" : "Passkey sign in";
-  els.summary.textContent = registering
-    ? setupRequired
-      ? "Create the first admin passkey for this app."
-      : "Register another passkey from an admin session."
+  els.title.textContent = authenticated ? "Signed in" : "Continue with passkey";
+  els.summary.textContent = authenticated
+    ? `Signed in as ${state.session.user?.handle || "this account"}.`
+    : setupRequired
+    ? "Create the first passkey for this app."
+    : registrationAllowed
+    ? "Use an existing passkey or create another one."
     : "Use a saved passkey for this app.";
-  els.modeButtons.forEach((button) => {
-    button.disabled = state.busy || button.dataset.mode === state.mode ||
-      (button.dataset.mode === "register" && !registrationAllowed);
-  });
+  els.handle.required = setupRequired;
+  els.handle.placeholder = setupRequired ? "Username" : "Optional";
+  els.adminField.hidden = !setupRequired;
+  els.admin.checked = setupRequired;
+  els.submit.textContent = state.busy ? "Waiting..." : "Continue";
   Array.from(document.querySelectorAll("button, input")).forEach((control) => {
-    if (control.matches("[data-mode]")) return;
-    control.disabled = state.busy || (registering && !registrationAllowed);
+    control.disabled = state.busy || (!authenticated && setupRequired && !registrationAllowed);
   });
-  const admin = els.register.elements.admin;
-  admin.checked = setupRequired ? true : admin.checked;
-  admin.disabled = state.busy || setupRequired;
 }
 
-async function signIn(form) {
-  if (!canUsePasskeyGet()) {
+async function continueWithPasskey(form) {
+  if (state.session?.authenticated) {
+    complete();
+    return;
+  }
+  const setupRequired = state.session?.setupRequired === true;
+  const registrationAllowed = setupRequired || state.session?.registrationAllowed === true;
+  const handle = normalizeHandle(form.get("handle"));
+  if (setupRequired && !handle) {
+    showMessage("Username is required for the first passkey.", true);
+    return;
+  }
+  if (setupRequired && !canUsePasskeyCreate()) {
+    showMessage(passkeyUnavailable("register"), true);
+    return;
+  }
+  if (!setupRequired && !canUsePasskeyGet()) {
     showMessage(passkeyUnavailable("login"), true);
     return;
   }
@@ -83,67 +80,109 @@ async function signIn(form) {
   render();
   showMessage("Waiting for passkey.");
   try {
-    const handle = normalizeHandle(form.get("handle"));
-    const start = await requestJSON("/api/auth/login/start", {
-      method: "POST",
-      body: JSON.stringify({
-        handle,
-        client_origin: globalThis.location.origin,
-      }),
-    });
-    const credential = await navigator.credentials.get({
-      publicKey: toRequestOptions(start.publicKey),
-    });
-    if (!credential) throw new Error("No passkey was returned.");
-    await requestJSON("/api/auth/login/finish", {
-      method: "POST",
-      body: JSON.stringify({
-        response: serializeAuthenticationCredential(credential),
-      }),
-    });
-    complete();
+    if (setupRequired) {
+      state.session = (await registerPasskey(handle, true)).session ?? state.session;
+      complete();
+      return;
+    }
+
+    try {
+      state.session = (await signInPasskey(handle)).session ?? state.session;
+      complete();
+      return;
+    } catch (loginError) {
+      if (handle && shouldTryDiscoverableLogin(loginError)) {
+        try {
+          state.session = (await signInPasskey("")).session ?? state.session;
+          complete();
+          return;
+        } catch {
+          if (!registrationAllowed) throw loginError;
+        }
+      }
+      if (!registrationAllowed || !handle || !shouldTryRegistration(loginError)) {
+        throw loginError;
+      }
+      showMessage("No existing passkey found. Creating one.");
+      state.session = (await registerPasskey(handle, false)).session ?? state.session;
+      complete();
+    }
   } catch (error) {
-    showMessage(error.message || "Passkey sign in failed.", true);
+    showMessage(friendlyAuthError(error), true);
   } finally {
     state.busy = false;
     render();
   }
 }
 
-async function register(form) {
+async function signInPasskey(handle) {
+  const start = await requestJSON("/api/auth/login/start", {
+    method: "POST",
+    body: JSON.stringify({
+      handle,
+      client_origin: globalThis.location.origin,
+    }),
+  });
+  const credential = await navigator.credentials.get({
+    publicKey: toRequestOptions(start.publicKey),
+  });
+  if (!credential) throw new Error("No passkey was returned.");
+  return await requestJSON("/api/auth/login/finish", {
+    method: "POST",
+    body: JSON.stringify({
+      response: serializeAuthenticationCredential(credential),
+    }),
+  });
+}
+
+async function registerPasskey(handle, admin) {
   if (!canUsePasskeyCreate()) {
-    showMessage(passkeyUnavailable("register"), true);
-    return;
+    throw new Error(passkeyUnavailable("register"));
   }
-  state.busy = true;
-  render();
-  showMessage("Waiting for passkey.");
-  try {
-    const start = await requestJSON("/api/auth/register/start", {
-      method: "POST",
-      body: JSON.stringify({
-        handle: normalizeHandle(form.get("handle")),
-        admin: Boolean(form.get("admin")),
-        client_origin: globalThis.location.origin,
-      }),
-    });
-    const credential = await navigator.credentials.create({
-      publicKey: toCreationOptions(start.publicKey),
-    });
-    if (!credential) throw new Error("No passkey was returned.");
-    await requestJSON("/api/auth/register/finish", {
-      method: "POST",
-      body: JSON.stringify({
-        response: serializeRegistrationCredential(credential),
-      }),
-    });
-    complete();
-  } catch (error) {
-    showMessage(error.message || "Passkey registration failed.", true);
-  } finally {
-    state.busy = false;
-    render();
+  const start = await requestJSON("/api/auth/register/start", {
+    method: "POST",
+    body: JSON.stringify({
+      handle,
+      admin,
+      client_origin: globalThis.location.origin,
+    }),
+  });
+  const credential = await navigator.credentials.create({
+    publicKey: toCreationOptions(start.publicKey),
+  });
+  if (!credential) throw new Error("No passkey was returned.");
+  return await requestJSON("/api/auth/register/finish", {
+    method: "POST",
+    body: JSON.stringify({
+      response: serializeRegistrationCredential(credential),
+    }),
+  });
+}
+
+function shouldTryDiscoverableLogin(error) {
+  return authErrorStatus(error) === 404 || authErrorMessage(error).includes("not found");
+}
+
+function shouldTryRegistration(error) {
+  if (error?.name === "NotAllowedError") return false;
+  const message = authErrorMessage(error);
+  return authErrorStatus(error) === 404 || message.includes("not found");
+}
+
+function friendlyAuthError(error) {
+  if (error?.name === "NotAllowedError") return "No passkey was selected.";
+  if (authErrorStatus(error) === 404 || authErrorMessage(error).includes("not found")) {
+    return "No passkey account was found for that username.";
   }
+  return error?.message || "Passkey authentication failed.";
+}
+
+function authErrorStatus(error) {
+  return Number.isFinite(error?.status) ? Number(error.status) : 0;
+}
+
+function authErrorMessage(error) {
+  return String(error?.message || "").toLowerCase();
 }
 
 function complete() {
@@ -151,6 +190,7 @@ function complete() {
   const embedOrigin = parseOrigin(params.get("embedOrigin"));
   if (globalThis.opener && embedOrigin) {
     globalThis.opener.postMessage({ type: AUTH_COMPLETE_MESSAGE }, embedOrigin);
+    globalThis.opener.postMessage({ type: LEGACY_AUTH_COMPLETE_MESSAGE }, embedOrigin);
     globalThis.setTimeout(() => globalThis.close(), 250);
     return;
   }
@@ -177,7 +217,9 @@ async function requestJSON(path, init = {}) {
     body = text;
   }
   if (!response.ok) {
-    throw new Error(errorMessage(body) || response.statusText || "Request failed.");
+    const error = new Error(errorMessage(body) || response.statusText || "Request failed.");
+    error.status = response.status;
+    throw error;
   }
   return body;
 }
