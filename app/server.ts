@@ -46,14 +46,13 @@ import {
 } from "./lib/routing.ts";
 import {
   cacheCounts,
-  isPostgresStoreConfigured,
   listCacheValues,
   readCacheValue,
-  readStateValue,
+  readStateEntry,
   storeHealth,
   writeCacheValue,
-  writeStateValue,
-} from "./lib/postgres_store.ts";
+  writeStateValueIfVersion,
+} from "./lib/kv_store.ts";
 import {
   AccountAuthError,
   accountSessionCookie,
@@ -83,8 +82,6 @@ const RANKINGS_CSV = new URL(
   import.meta.url,
 );
 const RSVP_PROFILE_JSON = new URL("../.codex/techweek-rsvp-profile.json", import.meta.url);
-const APP_STATE_JSON = new URL("../.codex/techweek_app_state.json", import.meta.url);
-const AGENDA_RUNS_DIR = new URL("../.codex/agenda-runs/", import.meta.url);
 const TEXT_REWARDS_REPO = new URL(
   "file:///Users/nv/repos/ubiquity-os-marketplace/text-conversation-rewards/",
 );
@@ -114,6 +111,7 @@ const RANKED_OPPORTUNITY_MAP_LIMIT = 260;
 const ROUTING_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 45;
 const PARTIFUL_SYNC_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 120;
 const AGENDA_RUN_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const APP_STATE_KEY = "app_state_v1";
 const PARTIFUL_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 const PARTIFUL_AUTO_SYNC_LOCK_TTL_MS = 5 * 60 * 1000;
 const DENO_DEPLOY_HOSTNAME = "techweek-2026-event-picker.0x4007.deno.net";
@@ -144,6 +142,36 @@ type InvitePayload = {
   createdAt: string;
   referrals: InviteReferralEntry[];
 };
+
+const LEAD_EXPORT_COLUMNS = [
+  "id",
+  "createdAt",
+  "updatedAt",
+  "eventTitle",
+  "techweekId",
+  "calendarBlockId",
+  "name",
+  "company",
+  "role",
+  "email",
+  "phone",
+  "buyerType",
+  "githubHeavy",
+  "aiCodingAdoption",
+  "painMentioned",
+  "strongQuote",
+  "priority",
+  "followUp",
+  "nextStepDate",
+  "notes",
+  "followUpEmailStatus",
+  "followUpEmailTo",
+  "followUpEmailSubject",
+  "followUpEmailAttemptedAt",
+  "followUpEmailSentAt",
+  "followUpEmailProviderMessageId",
+  "followUpEmailError",
+] as const;
 
 function resolvePreferredPort(): number {
   const envPort = Deno.env.get("PORT");
@@ -439,6 +467,18 @@ type LeadFollowUpEmail = {
   error: string;
 };
 
+type LeadSignal = "yes" | "no" | "unknown";
+
+type LeadPriorityQualification = {
+  role?: unknown;
+  buyerType?: unknown;
+  githubHeavy?: unknown;
+  aiCodingAdoption?: unknown;
+  painMentioned?: unknown;
+  strongQuote?: unknown;
+  followUp?: unknown;
+};
+
 type Lead = {
   id: string;
   calendarBlockId: string;
@@ -449,9 +489,15 @@ type Lead = {
   role: string;
   email: string;
   phone: string;
+  buyerType: string;
+  githubHeavy: LeadSignal;
+  aiCodingAdoption: LeadSignal;
+  painMentioned: string;
+  strongQuote: string;
   notes: string;
   priority: "A" | "B" | "C";
   followUp: string;
+  nextStepDate: string;
   ocr?: OcrDraftMetadata;
   followUpEmail: LeadFollowUpEmail | null;
   createdAt: string;
@@ -1010,7 +1056,7 @@ async function claimReferralByCode(
 ): Promise<{ claimed: boolean; errorMessage?: string }> {
   const code = normalizeInviteCode(referralCode);
   if (!code) return { claimed: false, errorMessage: "Invalid referral code." };
-  return await mutateState(async (state) => {
+  return await mutateState(async (state, commit) => {
     const inviter = state.inviteByCode[code];
     if (!inviter) return { claimed: false, errorMessage: "Invalid referral code." };
     if (inviter.ownerUserId === userId) {
@@ -1024,7 +1070,7 @@ async function claimReferralByCode(
       userHandle: userHandle || "Unknown",
       claimedAt: new Date().toISOString(),
     });
-    await writeState(state);
+    await commit(state);
     return { claimed: true };
   });
 }
@@ -1103,7 +1149,7 @@ async function getInviteCodeByUser(userId: string): Promise<string> {
 }
 
 async function setInviteCodeForUser(userId: string, code: string, handle: string): Promise<void> {
-  await mutateState(async (state) => {
+  await mutateState(async (state, commit) => {
     const owner = state.inviteByCode[code];
     if (owner && owner.ownerUserId !== userId) {
       return;
@@ -1118,7 +1164,7 @@ async function setInviteCodeForUser(userId: string, code: string, handle: string
       };
     }
     state.inviteByCode[code].ownerHandle = handle || "Unknown";
-    await writeState(state);
+    await commit(state);
     return;
   });
 }
@@ -1536,6 +1582,17 @@ function normalizeLeadPriority(value: unknown): Lead["priority"] {
   return value === "A" || value === "C" ? value : "B";
 }
 
+function normalizeLeadSignal(value: unknown): LeadSignal {
+  const normalized = String(value || "unknown").trim().toLowerCase();
+  if (normalized === "yes" || normalized === "no") return normalized;
+  return "unknown";
+}
+
+function normalizeLeadNextStepDate(value: unknown): string {
+  const normalized = textField(value, 20);
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
+}
+
 export function deriveLeadPriorityFromEvent(
   entry: Pick<ScheduleEntry, "tier" | "opportunityScore" | "rank">,
 ): "A" | "B" | "C" {
@@ -1559,6 +1616,43 @@ export function deriveLeadPriorityFromEvent(
   }
 
   return "B";
+}
+
+export function deriveLeadPriorityForLead(
+  entry: Pick<ScheduleEntry, "tier" | "opportunityScore" | "rank">,
+  qualification: LeadPriorityQualification = {},
+): "A" | "B" | "C" {
+  const eventPriority = deriveLeadPriorityFromEvent(entry);
+  let score = eventPriority === "A" ? 2 : eventPriority === "B" ? 1 : 0;
+
+  const buyerType = textField(qualification.buyerType, 120).toLowerCase();
+  const role = textField(qualification.role, 180).toLowerCase();
+  const buyerAndRole = `${buyerType} ${role}`;
+  if (
+    /engineering leader|cto|vp eng|head of engineering|platform|devex|oss|devrel|maintainer|founder|operator/
+      .test(buyerAndRole)
+  ) {
+    score += 2;
+  } else if (/ic builder|builder|engineer|developer/.test(buyerAndRole)) {
+    score += 1;
+  } else if (/investor|advisor|gtm|sales|marketing|other/.test(buyerType)) {
+    score -= 1;
+  }
+
+  const githubHeavy = normalizeLeadSignal(qualification.githubHeavy);
+  const aiCodingAdoption = normalizeLeadSignal(qualification.aiCodingAdoption);
+  if (githubHeavy === "yes") score += 1;
+  if (githubHeavy === "no") score -= 1;
+  if (aiCodingAdoption === "yes") score += 1;
+  if (aiCodingAdoption === "no") score -= 1;
+
+  if (textField(qualification.painMentioned, 1000)) score += 1;
+  if (textField(qualification.strongQuote, 800)) score += 1;
+  if (textField(qualification.followUp, 300)) score += 1;
+
+  if (score >= 4) return "A";
+  if (score >= 2) return "B";
+  return "C";
 }
 
 function normalizeLeadFollowUpEmail(value: unknown): LeadFollowUpEmail | null {
@@ -1633,10 +1727,16 @@ function normalizeLeads(value: unknown): Lead[] {
         role: String(lead.role || ""),
         email: String(lead.email || ""),
         phone: String(lead.phone || ""),
-        notes: String(lead.notes || ""),
+        buyerType: textField(lead.buyerType, 120),
+        githubHeavy: normalizeLeadSignal(lead.githubHeavy),
+        aiCodingAdoption: normalizeLeadSignal(lead.aiCodingAdoption),
+        painMentioned: textField(lead.painMentioned, 1200),
+        strongQuote: textField(lead.strongQuote, 900),
+        notes: textField(lead.notes, 2400),
         ocr: normalizeLeadOcrMetadata(lead.ocr),
         priority: normalizeLeadPriority(lead.priority),
-        followUp: String(lead.followUp || ""),
+        followUp: textField(lead.followUp, 300),
+        nextStepDate: normalizeLeadNextStepDate(lead.nextStepDate),
         followUpEmail: normalizeLeadFollowUpEmail(lead.followUpEmail),
         createdAt: String(lead.createdAt || new Date().toISOString()),
         updatedAt: String(lead.updatedAt || lead.createdAt || new Date().toISOString()),
@@ -1977,9 +2077,31 @@ export async function sendResendTestEmail(to: string): Promise<LeadFollowUpEmail
   );
 }
 
+type AppStateSnapshot = {
+  state: AppState;
+  versionstamp: string | null;
+};
+
+class StateWriteConflictError extends Error {
+  constructor() {
+    super("App state changed before the mutation could be committed.");
+    this.name = "StateWriteConflictError";
+  }
+}
+
 async function readState(): Promise<AppState> {
-  const parsed = await readStateValue<Partial<AppState>>("app_state_v1") ??
-    await readLocalAppState();
+  return (await readStateSnapshot()).state;
+}
+
+async function readStateSnapshot(): Promise<AppStateSnapshot> {
+  const parsed = await readStateEntry<Partial<AppState>>(APP_STATE_KEY);
+  return {
+    state: normalizeAppState(parsed.value),
+    versionstamp: parsed.versionstamp,
+  };
+}
+
+function normalizeAppState(parsed: Partial<AppState> | null): AppState {
   if (!parsed) return emptyState();
   return {
     version: 1,
@@ -2054,43 +2176,39 @@ function normalizeInviteReferralEntry(value: unknown): InviteReferralEntry {
   };
 }
 
-async function writeState(state: AppState): Promise<AppState> {
+async function writeStateIfUnchanged(
+  state: AppState,
+  versionstamp: string | null,
+): Promise<AppState> {
   state.updatedAt = new Date().toISOString();
-  await writeStateValue("app_state_v1", state);
-  if (!isPostgresStoreConfigured()) await writeLocalAppState(state);
+  const nextVersionstamp = await writeStateValueIfVersion(APP_STATE_KEY, versionstamp, state);
+  if (!nextVersionstamp) throw new StateWriteConflictError();
   return state;
 }
 
-async function mutateState<T>(operation: (state: AppState) => Promise<T>): Promise<T> {
+async function mutateState<T>(
+  operation: (
+    state: AppState,
+    commit: (state: AppState) => Promise<AppState>,
+  ) => Promise<T>,
+): Promise<T> {
   const run = stateMutationQueue.catch(() => undefined).then(async () => {
-    const state = await readState();
-    return await operation(state);
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const snapshot = await readStateSnapshot();
+      try {
+        return await operation(
+          snapshot.state,
+          (state) => writeStateIfUnchanged(state, snapshot.versionstamp),
+        );
+      } catch (error) {
+        if (error instanceof StateWriteConflictError) continue;
+        throw error;
+      }
+    }
+    throw new StateWriteConflictError();
   });
   stateMutationQueue = run.then(() => undefined, () => undefined);
   return await run;
-}
-
-async function readLocalAppState(): Promise<Partial<AppState> | null> {
-  return await readJsonFile<Partial<AppState>>(APP_STATE_JSON);
-}
-
-async function writeLocalAppState(state: AppState): Promise<void> {
-  try {
-    await Deno.mkdir(new URL(".", APP_STATE_JSON), { recursive: true });
-    await Deno.writeTextFile(APP_STATE_JSON, `${JSON.stringify(state, null, 2)}\n`);
-  } catch (error) {
-    console.warn("Skipping local app-state mirror write.", safeError(error));
-  }
-}
-
-async function readJsonFile<T>(url: URL): Promise<T | null> {
-  try {
-    const parsed = JSON.parse(await Deno.readTextFile(url));
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as T : null;
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return null;
-    throw error;
-  }
 }
 
 function normalizePartifulAutoSync(value: unknown): PartifulAutoSyncState {
@@ -2374,12 +2492,12 @@ async function handleStateAction(request: Request): Promise<Response> {
   if (type === "event_note") {
     const calendarBlockId = String(body.calendarBlockId ?? body.calendar_block_id ?? "").trim();
     if (!calendarBlockId) return badRequest("calendarBlockId is required.");
-    return await mutateState(async (state) => {
+    return await mutateState(async (state, commit) => {
       state.eventNotes[calendarBlockId] = {
         note: String(body.note ?? "").trim(),
         updatedAt: now,
       };
-      return json({ state: await writeState(state) });
+      return json({ state: await commit(state) });
     });
   }
 
@@ -2387,11 +2505,11 @@ async function handleStateAction(request: Request): Promise<Response> {
     const calendarBlockId = String(body.calendarBlockId ?? body.calendar_block_id ?? "").trim();
     if (!calendarBlockId) return badRequest("calendarBlockId is required.");
     const dismissed = Boolean(body.dismissed ?? true);
-    return await mutateState(async (state) => {
+    return await mutateState(async (state, commit) => {
       state.dismissedBlocks = dismissed
         ? [...new Set([...state.dismissedBlocks, calendarBlockId])]
         : state.dismissedBlocks.filter((item) => item !== calendarBlockId);
-      return json({ state: await writeState(state) });
+      return json({ state: await commit(state) });
     });
   }
 
@@ -2405,6 +2523,15 @@ async function handleStateAction(request: Request): Promise<Response> {
       return badRequest("Lead must be associated with an event block.");
     }
 
+    const qualification = {
+      role: textField(body.role, 180),
+      buyerType: textField(body.buyerType, 120),
+      githubHeavy: normalizeLeadSignal(body.githubHeavy),
+      aiCodingAdoption: normalizeLeadSignal(body.aiCodingAdoption),
+      painMentioned: textField(body.painMentioned, 1200),
+      strongQuote: textField(body.strongQuote, 900),
+      followUp: textField(body.followUp, 300),
+    };
     const lead: Lead = {
       id: crypto.randomUUID(),
       calendarBlockId,
@@ -2412,15 +2539,19 @@ async function handleStateAction(request: Request): Promise<Response> {
       eventTitle: entry.displayTitle,
       name: textField(body.name, 160),
       company: textField(body.company, 180),
-      role: textField(body.role, 180),
+      role: qualification.role,
       email: normalizeLeadEmail(textField(body.email, 220)),
       phone: normalizeLeadPhone(textField(body.phone, 80)),
-      notes: textField(body.notes, 2000),
+      buyerType: qualification.buyerType,
+      githubHeavy: qualification.githubHeavy,
+      aiCodingAdoption: qualification.aiCodingAdoption,
+      painMentioned: qualification.painMentioned,
+      strongQuote: qualification.strongQuote,
+      notes: textField(body.notes, 2400),
       ocr: normalizeLeadOcrMetadata(body.ocr),
-      priority: body.priority === undefined
-        ? deriveLeadPriorityFromEvent(entry)
-        : normalizeLeadPriority(body.priority),
-      followUp: textField(body.followUp, 300),
+      priority: deriveLeadPriorityForLead(entry, qualification),
+      followUp: qualification.followUp,
+      nextStepDate: normalizeLeadNextStepDate(body.nextStepDate),
       followUpEmail: null,
       createdAt: now,
       updatedAt: now,
@@ -2434,22 +2565,93 @@ async function handleStateAction(request: Request): Promise<Response> {
       lead.followUpEmail = await sendLeadFollowUpEmail(lead, entry, now);
     }
 
-    return await mutateState(async (state) => {
+    return await mutateState(async (state, commit) => {
       state.leads = [lead, ...state.leads].slice(0, 250);
-      return json({ state: await writeState(state), lead });
+      return json({ state: await commit(state), lead });
     });
   }
 
   if (type === "lead_delete") {
     const id = textField(body.id, 160);
     if (!id) return badRequest("id is required.");
-    return await mutateState(async (state) => {
+    return await mutateState(async (state, commit) => {
       state.leads = state.leads.filter((lead) => lead.id !== id);
-      return json({ state: await writeState(state) });
+      return json({ state: await commit(state) });
     });
   }
 
   return badRequest("Unsupported state action.");
+}
+
+async function handleExport(pathname: string): Promise<Response> {
+  const state = await readState();
+  const exportedAt = new Date().toISOString();
+  if (pathname === "/api/export/state.json") {
+    return json({
+      exportedAt,
+      version: state.version,
+      state,
+    }, exportHeaders("techweek-state-export.json"));
+  }
+  if (pathname === "/api/export/leads.json") {
+    return json({
+      exportedAt,
+      count: state.leads.length,
+      leads: state.leads,
+    }, exportHeaders("techweek-crm-leads.json"));
+  }
+  if (pathname === "/api/export/leads.csv") {
+    return textResponse(leadExportCsv(state.leads), "text/csv; charset=utf-8", {
+      headers: exportHeaders("techweek-crm-leads.csv").headers,
+    });
+  }
+  return notFound();
+}
+
+function exportHeaders(filename: string): ResponseInit {
+  return {
+    headers: {
+      "cache-control": "no-store",
+      "content-disposition": `attachment; filename="${filename}"`,
+    },
+  };
+}
+
+function leadExportCsv(leads: Lead[]): string {
+  const rows = [
+    LEAD_EXPORT_COLUMNS.join(","),
+    ...leads.map((lead) =>
+      LEAD_EXPORT_COLUMNS.map((column) => csvCell(leadExportValue(lead, column))).join(",")
+    ),
+  ];
+  return `${rows.join("\n")}\n`;
+}
+
+function leadExportValue(lead: Lead, column: typeof LEAD_EXPORT_COLUMNS[number]): string {
+  const email = lead.followUpEmail;
+  switch (column) {
+    case "followUpEmailStatus":
+      return email?.status ?? "";
+    case "followUpEmailTo":
+      return email?.to ?? "";
+    case "followUpEmailSubject":
+      return email?.subject ?? "";
+    case "followUpEmailAttemptedAt":
+      return email?.attemptedAt ?? "";
+    case "followUpEmailSentAt":
+      return email?.sentAt ?? "";
+    case "followUpEmailProviderMessageId":
+      return email?.providerMessageId ?? "";
+    case "followUpEmailError":
+      return email?.error ?? "";
+    default:
+      return String(lead[column] ?? "");
+  }
+}
+
+function csvCell(value: string): string {
+  if (!/[",\n\r]/.test(value)) return value;
+  return `"${value.replaceAll('"', '""')}"`;
 }
 
 async function handleAgendaRecalculate(request: Request): Promise<Response> {
@@ -2465,9 +2667,13 @@ async function handleAgendaRecalculate(request: Request): Promise<Response> {
   await storeAgendaRun(result);
   const responseBody: Record<string, unknown> = { agenda: result };
   if (raw.activate === true) {
-    const [entries, state] = await Promise.all([readAgendaCandidateEntries(), readState()]);
-    state.activeAgendaRunId = result.agendaRunId;
-    const updatedState = await writeState(state);
+    const [entries, updatedState] = await Promise.all([
+      readAgendaCandidateEntries(),
+      mutateState(async (state, commit) => {
+        state.activeAgendaRunId = result.agendaRunId;
+        return await commit(state);
+      }),
+    ]);
     responseBody.schedule = buildSchedulePayload(entries, updatedState, result);
   }
   return json(responseBody);
@@ -2490,36 +2696,10 @@ async function storeAgendaRun(result: AgendaRecalculateResult): Promise<void> {
     ttlMs: AGENDA_RUN_CACHE_TTL_MS,
     metadata: metadata as unknown as Record<string, unknown>,
   });
-  if (!isPostgresStoreConfigured()) await writeLocalAgendaRun(result);
 }
 
 async function readAgendaRun(id: string): Promise<AgendaRecalculateResult | null> {
-  return await readCacheValue<AgendaRecalculateResult>("agendaRun", agendaRunCacheId(id)) ??
-    await readLocalAgendaRun(id);
-}
-
-async function writeLocalAgendaRun(result: AgendaRecalculateResult): Promise<void> {
-  try {
-    await Deno.mkdir(AGENDA_RUNS_DIR, { recursive: true });
-    await Deno.writeTextFile(
-      agendaRunFile(result.agendaRunId),
-      `${JSON.stringify(result, null, 2)}\n`,
-    );
-  } catch (error) {
-    console.warn("Skipping local agenda-run mirror write.", safeError(error));
-  }
-}
-
-async function readLocalAgendaRun(id: string): Promise<AgendaRecalculateResult | null> {
-  return await readJsonFile<AgendaRecalculateResult>(agendaRunFile(id));
-}
-
-function agendaRunFile(id: string): URL {
-  return new URL(`${safeFileSegment(id)}.json`, AGENDA_RUNS_DIR);
-}
-
-function safeFileSegment(value: string): string {
-  return value.replaceAll(/[^A-Za-z0-9_.-]/g, "_").slice(0, 180);
+  return await readCacheValue<AgendaRecalculateResult>("agendaRun", agendaRunCacheId(id));
 }
 
 async function recalculateAgendaFromBody(
@@ -2734,9 +2914,10 @@ async function runPartifulSnapshotSync(raw: Record<string, unknown>): Promise<Re
     await storeAgendaRun(agenda);
     responseBody.agenda = agenda;
     if (raw.activate === true) {
-      const state = await readState();
-      state.activeAgendaRunId = agenda.agendaRunId;
-      const updatedState = await writeState(state);
+      const updatedState = await mutateState(async (state, commit) => {
+        state.activeAgendaRunId = agenda.agendaRunId;
+        return await commit(state);
+      });
       responseBody.schedule = buildSchedulePayload(
         await readAgendaCandidateEntries(),
         updatedState,
@@ -2894,50 +3075,54 @@ async function handlePartifulAutoSync(request: Request): Promise<Response> {
   const authorizationError = await requireAdminAccountSession(request);
   if (authorizationError) return authorizationError;
 
-  const state = await readState();
   const nowMs = Date.now();
-  const decision = partifulAutoSyncDecision(state.partifulAutoSync, nowMs);
+  let queuedRunId = "";
+  const response = await mutateState(async (state, commit) => {
+    const decision = partifulAutoSyncDecision(state.partifulAutoSync, nowMs);
 
-  if (decision.action === "already_running") {
+    if (decision.action === "already_running") {
+      return json({
+        action: "already_running",
+        reason: decision.reason,
+        partifulAutoSync: state.partifulAutoSync,
+      }, { status: 202 });
+    }
+
+    if (decision.action === "skip_recent") {
+      if (decision.staleRunning) {
+        state.partifulAutoSync = {
+          ...state.partifulAutoSync,
+          status: "failed",
+          lastCompletedAt: new Date(nowMs).toISOString(),
+          lastError: "Previous automatic Partiful sync did not finish before its lock expired.",
+        };
+        await commit(state);
+      }
+      return json({
+        action: "skipped",
+        reason: decision.reason,
+        partifulAutoSync: state.partifulAutoSync,
+      });
+    }
+
+    const runId = `partiful-auto-${new Date(nowMs).toISOString().replaceAll(/[:.]/g, "-")}`;
+    state.partifulAutoSync = {
+      ...state.partifulAutoSync,
+      status: "running",
+      lastStartedAt: new Date(nowMs).toISOString(),
+      lastRunId: runId,
+      lastError: "",
+      nextAllowedAt: new Date(nowMs + PARTIFUL_AUTO_SYNC_INTERVAL_MS).toISOString(),
+    };
+    await commit(state);
+    queuedRunId = runId;
     return json({
-      action: "already_running",
-      reason: decision.reason,
+      action: "started",
       partifulAutoSync: state.partifulAutoSync,
     }, { status: 202 });
-  }
-
-  if (decision.action === "skip_recent") {
-    if (decision.staleRunning) {
-      state.partifulAutoSync = {
-        ...state.partifulAutoSync,
-        status: "failed",
-        lastCompletedAt: new Date(nowMs).toISOString(),
-        lastError: "Previous automatic Partiful sync did not finish before its lock expired.",
-      };
-      await writeState(state);
-    }
-    return json({
-      action: "skipped",
-      reason: decision.reason,
-      partifulAutoSync: state.partifulAutoSync,
-    });
-  }
-
-  const runId = `partiful-auto-${new Date(nowMs).toISOString().replaceAll(/[:.]/g, "-")}`;
-  state.partifulAutoSync = {
-    ...state.partifulAutoSync,
-    status: "running",
-    lastStartedAt: new Date(nowMs).toISOString(),
-    lastRunId: runId,
-    lastError: "",
-    nextAllowedAt: new Date(nowMs + PARTIFUL_AUTO_SYNC_INTERVAL_MS).toISOString(),
-  };
-  await writeState(state);
-  queuePartifulAutoSync(runId);
-  return json({
-    action: "started",
-    partifulAutoSync: state.partifulAutoSync,
-  }, { status: 202 });
+  });
+  if (queuedRunId) queuePartifulAutoSync(queuedRunId);
+  return response;
 }
 
 type PartifulAutoSyncDecision =
@@ -3007,28 +3192,30 @@ async function runPartifulAutoSync(runId: string): Promise<void> {
 
     const liveAgenda = await recalculateAgendaFromBody({ liveRouting: true });
     await storeAgendaRun(liveAgenda);
-    const state = await readState();
-    if (state.partifulAutoSync.lastRunId !== runId) return;
-    state.activeAgendaRunId = liveAgenda.agendaRunId;
-    state.partifulAutoSync = {
-      ...state.partifulAutoSync,
-      status: "completed",
-      lastCompletedAt: new Date().toISOString(),
-      lastAgendaRunId: liveAgenda.agendaRunId,
-      lastError: "",
-    };
-    await writeState(state);
+    await mutateState(async (state, commit) => {
+      if (state.partifulAutoSync.lastRunId !== runId) return;
+      state.activeAgendaRunId = liveAgenda.agendaRunId;
+      state.partifulAutoSync = {
+        ...state.partifulAutoSync,
+        status: "completed",
+        lastCompletedAt: new Date().toISOString(),
+        lastAgendaRunId: liveAgenda.agendaRunId,
+        lastError: "",
+      };
+      await commit(state);
+    });
   } catch (error) {
     console.error("[partiful:auto-sync]", error);
-    const state = await readState();
-    if (state.partifulAutoSync.lastRunId !== runId) return;
-    state.partifulAutoSync = {
-      ...state.partifulAutoSync,
-      status: "failed",
-      lastCompletedAt: new Date().toISOString(),
-      lastError: error instanceof Error ? error.message : String(error),
-    };
-    await writeState(state);
+    await mutateState(async (state, commit) => {
+      if (state.partifulAutoSync.lastRunId !== runId) return;
+      state.partifulAutoSync = {
+        ...state.partifulAutoSync,
+        status: "failed",
+        lastCompletedAt: new Date().toISOString(),
+        lastError: error instanceof Error ? error.message : String(error),
+      };
+      await commit(state);
+    });
   }
 }
 
@@ -3347,12 +3534,13 @@ function crmLeadRubricContextText(): string {
     "Do not attach leads to travel, food, meal/reset, sleep, or other logistics blocks.",
     "Default lead event selection rule: use the current actual event by actual_start/actual_end; if no actual event is currently in progress, use the most recent previous actual event; if none exists, use the first upcoming actual event.",
     "For follow-up coaching, always consider the selected event's audience, host, topic, status, location, ranking, matched signals, and sales coaching.",
+    "Capture fields are: name, company, role, event met at, buyer type, GitHub-heavy status, AI coding adoption, pain mentioned, strong quote, follow-up ask, priority, and next step date.",
     "",
-    "CRM priority is assigned automatically from the selected event's ranking metadata, not from a manual CRM field or business-card role.",
-    "- Priority A: selected event is S/A tier, has a high opportunity score, or is top-ranked.",
-    "- Priority B: selected event is B tier or mid-ranked.",
-    "- Priority C: selected event is C tier, low-scoring, or weakly ranked.",
-    "Treat priority as event importance when coaching. Still qualify each person from their role, company, notes, and conversation context.",
+    "CRM priority is assigned automatically from selected-event importance plus lead qualification; it is not a manual CRM field.",
+    "- Priority A: high-value event plus qualified buyer/product signals, or unusually strong qualification from a lower-priority event.",
+    "- Priority B: useful event context or partial qualification, but more discovery is needed.",
+    "- Priority C: weak event fit, off-ICP buyer type, missing GitHub/AI-coding signal, or no actionable pain/follow-up ask.",
+    "Treat priority as a blended follow-up urgency. Still qualify each person from role, company, buyer type, pain, quote, GitHub-heavy status, AI coding adoption, and conversation context.",
     "",
     "Follow-up guidance:",
     "- For A leads, propose a specific next step: 5-minute demo, sample manager packet review, one-repo pilot discussion, or intro to the person owning engineering process.",
@@ -3601,8 +3789,14 @@ function compactLead(lead: Lead): string {
     lead.role ? `role=${lead.role}` : "",
     lead.email ? `email=${lead.email}` : "",
     lead.phone ? `phone=${lead.phone}` : "",
+    lead.buyerType ? `buyer_type=${lead.buyerType}` : "",
+    lead.githubHeavy ? `github_heavy=${lead.githubHeavy}` : "",
+    lead.aiCodingAdoption ? `ai_coding_adoption=${lead.aiCodingAdoption}` : "",
+    lead.painMentioned ? `pain=${lead.painMentioned}` : "",
+    lead.strongQuote ? `quote=${lead.strongQuote}` : "",
     lead.priority ? `priority=${lead.priority}` : "",
-    lead.followUp ? `follow_up=${lead.followUp}` : "",
+    lead.followUp ? `follow_up_ask=${lead.followUp}` : "",
+    lead.nextStepDate ? `next_step_date=${lead.nextStepDate}` : "",
     lead.followUpEmail ? `follow_up_email=${lead.followUpEmail.status}` : "",
     lead.notes ? `notes=${lead.notes}` : "",
     `created=${lead.createdAt}`,
@@ -4576,7 +4770,7 @@ function normalizeLeadDraft(value: unknown): LeadDraft {
     email: normalizeOcrEmail(raw.email ?? contact.email),
     phone: normalizeOcrPhone(raw.phone ?? contact.phone),
     notes,
-    followUp: textField(raw.followUp ?? raw.follow_up, 300),
+    followUp: textField(raw.followUpAsk ?? raw.followUp ?? raw.follow_up, 300),
   };
 }
 
@@ -5544,6 +5738,9 @@ export async function router(request: Request): Promise<Response> {
     }
     if (request.method === "GET" && url.pathname === "/api/cache/routes") {
       return await handleCacheStatus();
+    }
+    if (request.method === "GET" && pathname.startsWith("/api/export/")) {
+      return await handleExport(pathname);
     }
     if (request.method === "GET" && url.pathname === "/api/model-context") {
       return await handleModelContext();

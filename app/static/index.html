@@ -234,7 +234,7 @@
           </header>
           <form data-lead-form>
             <label>
-              <span>Event</span>
+              <span>Event met at</span>
               <select name="calendarBlockId" data-lead-event></select>
             </label>
             <section data-card-scan>
@@ -265,6 +265,20 @@
                 <input name="role" autocomplete="organization-title">
               </label>
               <label>
+                <span>Buyer type</span>
+                <select name="buyerType">
+                  <option value="">Unknown</option>
+                  <option>Engineering leader</option>
+                  <option>Founder/operator</option>
+                  <option>Platform/DevEx</option>
+                  <option>OSS/DevRel</option>
+                  <option>IC builder</option>
+                  <option>Investor/advisor</option>
+                  <option>GTM/operator</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>
                 <span>Email</span>
                 <input name="email" type="email" autocomplete="email" inputmode="email">
               </label>
@@ -273,23 +287,70 @@
                 <input name="phone" type="tel" autocomplete="tel" inputmode="tel">
               </label>
             </section>
-            <section data-lead-meta>
+            <section data-lead-signals>
               <label>
-                <span>Follow-up</span>
-                <input name="followUp" placeholder="20 min call / intro / notes">
+                <span>GitHub-heavy?</span>
+                <select name="githubHeavy">
+                  <option value="unknown">Unknown</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              <label>
+                <span>AI coding adoption?</span>
+                <select name="aiCodingAdoption">
+                  <option value="unknown">Unknown</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
               </label>
             </section>
+            <label>
+              <span>Pain mentioned</span>
+              <textarea
+                name="painMentioned"
+                rows="2"
+                placeholder="Manual evidence, review visibility, attribution gaps..."
+              ></textarea>
+            </label>
+            <label>
+              <span>Strong quote</span>
+              <textarea
+                name="strongQuote"
+                rows="2"
+                placeholder="Exact words worth remembering"
+              ></textarea>
+            </label>
+            <section data-lead-meta>
+              <label>
+                <span>Follow-up ask</span>
+                <input name="followUp" placeholder="20 min call / intro / sample packet">
+              </label>
+              <label>
+                <span>Next step date</span>
+                <input name="nextStepDate" type="date">
+              </label>
+            </section>
+            <p data-lead-priority-preview></p>
             <label data-send-follow-up>
               <input type="checkbox" name="sendFollowUpEmail">
-              <span>Send follow-up email</span>
+              <span data-follow-up-email-copy>
+                <strong>Send follow-up email</strong>
+                <small data-follow-up-email-summary>Immediately after saving</small>
+              </span>
               <small data-follow-up-email-status>Email off</small>
             </label>
+            <section data-follow-up-email-preview aria-live="polite">
+              <p><strong>To</strong><span data-follow-up-email-to></span></p>
+              <p><strong>Subject</strong><span data-follow-up-email-subject></span></p>
+              <p><strong>Body</strong><span data-follow-up-email-body></span></p>
+            </section>
             <label>
               <span>Notes</span>
               <textarea
                 name="notes"
                 rows="3"
-                placeholder="Pain signal, context, promised follow-up..."
+                placeholder="Loose context, intro path, reminders..."
               ></textarea>
             </label>
             <p data-lead-error hidden></p>

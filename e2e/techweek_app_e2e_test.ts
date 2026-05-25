@@ -1,5 +1,6 @@
 import { chromium, devices, type Page, type Route } from "playwright";
-import { router } from "../app/server.ts";
+import { router, setAccountSessionForTest } from "../app/server.ts";
+import { setKvPathForTest } from "../app/lib/kv_store.ts";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -17,6 +18,21 @@ type MockGatewayReply = {
   headers?: Record<string, string>;
 };
 
+type MockResendReply = {
+  status?: number;
+  body: unknown;
+  headers?: Record<string, string>;
+};
+
+type MockResendCall = {
+  method: string;
+  url: string;
+  authorization: string;
+  body: JsonRecord;
+};
+
+const E2E_SESSION_COOKIE = "techweek_session=e2e-session";
+const E2E_AUTH_HEADERS = { cookie: E2E_SESSION_COOKIE };
 const FIXTURE_CARD_JPEG = fileUrlPath(new URL("./fixtures/IMG_8538.jpg", import.meta.url));
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -28,6 +44,18 @@ function fileUrlPath(url: URL): string {
 }
 
 async function withApp(test: (baseUrl: string) => Promise<void>) {
+  await setKvPathForTest(":memory:");
+  setAccountSessionForTest({
+    authenticated: true,
+    auth: "passkey",
+    user: {
+      id: "e2e_admin",
+      handle: "e2e-admin",
+      isAdmin: true,
+      credentialCount: 1,
+    },
+    expiresAt: "2026-06-01T12:00:00.000Z",
+  });
   const server = Deno.serve(
     { hostname: "127.0.0.1", port: 0, onListen: () => {} },
     router,
@@ -37,6 +65,8 @@ async function withApp(test: (baseUrl: string) => Promise<void>) {
     await test(`http://127.0.0.1:${addr.port}`);
   } finally {
     await server.shutdown();
+    setAccountSessionForTest(undefined);
+    await setKvPathForTest(undefined);
   }
 }
 
@@ -47,6 +77,7 @@ async function withIphonePage(test: (page: Page) => Promise<void>) {
   });
   const context = await browser.newContext({
     ...(devices["iPhone 14"] ?? devices["iPhone 13"]),
+    extraHTTPHeaders: E2E_AUTH_HEADERS,
     locale: "en-US",
   });
   const page = await context.newPage();
@@ -66,6 +97,7 @@ async function withDesktopPage(test: (page: Page) => Promise<void>) {
   const context = await browser.newContext({
     viewport: { width: 1040, height: 760 },
     deviceScaleFactor: 1,
+    extraHTTPHeaders: E2E_AUTH_HEADERS,
     locale: "en-US",
   });
   const page = await context.newPage();
@@ -75,6 +107,14 @@ async function withDesktopPage(test: (page: Page) => Promise<void>) {
     await context.close();
     await browser.close();
   }
+}
+
+async function addAdminSessionCookie(page: Page, baseUrl: string) {
+  await page.context().addCookies([{
+    name: "techweek_session",
+    value: "e2e-admin-session",
+    url: baseUrl,
+  }]);
 }
 
 async function withEnv(
@@ -320,14 +360,20 @@ async function deleteLeadsByName(baseUrl: string, name: string) {
     if (lead.name !== name || !lead.id) continue;
     await fetch(`${baseUrl}/api/state`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { ...E2E_AUTH_HEADERS, "content-type": "application/json" },
       body: JSON.stringify({ type: "lead_delete", id: lead.id }),
     });
   }
 }
 
+async function savedLeadByName(baseUrl: string, name: string): Promise<JsonRecord | null> {
+  const schedule = await fetchJson(`${baseUrl}/api/schedule`);
+  const state = schedule.state as { leads?: JsonRecord[] };
+  return state.leads?.find((lead) => lead.name === name) ?? null;
+}
+
 async function fetchJson(url: string): Promise<JsonRecord> {
-  const response = await fetch(url);
+  const response = await fetch(url, { headers: E2E_AUTH_HEADERS });
   assert(response.ok, `Expected ${url} to return 2xx, got ${response.status}`);
   return await response.json() as JsonRecord;
 }
@@ -472,6 +518,63 @@ async function leadEventOptionTexts(page: Page): Promise<string[]> {
   );
 }
 
+async function openCrm(page: Page, baseUrl: string) {
+  await addAdminSessionCookie(page, baseUrl);
+  await page.goto(baseUrl);
+  await page.getByRole("button", { name: "CRM" }).click();
+  await page.waitForFunction(
+    `document.querySelector("[data-follow-up-email-status]")
+      ?.getAttribute("data-follow-up-email-status")`,
+  );
+}
+
+async function withMockResend(
+  replies: MockResendReply[],
+  test: (calls: MockResendCall[]) => Promise<void>,
+) {
+  const original = globalThis.fetch;
+  const calls: MockResendCall[] = [];
+  let replyIndex = 0;
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url === "https://api.resend.com/emails") {
+      let body: JsonRecord = {};
+      try {
+        body = JSON.parse(String(init?.body ?? "{}")) as JsonRecord;
+      } catch {
+        body = {};
+      }
+      const headers = new Headers(init?.headers);
+      calls.push({
+        method: String(init?.method || "GET"),
+        url,
+        authorization: headers.get("authorization") || "",
+        body,
+      });
+      const reply = replies[Math.min(replyIndex, replies.length - 1)] ??
+        { status: 502, body: { message: "Missing mock Resend reply." } };
+      replyIndex += 1;
+      const responseHeaders = new Headers(reply.headers);
+      if (!responseHeaders.has("content-type") && typeof reply.body !== "string") {
+        responseHeaders.set("content-type", "application/json");
+      }
+      return Promise.resolve(
+        new Response(
+          typeof reply.body === "string" ? reply.body : JSON.stringify(reply.body),
+          { status: reply.status ?? 200, headers: responseHeaders },
+        ),
+      );
+    }
+    return original(input, init);
+  }) as typeof fetch;
+
+  try {
+    await test(calls);
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
 function jsonLogs(logs: string[], type: string): JsonRecord[] {
   return logs.flatMap((line) => {
     try {
@@ -596,6 +699,393 @@ Deno.test({
         assert(
           !selected.includes("From Vibe Coding"),
           "Expected between-events fallback to avoid jumping to the next event.",
+        );
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "CRM follow-up email preview explains send state",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withEnv({
+      RESEND_API_KEY: "test_resend_key",
+      RESEND_EMAIL_FROM: "Tech Week CRM <followups@example.com>",
+    }, async () => {
+      await withApp(async (baseUrl) => {
+        await withIphonePage(async (page) => {
+          await addAdminSessionCookie(page, baseUrl);
+          await page.goto(baseUrl);
+          await page.getByRole("button", { name: "CRM" }).click();
+          await page.waitForFunction(
+            `document.querySelector("[data-follow-up-email-status]")
+              ?.getAttribute("data-follow-up-email-status")`,
+          );
+
+          const checkbox = page.locator("[name=sendFollowUpEmail]");
+          assert(await checkbox.isEnabled(), "Expected configured follow-up checkbox enabled.");
+          assert(await checkbox.isChecked(), "Expected configured follow-up checkbox checked.");
+          assert(
+            await page.locator("[data-follow-up-email-status]").textContent() === "Needs email",
+            "Expected missing recipient status before an email is entered.",
+          );
+
+          let preview = await page.locator("[data-follow-up-email-preview]").textContent() ?? "";
+          assert(
+            preview.includes("Add an email address before saving."),
+            `Expected missing recipient guidance, got ${preview}`,
+          );
+          assert(
+            preview.includes("Great connecting at"),
+            `Expected subject preview, got ${preview}`,
+          );
+
+          await page.locator("[name=email]").fill("ada@example.com");
+          await page.locator("[name=followUp]").fill("Send the sample manager packet");
+          assert(
+            await page.locator("[data-follow-up-email-status]").textContent() === "Ready",
+            "Expected ready status after entering a recipient.",
+          );
+
+          preview = await page.locator("[data-follow-up-email-preview]").textContent() ?? "";
+          assert(preview.includes("ada@example.com"), `Expected recipient preview, got ${preview}`);
+          assert(
+            preview.includes("Next step: Send the sample manager packet"),
+            `Expected follow-up ask preview, got ${preview}`,
+          );
+
+          await checkbox.uncheck();
+          assert(
+            await page.locator("[data-follow-up-email-status]").textContent() === "Off",
+            "Expected off status after unchecking follow-up email.",
+          );
+          preview = await page.locator("[data-follow-up-email-preview]").textContent() ?? "";
+          assert(
+            preview.includes("Lead will save without email."),
+            `Expected off-state preview, got ${preview}`,
+          );
+          await assertNoHorizontalOverflow(page);
+        });
+      });
+    });
+
+    await withEnv({
+      RESEND_API_KEY: null,
+      RESEND_EMAIL_FROM: null,
+    }, async () => {
+      await withApp(async (baseUrl) => {
+        await withIphonePage(async (page) => {
+          await addAdminSessionCookie(page, baseUrl);
+          await page.goto(baseUrl);
+          await page.getByRole("button", { name: "CRM" }).click();
+          await page.waitForFunction(
+            `document.querySelector("[data-follow-up-email-status]")
+              ?.getAttribute("data-follow-up-email-status")`,
+          );
+
+          const checkbox = page.locator("[name=sendFollowUpEmail]");
+          assert(await checkbox.isDisabled(), "Expected unconfigured follow-up checkbox disabled.");
+          assert(
+            await page.locator("[data-follow-up-email-status]").textContent() ===
+              "Not configured",
+            "Expected not configured status without Resend settings.",
+          );
+          const preview = await page.locator("[data-follow-up-email-preview]").textContent() ?? "";
+          assert(
+            preview.includes("Sending is unavailable on this server."),
+            `Expected unavailable preview, got ${preview}`,
+          );
+          await assertNoHorizontalOverflow(page);
+        });
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "CRM follow-up email save flow sends through mocked Resend",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    const leadName = `Resend Sent ${crypto.randomUUID().slice(0, 8)}`;
+    const leadEmail = `${leadName.toLowerCase().replaceAll(" ", ".")}@example.com`;
+    const followUpAsk = "Send the sample manager packet";
+
+    await withEnv({
+      RESEND_API_KEY: "test_resend_key",
+      RESEND_EMAIL_FROM: "Tech Week CRM <followups@example.com>",
+    }, async () => {
+      await withMockResend([{ status: 200, body: { id: "email_test_123" } }], async (calls) => {
+        let eventTitle = "";
+        await withApp(async (baseUrl) => {
+          try {
+            await withIphonePage(async (page) => {
+              await openCrm(page, baseUrl);
+              eventTitle = await page.locator("[data-crm-event-title]").textContent() ?? "";
+              await page.locator("[name=name]").fill(leadName);
+              await page.locator("[name=email]").fill(leadEmail);
+              await page.locator("[name=followUp]").fill(followUpAsk);
+              assert(
+                await page.locator("[data-follow-up-email-status]").textContent() === "Ready",
+                "Expected follow-up email to be ready before saving.",
+              );
+
+              await page.getByRole("button", { name: "Save lead" }).click();
+              const leadCard = page.locator("article[data-lead]").filter({ hasText: leadName });
+              await leadCard.waitFor({ state: "visible" });
+              const leadCardText = await leadCard.textContent() ?? "";
+              assert(leadCardText.includes("Email sent"), `Expected sent tag, got ${leadCardText}`);
+              await assertNoHorizontalOverflow(page);
+            });
+
+            const saved = await savedLeadByName(baseUrl, leadName);
+            assert(saved, "Expected saved lead in app state.");
+            const emailRecord = saved.followUpEmail as JsonRecord | null;
+            assert(
+              Boolean(emailRecord && typeof emailRecord === "object"),
+              "Expected follow-up email result on saved lead.",
+            );
+            assert(
+              emailRecord?.status === "sent",
+              `Expected sent email, got ${emailRecord?.status}`,
+            );
+            assert(
+              emailRecord?.to === leadEmail,
+              `Expected to=${leadEmail}, got ${emailRecord?.to}`,
+            );
+            assert(
+              String(emailRecord?.subject || "").includes(eventTitle.slice(0, 32)),
+              `Expected subject to include event title, got ${emailRecord?.subject}`,
+            );
+            assert(
+              emailRecord?.providerMessageId === "email_test_123",
+              `Expected provider id email_test_123, got ${emailRecord?.providerMessageId}`,
+            );
+          } finally {
+            await deleteLeadsByName(baseUrl, leadName);
+          }
+        });
+
+        assert(calls.length === 1, `Expected one Resend call, got ${calls.length}`);
+        const payload = calls[0].body;
+        assert(calls[0].method === "POST", `Expected POST, got ${calls[0].method}`);
+        assert(
+          calls[0].authorization === "Bearer test_resend_key",
+          `Expected Resend bearer auth, got ${calls[0].authorization}`,
+        );
+        assert(payload.to === leadEmail, `Expected payload.to=${leadEmail}, got ${payload.to}`);
+        assert(
+          payload.from === "Tech Week CRM <followups@example.com>",
+          `Expected configured from header, got ${payload.from}`,
+        );
+        assert(
+          String(payload.subject || "").includes(eventTitle.slice(0, 32)),
+          `Expected payload subject to include event title, got ${payload.subject}`,
+        );
+        assert(
+          String(payload.text || "").includes(eventTitle),
+          `Expected payload text to include event title, got ${payload.text}`,
+        );
+        assert(
+          String(payload.text || "").includes(followUpAsk),
+          `Expected payload text to include follow-up ask, got ${payload.text}`,
+        );
+        assert(
+          String(payload.html || "").includes(followUpAsk),
+          `Expected payload HTML to include follow-up ask, got ${payload.html}`,
+        );
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "CRM follow-up email unchecked saves lead without sending",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    const leadName = `Resend Off ${crypto.randomUUID().slice(0, 8)}`;
+
+    await withEnv({
+      RESEND_API_KEY: "test_resend_key",
+      RESEND_EMAIL_FROM: "Tech Week CRM <followups@example.com>",
+    }, async () => {
+      await withMockResend(
+        [{ status: 200, body: { id: "email_should_not_send" } }],
+        async (calls) => {
+          await withApp(async (baseUrl) => {
+            try {
+              await withIphonePage(async (page) => {
+                await openCrm(page, baseUrl);
+                await page.locator("[name=name]").fill(leadName);
+                await page.locator("[name=email]").fill("off@example.com");
+                await page.locator("[name=followUp]").fill("Compare notes next week");
+                const checkbox = page.locator("[name=sendFollowUpEmail]");
+                if (await checkbox.isChecked()) await checkbox.uncheck();
+                assert(
+                  await page.locator("[data-follow-up-email-status]").textContent() === "Off",
+                  "Expected follow-up email status to be off.",
+                );
+
+                await page.getByRole("button", { name: "Save lead" }).click();
+                const leadCard = page.locator("article[data-lead]").filter({ hasText: leadName });
+                await leadCard.waitFor({ state: "visible" });
+                const leadCardText = await leadCard.textContent() ?? "";
+                assert(
+                  !leadCardText.includes("Email sent") && !leadCardText.includes("Email failed") &&
+                    !leadCardText.includes("Email skipped"),
+                  `Expected no email tag when unchecked, got ${leadCardText}`,
+                );
+                await assertNoHorizontalOverflow(page);
+              });
+
+              const saved = await savedLeadByName(baseUrl, leadName);
+              assert(saved, "Expected saved lead in app state.");
+              assert(
+                saved.followUpEmail === null,
+                `Expected no follow-up email record, got ${JSON.stringify(saved.followUpEmail)}`,
+              );
+            } finally {
+              await deleteLeadsByName(baseUrl, leadName);
+            }
+          });
+
+          assert(calls.length === 0, `Expected no Resend calls, got ${calls.length}`);
+        },
+      );
+    });
+  },
+});
+
+Deno.test({
+  name: "CRM follow-up email without recipient is skipped without Resend call",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    const leadName = `Resend Skipped ${crypto.randomUUID().slice(0, 8)}`;
+
+    await withEnv({
+      RESEND_API_KEY: "test_resend_key",
+      RESEND_EMAIL_FROM: "Tech Week CRM <followups@example.com>",
+    }, async () => {
+      await withMockResend(
+        [{ status: 200, body: { id: "email_should_not_send" } }],
+        async (calls) => {
+          await withApp(async (baseUrl) => {
+            try {
+              await withIphonePage(async (page) => {
+                await openCrm(page, baseUrl);
+                await page.locator("[name=name]").fill(leadName);
+                await page.locator("[name=followUp]").fill("Compare notes next week");
+                assert(
+                  await page.locator("[data-follow-up-email-status]").textContent() ===
+                    "Needs email",
+                  "Expected missing-recipient status before saving.",
+                );
+
+                await page.getByRole("button", { name: "Save lead" }).click();
+                const leadCard = page.locator("article[data-lead]").filter({ hasText: leadName });
+                await leadCard.waitFor({ state: "visible" });
+                const leadCardText = await leadCard.textContent() ?? "";
+                assert(
+                  leadCardText.includes("Email skipped"),
+                  `Expected skipped email tag, got ${leadCardText}`,
+                );
+                await assertNoHorizontalOverflow(page);
+              });
+
+              const saved = await savedLeadByName(baseUrl, leadName);
+              assert(saved, "Expected saved lead in app state.");
+              const emailRecord = saved.followUpEmail as JsonRecord | null;
+              assert(
+                Boolean(emailRecord && typeof emailRecord === "object"),
+                "Expected skipped email result on saved lead.",
+              );
+              assert(
+                emailRecord?.status === "skipped",
+                `Expected skipped email, got ${emailRecord?.status}`,
+              );
+              assert(
+                String(emailRecord?.error || "").includes("No email address"),
+                `Expected missing email error, got ${emailRecord?.error}`,
+              );
+            } finally {
+              await deleteLeadsByName(baseUrl, leadName);
+            }
+          });
+
+          assert(calls.length === 0, `Expected no Resend calls, got ${calls.length}`);
+        },
+      );
+    });
+  },
+});
+
+Deno.test({
+  name: "CRM follow-up email Resend failure still saves lead with failed status",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    const leadName = `Resend Failed ${crypto.randomUUID().slice(0, 8)}`;
+    const leadEmail = `${leadName.toLowerCase().replaceAll(" ", ".")}@example.com`;
+
+    await withEnv({
+      RESEND_API_KEY: "test_resend_key",
+      RESEND_EMAIL_FROM: "Tech Week CRM <followups@example.com>",
+    }, async () => {
+      await withMockResend([{
+        status: 500,
+        body: { message: "Mock Resend outage." },
+      }], async (calls) => {
+        await withApp(async (baseUrl) => {
+          try {
+            await withIphonePage(async (page) => {
+              await openCrm(page, baseUrl);
+              await page.locator("[name=name]").fill(leadName);
+              await page.locator("[name=email]").fill(leadEmail);
+              await page.locator("[name=followUp]").fill("Retry this later");
+
+              await page.getByRole("button", { name: "Save lead" }).click();
+              const leadCard = page.locator("article[data-lead]").filter({ hasText: leadName });
+              await leadCard.waitFor({ state: "visible" });
+              const leadCardText = await leadCard.textContent() ?? "";
+              assert(
+                leadCardText.includes("Email failed"),
+                `Expected failed email tag, got ${leadCardText}`,
+              );
+              await assertNoHorizontalOverflow(page);
+            });
+
+            const saved = await savedLeadByName(baseUrl, leadName);
+            assert(saved, "Expected saved lead despite Resend failure.");
+            const emailRecord = saved.followUpEmail as JsonRecord | null;
+            assert(
+              Boolean(emailRecord && typeof emailRecord === "object"),
+              "Expected failed email result on saved lead.",
+            );
+            assert(
+              emailRecord?.status === "failed",
+              `Expected failed email, got ${emailRecord?.status}`,
+            );
+            assert(
+              emailRecord?.to === leadEmail,
+              `Expected failed email recipient ${leadEmail}, got ${emailRecord?.to}`,
+            );
+            assert(
+              String(emailRecord?.error || "").includes("Mock Resend outage"),
+              `Expected Resend error to be stored, got ${emailRecord?.error}`,
+            );
+          } finally {
+            await deleteLeadsByName(baseUrl, leadName);
+          }
+        });
+
+        assert(calls.length === 1, `Expected one Resend call, got ${calls.length}`);
+        assert(
+          calls[0].body.to === leadEmail,
+          `Expected payload.to=${leadEmail}, got ${calls[0].body.to}`,
         );
       });
     });
@@ -728,7 +1218,6 @@ Deno.test({
       email: "lead@example.com",
       phone: "+1 555 101 2020",
       notes: "Asked about agent audit trails. linkedin.com/in/e2e-lead",
-      priority: "A",
       followUp: "Send product framing.",
     };
 
@@ -781,8 +1270,9 @@ Deno.test({
                   "Expected OCR draft phone to prefill.",
                 );
                 assert(
-                  await page.locator("[name=priority]").inputValue() === "A",
-                  "Expected OCR draft priority to prefill.",
+                  await page.locator("[data-lead-priority-preview]").textContent() ===
+                    "Priority A",
+                  "Expected founder role to lift the priority preview.",
                 );
                 const scanStatus = await page.locator("[data-card-scan-status]").textContent() ??
                   "";
@@ -952,7 +1442,6 @@ Deno.test({
       email: "fixture@example.com",
       phone: "+1 555 333 4444",
       notes: "Fixture card OCR path.",
-      priority: "A",
       followUp: "Follow up from fixture card.",
     };
 
@@ -1139,8 +1628,9 @@ Deno.test({
                     "Expected retry OCR phone to prefill.",
                   );
                   assert(
-                    await page.locator("[name=priority]").inputValue() === "A",
-                    "Expected VP Engineering role to infer priority A when OCR omits priority.",
+                    await page.locator("[data-lead-priority-preview]").textContent() ===
+                      "Priority A",
+                    "Expected VP Engineering role to lift the priority preview.",
                   );
                 });
               } finally {
@@ -1542,7 +2032,9 @@ Deno.test({
 
             await page.route(`${baseUrl}/api/schedule`, async (route) => {
               scheduleReads += 1;
-              const response = await fetch(`${baseUrl}/api/schedule`);
+              const response = await fetch(`${baseUrl}/api/schedule`, {
+                headers: E2E_AUTH_HEADERS,
+              });
               const body = await response.json() as JsonRecord;
               const sync = body.sync as JsonRecord | undefined;
               const partifulAuto = sync?.partifulAuto as JsonRecord | undefined;

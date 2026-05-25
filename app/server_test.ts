@@ -1,5 +1,6 @@
 import {
   buildLeadFollowUpEmailContent,
+  deriveLeadPriorityForLead,
   deriveLeadPriorityFromEvent,
   extractEmailAddress,
   fallbackAgentAnswer,
@@ -13,6 +14,7 @@ import {
   statusLabelForScheduleStatus,
   visibleAgentGatewayError,
 } from "./server.ts";
+import { setKvPathForTest } from "./lib/kv_store.ts";
 
 function assertEquals(actual: unknown, expected: unknown) {
   const actualJson = JSON.stringify(actual);
@@ -63,6 +65,18 @@ function useAccountSessionForTest(
       credentialCount: user.credentialCount || 1,
     },
     expiresAt: "2026-06-01T12:00:00.000Z",
+  });
+}
+
+function kvRouterTest(name: string, fn: () => Promise<void>) {
+  Deno.test(name, async () => {
+    await setKvPathForTest(":memory:");
+    try {
+      await fn();
+    } finally {
+      setAccountSessionForTest(undefined);
+      await setKvPathForTest(undefined);
+    }
   });
 }
 
@@ -145,6 +159,40 @@ Deno.test("deriveLeadPriorityFromEvent uses event ranking metadata", () => {
   );
 });
 
+Deno.test("deriveLeadPriorityForLead combines event importance with qualification", () => {
+  assertEquals(deriveLeadPriorityForLead(scheduleEntry({ tier: "A" }), {}), "B");
+  assertEquals(
+    deriveLeadPriorityForLead(scheduleEntry({ tier: "A" }), { role: "VP Engineering" }),
+    "A",
+  );
+  assertEquals(
+    deriveLeadPriorityForLead(scheduleEntry({ tier: "A" }), {
+      buyerType: "Engineering leader",
+      githubHeavy: "yes",
+      aiCodingAdoption: "yes",
+    }),
+    "A",
+  );
+  assertEquals(
+    deriveLeadPriorityForLead(scheduleEntry({ tier: "B" }), {
+      buyerType: "Investor/advisor",
+      githubHeavy: "no",
+      aiCodingAdoption: "no",
+    }),
+    "C",
+  );
+  assertEquals(
+    deriveLeadPriorityForLead(scheduleEntry({ tier: "C" }), {
+      buyerType: "Founder/operator",
+      githubHeavy: "yes",
+      aiCodingAdoption: "yes",
+      painMentioned: "Manual manager packet assembly.",
+      followUp: "Review one repo next week.",
+    }),
+    "A",
+  );
+});
+
 Deno.test("fallbackAgentAnswer gives local event coaching when the prompt names an event", () => {
   const answer = fallbackAgentAnswer(
     'Give me event-specific coaching for "Open Source Must Win". Include room read, opening line, questions, who to meet, and follow-up.',
@@ -221,64 +269,67 @@ Deno.test("visibleAgentGatewayError renders upstream debug details instead of lo
   }
 });
 
-Deno.test("Partiful sync endpoint ingests browser response snapshots and exposes readback", async () => {
-  useAdminSessionForTest();
-  const response = await router(
-    new Request("http://localhost/api/sync/partiful", {
-      method: "POST",
-      headers: ADMIN_STATE_HEADERS,
-      body: JSON.stringify({
-        source: "test-browser-session",
-        responses: [{
-          eventUrl: "https://partiful.com/e/OF1vP5L8dtXKRtInyWKs",
-          json: {
-            result: {
-              data: {
-                json: {
-                  event: {
-                    title: "Open Source Must Win",
-                    publicShortUrl: "https://partiful.com/e/OF1vP5L8dtXKRtInyWKs",
-                  },
-                  viewerGuest: {
-                    status: "APPROVED",
-                    rsvp: { count: 2 },
+kvRouterTest(
+  "Partiful sync endpoint ingests browser response snapshots and exposes readback",
+  async () => {
+    useAdminSessionForTest();
+    const response = await router(
+      new Request("http://localhost/api/sync/partiful", {
+        method: "POST",
+        headers: ADMIN_STATE_HEADERS,
+        body: JSON.stringify({
+          source: "test-browser-session",
+          responses: [{
+            eventUrl: "https://partiful.com/e/OF1vP5L8dtXKRtInyWKs",
+            json: {
+              result: {
+                data: {
+                  json: {
+                    event: {
+                      title: "Open Source Must Win",
+                      publicShortUrl: "https://partiful.com/e/OF1vP5L8dtXKRtInyWKs",
+                    },
+                    viewerGuest: {
+                      status: "APPROVED",
+                      rsvp: { count: 2 },
+                    },
                   },
                 },
               },
             },
-          },
-        }],
+          }],
+        }),
       }),
-    }),
-  );
-  if (response.status !== 200) {
-    throw new Error(`Expected Partiful sync status 200, got ${response.status}`);
-  }
+    );
+    if (response.status !== 200) {
+      throw new Error(`Expected Partiful sync status 200, got ${response.status}`);
+    }
 
-  const synced = await response.json() as Record<string, unknown>;
-  assertEquals(getPath(synced, ["ingestion", "snapshotCount"]), 1);
-  assertEquals(getPath(synced, ["sync", "errors"]), []);
+    const synced = await response.json() as Record<string, unknown>;
+    assertEquals(getPath(synced, ["ingestion", "snapshotCount"]), 1);
+    assertEquals(getPath(synced, ["sync", "errors"]), []);
 
-  const readback = await router(
-    new Request("http://localhost/api/sync/partiful", {
-      headers: ADMIN_STATE_HEADERS,
-    }),
-  );
-  if (readback.status !== 200) {
-    throw new Error(`Expected Partiful readback status 200, got ${readback.status}`);
-  }
-  const stored = await readback.json() as Record<string, unknown>;
-  const events = getPath(stored, ["events"]);
-  if (!Array.isArray(events)) throw new Error("Expected Partiful readback events array.");
-  const openSource = events.find((event) =>
-    getPath(event, ["normalizedEvent", "partifulId"]) === "OF1vP5L8dtXKRtInyWKs"
-  );
-  assertEquals(getPath(openSource, ["normalizedEvent", "status"]), "registered");
-  assertEquals(getPath(openSource, ["normalizedEvent", "rawStatus"]), "APPROVED");
-  setAccountSessionForTest(undefined);
-});
+    const readback = await router(
+      new Request("http://localhost/api/sync/partiful", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    if (readback.status !== 200) {
+      throw new Error(`Expected Partiful readback status 200, got ${readback.status}`);
+    }
+    const stored = await readback.json() as Record<string, unknown>;
+    const events = getPath(stored, ["events"]);
+    if (!Array.isArray(events)) throw new Error("Expected Partiful readback events array.");
+    const openSource = events.find((event) =>
+      getPath(event, ["normalizedEvent", "partifulId"]) === "OF1vP5L8dtXKRtInyWKs"
+    );
+    assertEquals(getPath(openSource, ["normalizedEvent", "status"]), "registered");
+    assertEquals(getPath(openSource, ["normalizedEvent", "rawStatus"]), "APPROVED");
+    setAccountSessionForTest(undefined);
+  },
+);
 
-Deno.test("Partiful sync POST endpoints reject unauthenticated requests", async () => {
+kvRouterTest("Partiful sync POST endpoints reject unauthenticated requests", async () => {
   setAccountSessionForTest(null);
   try {
     for (
@@ -304,7 +355,7 @@ Deno.test("Partiful sync POST endpoints reject unauthenticated requests", async 
   }
 });
 
-Deno.test("sensitive API routes reject unauthenticated requests at the router", async () => {
+kvRouterTest("sensitive API routes reject unauthenticated requests at the router", async () => {
   setAccountSessionForTest(null);
   try {
     const requests = [
@@ -333,7 +384,7 @@ Deno.test("sensitive API routes reject unauthenticated requests at the router", 
   }
 });
 
-Deno.test("Google Calendar write sync endpoint is removed", async () => {
+kvRouterTest("Google Calendar write sync endpoint is removed", async () => {
   useAdminSessionForTest();
   try {
     const response = await router(
@@ -348,7 +399,7 @@ Deno.test("Google Calendar write sync endpoint is removed", async () => {
   }
 });
 
-Deno.test("account session reports setup state without a local session cookie", async () => {
+kvRouterTest("account session reports setup state without a local session cookie", async () => {
   try {
     const response = await router(new Request("http://localhost/api/account/session"));
     assertEquals(response.status, 200);
@@ -361,7 +412,7 @@ Deno.test("account session reports setup state without a local session cookie", 
   }
 });
 
-Deno.test("auth registration start returns a standalone WebAuthn user id", async () => {
+kvRouterTest("auth registration start returns a standalone WebAuthn user id", async () => {
   setAccountSessionForTest(undefined);
   const response = await router(
     new Request("http://localhost/api/auth/register/start", {
@@ -386,7 +437,7 @@ Deno.test("auth registration start returns a standalone WebAuthn user id", async
   }
 });
 
-Deno.test("account session returns authenticated local passkey identity", async () => {
+kvRouterTest("account session returns authenticated local passkey identity", async () => {
   setAccountSessionForTest({
     authenticated: true,
     auth: "passkey",
@@ -415,7 +466,7 @@ Deno.test("account session returns authenticated local passkey identity", async 
   }
 });
 
-Deno.test("account invite GET/POST reject unauthenticated requests", async () => {
+kvRouterTest("account invite GET/POST reject unauthenticated requests", async () => {
   setAccountSessionForTest(null);
   try {
     const getResponse = await router(
@@ -440,41 +491,44 @@ Deno.test("account invite GET/POST reject unauthenticated requests", async () =>
   }
 });
 
-Deno.test("account invite GET returns stable code and payload for the same authenticated user", async () => {
-  useAccountSessionForTest({ id: "invite_user_a", handle: "alice", isAdmin: true });
-  try {
-    const first = await router(
-      new Request("http://localhost/api/account/invite", {
-        headers: { cookie: "techweek_session=invite-session" },
-      }),
-    );
-    assertEquals(first.status, 200);
-    const firstBody = await first.json() as Record<string, unknown>;
-    const firstInvite = getPath(firstBody, ["invite"]) as Record<string, unknown> | undefined;
-    const firstCode = String(firstInvite?.code || "");
-    assertEquals(firstCode.length > 0, true);
-    assertEquals(firstInvite?.code, firstInvite?.code);
-    const firstShare = String(firstInvite?.shareUrl || "");
-    if (!firstShare.includes("/?ref=")) {
-      throw new Error(`Expected share link to include ref, got ${firstShare}`);
+kvRouterTest(
+  "account invite GET returns stable code and payload for the same authenticated user",
+  async () => {
+    useAccountSessionForTest({ id: "invite_user_a", handle: "alice", isAdmin: true });
+    try {
+      const first = await router(
+        new Request("http://localhost/api/account/invite", {
+          headers: { cookie: "techweek_session=invite-session" },
+        }),
+      );
+      assertEquals(first.status, 200);
+      const firstBody = await first.json() as Record<string, unknown>;
+      const firstInvite = getPath(firstBody, ["invite"]) as Record<string, unknown> | undefined;
+      const firstCode = String(firstInvite?.code || "");
+      assertEquals(firstCode.length > 0, true);
+      assertEquals(firstInvite?.code, firstInvite?.code);
+      const firstShare = String(firstInvite?.shareUrl || "");
+      if (!firstShare.includes("/?ref=")) {
+        throw new Error(`Expected share link to include ref, got ${firstShare}`);
+      }
+
+      const second = await router(
+        new Request("http://localhost/api/account/invite", {
+          headers: { cookie: "techweek_session=invite-session" },
+        }),
+      );
+      assertEquals(second.status, 200);
+      const secondBody = await second.json() as Record<string, unknown>;
+      const secondInvite = getPath(secondBody, ["invite"]) as Record<string, unknown> | undefined;
+      const secondCode = String(secondInvite?.code || "");
+      assertEquals(secondCode, firstCode);
+    } finally {
+      setAccountSessionForTest(undefined);
     }
+  },
+);
 
-    const second = await router(
-      new Request("http://localhost/api/account/invite", {
-        headers: { cookie: "techweek_session=invite-session" },
-      }),
-    );
-    assertEquals(second.status, 200);
-    const secondBody = await second.json() as Record<string, unknown>;
-    const secondInvite = getPath(secondBody, ["invite"]) as Record<string, unknown> | undefined;
-    const secondCode = String(secondInvite?.code || "");
-    assertEquals(secondCode, firstCode);
-  } finally {
-    setAccountSessionForTest(undefined);
-  }
-});
-
-Deno.test("account invite claim records referral, ignores self-referral", async () => {
+kvRouterTest("account invite claim records referral, ignores self-referral", async () => {
   const testSuffix = crypto.randomUUID();
   const ownerId = `invite_owner_${testSuffix}`;
   const friendId = `invite_friend_${testSuffix}`;
@@ -544,55 +598,58 @@ Deno.test("account invite claim records referral, ignores self-referral", async 
   }
 });
 
-Deno.test("agenda recalculation rejects unauthenticated activation without changing active agenda", async () => {
-  useAdminSessionForTest();
-  try {
-    const before = await router(
-      new Request("http://localhost/api/schedule", {
-        headers: ADMIN_STATE_HEADERS,
-      }),
-    );
-    if (before.status !== 200) {
-      throw new Error(`Expected schedule status 200, got ${before.status}`);
-    }
-    const beforeBody = await before.json() as Record<string, unknown>;
-    const beforeRunId = getPath(beforeBody, ["state", "activeAgendaRunId"]);
-
-    const response = await router(
-      new Request("http://localhost/api/agenda/recalculate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          activate: true,
-          liveRouting: false,
-          overrides: { excludedEventIds: ["TW-6408"] },
+kvRouterTest(
+  "agenda recalculation rejects unauthenticated activation without changing active agenda",
+  async () => {
+    useAdminSessionForTest();
+    try {
+      const before = await router(
+        new Request("http://localhost/api/schedule", {
+          headers: ADMIN_STATE_HEADERS,
         }),
-      }),
-    );
+      );
+      if (before.status !== 200) {
+        throw new Error(`Expected schedule status 200, got ${before.status}`);
+      }
+      const beforeBody = await before.json() as Record<string, unknown>;
+      const beforeRunId = getPath(beforeBody, ["state", "activeAgendaRunId"]);
 
-    assertEquals(response.status, 401);
-    const body = await response.json() as Record<string, unknown>;
-    assertEquals(getPath(body, ["error", "message"]), "Authentication required.");
-    if (getPath(body, ["agenda"]) !== undefined) {
-      throw new Error("Unauthenticated recalculation should not return an agenda run.");
+      const response = await router(
+        new Request("http://localhost/api/agenda/recalculate", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            activate: true,
+            liveRouting: false,
+            overrides: { excludedEventIds: ["TW-6408"] },
+          }),
+        }),
+      );
+
+      assertEquals(response.status, 401);
+      const body = await response.json() as Record<string, unknown>;
+      assertEquals(getPath(body, ["error", "message"]), "Authentication required.");
+      if (getPath(body, ["agenda"]) !== undefined) {
+        throw new Error("Unauthenticated recalculation should not return an agenda run.");
+      }
+
+      const after = await router(
+        new Request("http://localhost/api/schedule", {
+          headers: ADMIN_STATE_HEADERS,
+        }),
+      );
+      if (after.status !== 200) {
+        throw new Error(`Expected schedule status 200, got ${after.status}`);
+      }
+      const afterBody = await after.json() as Record<string, unknown>;
+      assertEquals(getPath(afterBody, ["state", "activeAgendaRunId"]), beforeRunId);
+    } finally {
+      setAccountSessionForTest(undefined);
     }
+  },
+);
 
-    const after = await router(
-      new Request("http://localhost/api/schedule", {
-        headers: ADMIN_STATE_HEADERS,
-      }),
-    );
-    if (after.status !== 200) {
-      throw new Error(`Expected schedule status 200, got ${after.status}`);
-    }
-    const afterBody = await after.json() as Record<string, unknown>;
-    assertEquals(getPath(afterBody, ["state", "activeAgendaRunId"]), beforeRunId);
-  } finally {
-    setAccountSessionForTest(undefined);
-  }
-});
-
-Deno.test("state lead creation rejects unauthenticated follow-up email mutation", async () => {
+kvRouterTest("state lead creation rejects unauthenticated follow-up email mutation", async () => {
   setAccountSessionForTest(null);
   try {
     const response = await router(
@@ -620,7 +677,7 @@ Deno.test("state lead creation rejects unauthenticated follow-up email mutation"
   }
 });
 
-Deno.test("concurrent lead creation preserves both state updates", async () => {
+kvRouterTest("concurrent lead creation preserves both state updates", async () => {
   useAdminSessionForTest();
   const firstLead = `Concurrent Lead A ${crypto.randomUUID().slice(0, 8)}`;
   const secondLead = `Concurrent Lead B ${crypto.randomUUID().slice(0, 8)}`;
@@ -676,6 +733,156 @@ Deno.test("concurrent lead creation preserves both state updates", async () => {
   }
 });
 
+kvRouterTest("lead creation persists rapid capture qualification fields", async () => {
+  useAdminSessionForTest();
+  const leadName = `Qualified Lead ${crypto.randomUUID().slice(0, 8)}`;
+  const create = await router(
+    new Request("http://localhost/api/state", {
+      method: "POST",
+      headers: ADMIN_STATE_HEADERS,
+      body: JSON.stringify({
+        type: "lead_create",
+        calendarBlockId: "TW-5978-SCHEDULE",
+        name: leadName,
+        company: "Source Linked Labs",
+        role: "VP Engineering",
+        buyerType: "Engineering leader",
+        githubHeavy: "yes",
+        aiCodingAdoption: "yes",
+        painMentioned: "Managers rebuild review evidence manually.",
+        strongQuote: "Commits miss half the work.",
+        followUp: "React to a sample manager packet.",
+        nextStepDate: "2026-06-08",
+        notes: "Met after the panel.",
+      }),
+    }),
+  );
+  if (create.status !== 200) throw new Error(`Expected create status 200, got ${create.status}`);
+  const created = await create.json() as Record<string, unknown>;
+  const createdLead = getPath(created, ["lead"]) as { id?: unknown } | undefined;
+  const createdId = String(createdLead?.id || "");
+  try {
+    if (!createdId) throw new Error("Expected lead id in create response.");
+
+    const schedule = await router(
+      new Request("http://localhost/api/schedule", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    if (schedule.status !== 200) {
+      throw new Error(`Expected schedule status 200, got ${schedule.status}`);
+    }
+    const body = await schedule.json() as Record<string, unknown>;
+    const state = getPath(body, ["state"]) as Record<string, unknown> | undefined;
+    const leads = Array.isArray(state?.leads) ? state.leads as unknown[] : [];
+    const lead = leads.find((item) => getPath(item, ["id"]) === createdId) as
+      | Record<string, unknown>
+      | undefined;
+    if (!lead) throw new Error("Expected persisted lead.");
+    assertEquals(lead.buyerType, "Engineering leader");
+    assertEquals(lead.githubHeavy, "yes");
+    assertEquals(lead.aiCodingAdoption, "yes");
+    assertEquals(lead.painMentioned, "Managers rebuild review evidence manually.");
+    assertEquals(lead.strongQuote, "Commits miss half the work.");
+    assertEquals(lead.followUp, "React to a sample manager packet.");
+    assertEquals(lead.nextStepDate, "2026-06-08");
+    assertEquals(lead.priority, "A");
+  } finally {
+    if (createdId) {
+      await router(
+        new Request("http://localhost/api/state", {
+          method: "POST",
+          headers: ADMIN_STATE_HEADERS,
+          body: JSON.stringify({ type: "lead_delete", id: createdId }),
+        }),
+      );
+    }
+    setAccountSessionForTest(undefined);
+  }
+});
+
+kvRouterTest("CRM lead export API returns JSON, CSV, and state snapshots", async () => {
+  useAdminSessionForTest();
+  const leadName = `Export Lead ${crypto.randomUUID().slice(0, 8)}`;
+  const create = await router(
+    new Request("http://localhost/api/state", {
+      method: "POST",
+      headers: ADMIN_STATE_HEADERS,
+      body: JSON.stringify({
+        type: "lead_create",
+        calendarBlockId: "TW-5978-SCHEDULE",
+        name: leadName,
+        company: "Export Labs",
+        role: "Head of Engineering",
+        email: "export@example.com",
+        buyerType: "Engineering leader",
+        githubHeavy: "yes",
+        aiCodingAdoption: "yes",
+        painMentioned: "Needs cleaner manager packets.",
+        followUp: "Send sample packet.",
+        notes: "CSV export regression, includes comma.",
+      }),
+    }),
+  );
+  if (create.status !== 200) throw new Error(`Expected create status 200, got ${create.status}`);
+  const created = await create.json() as Record<string, unknown>;
+  const createdId = String(getPath(created, ["lead", "id"]) || "");
+  try {
+    const leadsJson = await router(
+      new Request("http://localhost/api/export/leads.json", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(leadsJson.status, 200);
+    assertEquals(leadsJson.headers.get("content-type"), "application/json; charset=utf-8");
+    const leadsPayload = await leadsJson.json() as Record<string, unknown>;
+    assertEquals(getPath(leadsPayload, ["count"]), 1);
+    const exportedLeads = Array.isArray(leadsPayload.leads) ? leadsPayload.leads : [];
+    const exportedLead = exportedLeads[0] as Record<string, unknown> | undefined;
+    assertEquals(exportedLead?.name, leadName);
+    assertEquals(exportedLead?.priority, "A");
+
+    const leadsCsv = await router(
+      new Request("http://localhost/api/export/leads.csv", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(leadsCsv.status, 200);
+    assertEquals(leadsCsv.headers.get("content-type"), "text/csv; charset=utf-8");
+    const csv = await leadsCsv.text();
+    if (!csv.startsWith("id,createdAt,updatedAt,eventTitle")) {
+      throw new Error(`Expected CRM CSV header, got ${csv}`);
+    }
+    if (!csv.includes(leadName) || !csv.includes('"CSV export regression, includes comma."')) {
+      throw new Error(`Expected CSV to include escaped lead row, got ${csv}`);
+    }
+
+    const stateJson = await router(
+      new Request("http://localhost/api/export/state.json", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(stateJson.status, 200);
+    const statePayload = await stateJson.json() as Record<string, unknown>;
+    assertEquals(getPath(statePayload, ["version"]), 1);
+    const exportedState = getPath(statePayload, ["state"]) as Record<string, unknown> | undefined;
+    const stateLeads = Array.isArray(exportedState?.leads) ? exportedState.leads : [];
+    const stateLead = stateLeads[0] as Record<string, unknown> | undefined;
+    assertEquals(stateLead?.id, createdId);
+  } finally {
+    if (createdId) {
+      await router(
+        new Request("http://localhost/api/state", {
+          method: "POST",
+          headers: ADMIN_STATE_HEADERS,
+          body: JSON.stringify({ type: "lead_delete", id: createdId }),
+        }),
+      );
+    }
+    setAccountSessionForTest(undefined);
+  }
+});
+
 Deno.test({
   name: "sends Resend test email to test@pavlovcik.com",
   async fn() {
@@ -691,7 +898,7 @@ Deno.test({
   },
 });
 
-Deno.test("lead creation persists compact OCR provenance metadata", async () => {
+kvRouterTest("lead creation persists compact OCR provenance metadata", async () => {
   useAdminSessionForTest();
   const leadName = `OCR Metadata ${crypto.randomUUID().slice(0, 8)}`;
   const create = await router(
@@ -785,7 +992,7 @@ Deno.test("lead creation persists compact OCR provenance metadata", async () => 
   }
 });
 
-Deno.test("lead creation ignores invalid OCR metadata payloads", async () => {
+kvRouterTest("lead creation ignores invalid OCR metadata payloads", async () => {
   useAdminSessionForTest();
   const leadName = `OCR Metadata Invalid ${crypto.randomUUID().slice(0, 8)}`;
   const create = await router(

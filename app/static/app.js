@@ -1,6 +1,3 @@
-const MOTION_IMPORT_SOURCE = "https://esm.sh/motion@12.6.4?bundle";
-let motionAnimate = null;
-
 const CHAT_STORAGE_KEY = "techweek-chat";
 const CHAT_HISTORY_KEY = "techweek-chat-history";
 const ACTIVE_CHAT_KEY = "techweek-chat-active-id";
@@ -26,6 +23,19 @@ const OCR_IMAGE_ATTEMPTS = [
 ];
 const OCR_ROTATION_CANDIDATES = [0, 270, 90, 180];
 const LEAD_EVENT_REFRESH_MS = 60_000;
+const LEAD_TEXT_DRAFT_FIELDS = [
+  "name",
+  "company",
+  "role",
+  "email",
+  "phone",
+  "painMentioned",
+  "strongQuote",
+  "followUp",
+  "nextStepDate",
+  "notes",
+];
+const LEAD_SIGNAL_FIELDS = ["githubHeavy", "aiCodingAdoption"];
 const PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS = 1_500;
 const PARTIFUL_AUTO_SYNC_STATUS_POLL_MS = 20_000;
 const PARTIFUL_AUTO_SYNC_MAX_POLLS = 8;
@@ -48,7 +58,6 @@ const MOTION_REDUCE_OK = !globalThis.matchMedia?.("(prefers-reduced-motion: redu
 const FORCE_MOTION = false;
 const MOTION_CARD_STAGGER_MS = 28;
 const MOTION_BUTTON_STAGGER_MS = 14;
-let motionApiLoadPromise = null;
 const DEV_AGENT_SAME_SITE_ORIGIN = "https://techweek.pavlovcik.com";
 const DEV_AGENT_LEGACY_HOSTNAMES = new Set(["techweek-2026-event-picker.0x4007.deno.net"]);
 const DEV_AGENT_SESSION_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000];
@@ -111,16 +120,6 @@ const INVITE_QR_IMAGE_URL = "https://api.qrserver.com/v1/create-qr-code/";
 const PENDING_REFERRAL_STORAGE_KEY = "techweek-pending-referral-code";
 const MARKDOWN_RENDERER = createMarkdownRenderer();
 let scheduleLoadPromise = null;
-
-function loadMotionLibrary() {
-  if (motionApiLoadPromise) return motionApiLoadPromise;
-  motionApiLoadPromise = import(MOTION_IMPORT_SOURCE).then((module) => {
-    motionAnimate = typeof module?.animate === "function" ? module.animate : null;
-  }).catch(() => {
-    motionAnimate = null;
-  });
-  return motionApiLoadPromise;
-}
 
 const state = {
   payload: null,
@@ -211,11 +210,17 @@ const leadEventSelect = document.querySelector("[data-lead-event]");
 const leadsList = document.querySelector("[data-leads-list]");
 const crmEventTitle = document.querySelector("[data-crm-event-title]");
 const leadError = document.querySelector("[data-lead-error]");
+const leadPriorityPreview = document.querySelector("[data-lead-priority-preview]");
 const cardInput = document.querySelector("[data-card-input]");
 const cardScanButton = document.querySelector("[data-card-scan-button]");
 const cardScanStatus = document.querySelector("[data-card-scan-status]");
 const cardPreview = document.querySelector("[data-card-preview]");
 const followUpEmailStatus = document.querySelector("[data-follow-up-email-status]");
+const followUpEmailSummary = document.querySelector("[data-follow-up-email-summary]");
+const followUpEmailPreview = document.querySelector("[data-follow-up-email-preview]");
+const followUpEmailTo = document.querySelector("[data-follow-up-email-to]");
+const followUpEmailSubject = document.querySelector("[data-follow-up-email-subject]");
+const followUpEmailBody = document.querySelector("[data-follow-up-email-body]");
 const agendaRecalculateButton = document.querySelector("[data-agenda-recalculate]");
 const partifulSyncButton = document.querySelector("[data-partiful-sync]");
 const agendaStatusItems = document.querySelectorAll("[data-agenda-status]");
@@ -257,23 +262,23 @@ function runMotion(target, keyframes, options = {}) {
     easing: motionOptions.easing || "ease-out",
     fill: motionOptions.fill || "both",
   };
-  void loadMotionLibrary().then(() => {
-    let animation = null;
-    if (typeof motionAnimate === "function") {
-      animation = motionAnimate(target, keyframes, motionOptions);
-    } else {
-      animation = target.animate(keyframes, animationOptions);
-    }
-    if (typeof onComplete !== "function") return;
-    if (animation?.finished && typeof animation.finished.then === "function") {
-      void animation.finished.then(onComplete, onComplete);
-      return;
-    }
-    globalThis.setTimeout(
-      onComplete,
-      Math.round(((motionOptions.delay || 0) + (motionOptions.duration || 0)) * 1000),
+  const animation = target.animate(keyframes, animationOptions);
+  if (animation?.finished && typeof animation.finished.then === "function") {
+    void animation.finished.then(
+      () => {
+        if (typeof onComplete === "function") onComplete();
+      },
+      () => {
+        if (typeof onComplete === "function") onComplete();
+      },
     );
-  });
+    return;
+  }
+  if (typeof onComplete !== "function") return;
+  globalThis.setTimeout(
+    onComplete,
+    Math.round(((motionOptions.delay || 0) + (motionOptions.duration || 0)) * 1000),
+  );
 }
 
 function animateButtonCluster(root) {
@@ -429,8 +434,19 @@ leadEventSelect.addEventListener("change", () => {
   state.leadEventManuallySelected = true;
   renderCRM();
 });
+leadForm.elements.sendFollowUpEmail.addEventListener("input", () => {
+  state.followUpEmailTouched = true;
+});
 leadForm.elements.sendFollowUpEmail.addEventListener("change", () => {
   state.followUpEmailTouched = true;
+  renderFollowUpEmailControl();
+});
+leadForm.addEventListener("input", () => {
+  renderLeadPriorityPreview();
+  renderFollowUpEmailControl();
+});
+leadForm.addEventListener("change", () => {
+  renderLeadPriorityPreview();
   renderFollowUpEmailControl();
 });
 cardScanButton.addEventListener("keydown", (event) => {
@@ -2388,6 +2404,7 @@ function renderCRM() {
 
   const selected = entries.find((entry) => entry.calendarBlockId === leadEventSelect.value);
   crmEventTitle.textContent = selected?.displayTitle || "Lead capture";
+  renderLeadPriorityPreview();
   renderFollowUpEmailControl();
   renderLeadList(selected?.calendarBlockId || "");
 }
@@ -2397,12 +2414,67 @@ function renderFollowUpEmailControl() {
   const configured = Boolean(state.payload?.email?.followUpConfigured);
   input.disabled = !configured;
   if (!configured) input.checked = false;
-  if (!state.followUpEmailTouched && !leadFormHasDraft()) {
+  if (!state.followUpEmailTouched) {
     input.checked = configured;
   }
-  followUpEmailStatus.textContent = configured
-    ? (input.checked ? "Resend ready" : "Email off")
-    : "Resend not configured";
+  const checked = Boolean(configured && input.checked);
+  const recipient = String(leadForm.elements.email?.value || "").trim();
+  const stateName = !configured
+    ? "unavailable"
+    : !checked
+    ? "off"
+    : recipient
+    ? "ready"
+    : "needs-email";
+  followUpEmailStatus.dataset.followUpEmailStatus = stateName;
+  followUpEmailStatus.textContent = {
+    "unavailable": "Not configured",
+    "off": "Off",
+    "ready": "Ready",
+    "needs-email": "Needs email",
+  }[stateName];
+  if (followUpEmailSummary) {
+    followUpEmailSummary.textContent = checked ? "Sends on save" : "Lead saves without email";
+  }
+  renderFollowUpEmailPreview({ configured, checked, recipient, stateName });
+}
+
+function renderFollowUpEmailPreview({ configured, checked, recipient, stateName }) {
+  if (!followUpEmailPreview || !followUpEmailTo || !followUpEmailSubject || !followUpEmailBody) {
+    return;
+  }
+  const entry = state.entriesByBlock.get(leadForm.elements.calendarBlockId.value);
+  const eventTitle = entry?.displayTitle || "";
+  const followUp = String(leadForm.elements.followUp?.value || "").trim();
+  followUpEmailPreview.dataset.state = stateName;
+  followUpEmailTo.textContent = followUpEmailRecipientText({
+    configured,
+    checked,
+    recipient,
+  });
+  followUpEmailSubject.textContent = followUpEmailSubjectText(eventTitle);
+  followUpEmailBody.textContent = followUpEmailBodyText({ configured, checked, followUp });
+}
+
+function followUpEmailRecipientText({ configured, checked, recipient }) {
+  if (!configured) return "Sending is unavailable on this server.";
+  if (!checked) return recipient || "No email will be sent.";
+  return recipient || "Add an email address before saving.";
+}
+
+function followUpEmailSubjectText(eventTitle) {
+  return truncate(
+    eventTitle ? `Great connecting at ${eventTitle}` : "Great connecting at NYC Tech Week",
+    120,
+  );
+}
+
+function followUpEmailBodyText({ configured, checked, followUp }) {
+  if (!configured || !checked) return "Lead will save without email.";
+  const nextStep = followUp
+    ? `Next step: ${followUp}`
+    : "Next step: compare notes next week or look at a short example.";
+  return `Short Accolades intro. ${nextStep}`;
 }
 
 function refreshAutomaticLeadEvent() {
@@ -2411,9 +2483,100 @@ function refreshAutomaticLeadEvent() {
 }
 
 function leadFormHasDraft() {
-  return ["name", "company", "role", "email", "phone", "followUp", "notes"].some((field) =>
+  const hasText = LEAD_TEXT_DRAFT_FIELDS.some((field) =>
     String(leadForm.elements[field]?.value || "").trim()
   );
+  const hasBuyerType = Boolean(String(leadForm.elements.buyerType?.value || "").trim());
+  const hasSignals = LEAD_SIGNAL_FIELDS.some((field) =>
+    String(leadForm.elements[field]?.value || "unknown") !== "unknown"
+  );
+  return hasText || hasBuyerType || hasSignals;
+}
+
+function renderLeadPriorityPreview() {
+  if (!leadPriorityPreview) return;
+  const entry = state.entriesByBlock.get(leadForm.elements.calendarBlockId.value);
+  if (!entry) {
+    leadPriorityPreview.hidden = true;
+    return;
+  }
+  const priority = deriveLeadPriorityForDraft(entry, leadQualificationFromForm());
+  leadPriorityPreview.hidden = false;
+  leadPriorityPreview.dataset.priority = priority;
+  leadPriorityPreview.textContent = `Priority ${priority}`;
+}
+
+function leadQualificationFromForm() {
+  return {
+    role: String(leadForm.elements.role?.value || ""),
+    buyerType: String(leadForm.elements.buyerType?.value || ""),
+    githubHeavy: String(leadForm.elements.githubHeavy?.value || "unknown"),
+    aiCodingAdoption: String(leadForm.elements.aiCodingAdoption?.value || "unknown"),
+    painMentioned: String(leadForm.elements.painMentioned?.value || ""),
+    strongQuote: String(leadForm.elements.strongQuote?.value || ""),
+    followUp: String(leadForm.elements.followUp?.value || ""),
+  };
+}
+
+function deriveLeadPriorityForDraft(entry, qualification = {}) {
+  const eventPriority = deriveLeadPriorityFromEntry(entry);
+  let score = eventPriority === "A" ? 2 : eventPriority === "B" ? 1 : 0;
+  const buyerType = String(qualification.buyerType || "").toLowerCase();
+  const role = String(qualification.role || "").toLowerCase();
+  const buyerAndRole = `${buyerType} ${role}`;
+  if (
+    /engineering leader|cto|vp eng|head of engineering|platform|devex|oss|devrel|maintainer|founder|operator/
+      .test(buyerAndRole)
+  ) {
+    score += 2;
+  } else if (/ic builder|builder|engineer|developer/.test(buyerAndRole)) {
+    score += 1;
+  } else if (/investor|advisor|gtm|sales|marketing|other/.test(buyerType)) {
+    score -= 1;
+  }
+
+  const githubHeavy = normalizeLeadSignalValue(qualification.githubHeavy);
+  const aiCodingAdoption = normalizeLeadSignalValue(qualification.aiCodingAdoption);
+  if (githubHeavy === "yes") score += 1;
+  if (githubHeavy === "no") score -= 1;
+  if (aiCodingAdoption === "yes") score += 1;
+  if (aiCodingAdoption === "no") score -= 1;
+  if (String(qualification.painMentioned || "").trim()) score += 1;
+  if (String(qualification.strongQuote || "").trim()) score += 1;
+  if (String(qualification.followUp || "").trim()) score += 1;
+
+  if (score >= 4) return "A";
+  if (score >= 2) return "B";
+  return "C";
+}
+
+function deriveLeadPriorityFromEntry(entry) {
+  const tier = String(entry?.tier || "").trim().toUpperCase();
+  if (tier === "S" || tier === "A") return "A";
+  if (tier === "B") return "B";
+  if (tier === "C") return "C";
+
+  const score = Number.parseFloat(String(entry?.opportunityScore || ""));
+  if (Number.isFinite(score)) {
+    if (score >= 60) return "A";
+    if (score >= 40) return "B";
+    return "C";
+  }
+
+  const rank = Number.parseInt(String(entry?.rank || ""), 10);
+  if (Number.isFinite(rank)) {
+    if (rank <= 40) return "A";
+    if (rank <= 150) return "B";
+    return "C";
+  }
+
+  return "B";
+}
+
+function normalizeLeadSignalValue(value) {
+  const normalized = String(value || "unknown").trim().toLowerCase();
+  if (normalized === "yes" || normalized === "no") return normalized;
+  return "unknown";
 }
 
 function eventStartEpochMs(entry) {
@@ -2599,15 +2762,19 @@ function renderLead(lead, showEvent) {
   header.append(summary, remove);
   article.append(header);
 
-  if (lead.notes) {
-    const notes = document.createElement("p");
-    notes.textContent = lead.notes;
-    article.append(notes);
-  }
+  appendLeadDetail(article, "Pain", lead.painMentioned);
+  appendLeadDetail(article, "Quote", lead.strongQuote ? `"${lead.strongQuote}"` : "");
+  appendLeadDetail(article, "Follow-up ask", lead.followUp);
+  appendLeadDetail(article, "Notes", lead.notes);
 
   const meta = document.createElement("section");
   meta.dataset.leadTags = "";
-  addLeadMeta(meta, lead.followUp);
+  const priority = addLeadMeta(meta, lead.priority ? `Priority ${lead.priority}` : "");
+  if (priority && lead.priority) priority.dataset.priority = lead.priority;
+  addLeadMeta(meta, lead.buyerType);
+  addLeadMeta(meta, signalLeadMeta("GitHub", lead.githubHeavy));
+  addLeadMeta(meta, signalLeadMeta("AI coding", lead.aiCodingAdoption));
+  addLeadMeta(meta, lead.nextStepDate ? `Next ${formatLeadDate(lead.nextStepDate)}` : "");
   const emailStatus = addLeadMeta(meta, followUpEmailLabel(lead.followUpEmail));
   if (emailStatus && lead.followUpEmail?.status) {
     emailStatus.dataset.emailStatus = lead.followUpEmail.status;
@@ -2632,12 +2799,30 @@ function renderLead(lead, showEvent) {
   return article;
 }
 
+function appendLeadDetail(parent, label, value) {
+  if (!value) return;
+  const detail = document.createElement("p");
+  detail.dataset.leadDetail = "";
+  const heading = document.createElement("strong");
+  heading.textContent = label;
+  const text = document.createElement("span");
+  text.textContent = value;
+  detail.append(heading, text);
+  parent.append(detail);
+}
+
 function addLeadMeta(parent, text) {
   if (!text) return null;
   const item = document.createElement("span");
   item.textContent = text;
   parent.append(item);
   return item;
+}
+
+function signalLeadMeta(label, value) {
+  const normalized = normalizeLeadSignalValue(value);
+  if (normalized === "unknown") return "";
+  return `${label}: ${normalized}`;
 }
 
 function followUpEmailLabel(email) {
@@ -2664,6 +2849,13 @@ function formatLeadTime(value) {
   }).format(date);
 }
 
+function formatLeadDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return "";
+  const date = new Date(`${value}T12:00:00-04:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+}
+
 async function handleLeadSubmit(event) {
   event.preventDefault();
   setLeadError("");
@@ -2676,7 +2868,13 @@ async function handleLeadSubmit(event) {
     role: String(formData.get("role") || ""),
     email: String(formData.get("email") || ""),
     phone: String(formData.get("phone") || ""),
+    buyerType: String(formData.get("buyerType") || ""),
+    githubHeavy: String(formData.get("githubHeavy") || "unknown"),
+    aiCodingAdoption: String(formData.get("aiCodingAdoption") || "unknown"),
+    painMentioned: String(formData.get("painMentioned") || ""),
+    strongQuote: String(formData.get("strongQuote") || ""),
     followUp: String(formData.get("followUp") || ""),
+    nextStepDate: String(formData.get("nextStepDate") || ""),
     ocr: state.ocrMetadata,
     notes: String(formData.get("notes") || ""),
     sendFollowUpEmail: Boolean(
@@ -2988,6 +3186,7 @@ function applyLeadDraft(draft) {
       leadForm.elements[field].value = draft[field].trim();
     }
   }
+  renderLeadPriorityPreview();
 }
 
 function leadDraftHasUsableFields(draft) {
@@ -4084,9 +4283,15 @@ function crmChatFingerprint() {
       role: String(lead.role || ""),
       email: String(lead.email || ""),
       phone: String(lead.phone || ""),
+      buyerType: String(lead.buyerType || ""),
+      githubHeavy: String(lead.githubHeavy || ""),
+      aiCodingAdoption: String(lead.aiCodingAdoption || ""),
+      painMentioned: String(lead.painMentioned || ""),
+      strongQuote: String(lead.strongQuote || ""),
       notes: String(lead.notes || ""),
       priority: String(lead.priority || ""),
       followUp: String(lead.followUp || ""),
+      nextStepDate: String(lead.nextStepDate || ""),
       createdAt: String(lead.createdAt || ""),
       updatedAt: String(lead.updatedAt || ""),
     })),

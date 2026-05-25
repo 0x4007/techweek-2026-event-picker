@@ -36,14 +36,13 @@ python3 scripts/check_techweek_acceptance_emails.py
 
 The Deno app runs at `http://localhost:8788` and serves a mobile route/backup/agent interface from
 `app/`. It reads `outputs/signed_up/techweek_signed_up_transport_schedule.csv`, stores mutable
-backend state in Postgres when `DATABASE_URL` is available, and uses the ignored `.env` gateway
-token for AI requests.
+backend state in Deno KV, and uses the ignored `.env` gateway token for AI requests.
 
 ## Standalone Passkey Auth
 
 The app owns its WebAuthn/passkey auth directly. It does not depend on the Raspberry Pi agent auth
 service. Account users, credential metadata, sessions, challenges, and handoffs are stored through
-the existing Postgres-backed app state/cache layer, with in-memory storage as the local fallback.
+the Deno KV-backed app state/cache layer.
 
 Auth endpoints:
 
@@ -55,26 +54,28 @@ Auth endpoints:
 The first registration becomes the admin account. Later registrations require an authenticated admin
 session. No new environment variables are required.
 
-For Deno Deploy, attach a managed Prisma Postgres database to the app. Generated schedule artifacts
-under `outputs/signed_up/` are treated as read-only deployment inputs; notes, leads, and dismissed
-blocks persist in Postgres across stateless requests. Deno Deploy injects `DATABASE_URL`;
-`deno.json` declares the app target, and the Deploy app should be created as a dynamic runtime with
+For Deno Deploy, attach a Deno KV database to the app. Generated schedule artifacts under
+`outputs/signed_up/` are treated as read-only deployment inputs; notes, leads, passkey auth records,
+agenda runs, route caches, and dismissed blocks persist in KV across stateless requests. `deno.json`
+declares the app target, and the Deploy app should be created as a dynamic runtime with
 `app/server.ts` as the entrypoint.
 
 Deploy-ready dynamic planning endpoints:
 
-- `POST /api/agenda/recalculate` - creates a Postgres-persisted agenda proposal. Pass
+- `POST /api/agenda/recalculate` - creates a KV-persisted agenda proposal. Pass
   `{ "liveRouting": false }` to use deterministic fallback travel estimates, or omit it to use
-  Nominatim/OpenStreetMap geocoding plus SubwayInfo.nyc routing with Postgres-backed caches. Pass
+  Nominatim/OpenStreetMap geocoding plus SubwayInfo.nyc routing with KV-backed caches. Pass
   `{ "activate": true }` to make the recalculated proposal the active `/api/schedule` payload.
   Optional `preferences` can override the default agenda profile from
   `app/lib/agenda_preferences.ts`; the human prompt lives at `app/prompts/agenda-preferences.md`.
-- `GET /api/agenda/runs/:id` - reads a persisted agenda proposal from Postgres.
+- `GET /api/agenda/runs/:id` - reads a persisted agenda proposal from KV.
 - `POST /api/sync/partiful` - accepts supplied Partiful snapshots, normalizes RSVP status changes,
-  stores them in Postgres, and can recalculate when `{ "recalculate": true }` is provided.
+  stores them in KV, and can recalculate when `{ "recalculate": true }` is provided.
 - `GET /api/sync/partiful` - reads the latest stored Partiful RSVP state and status counts.
-- `GET /api/cache/routes` - reports Postgres cache counts for routing, agenda, and Partiful sync
-  records.
+- `GET /api/cache/routes` - reports KV cache counts for routing, agenda, and Partiful sync records.
+- `GET /api/export/leads.json` / `GET /api/export/leads.csv` - exports CRM leads for backup,
+  spreadsheet review, or handoff.
+- `GET /api/export/state.json` - exports the full mutable app state snapshot from KV.
 
 Partiful latest-state refresh has one supported sync path: headless Partiful callable API access
 using the stored Firebase token. The backend still accepts explicit snapshots for controlled

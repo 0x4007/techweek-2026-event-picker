@@ -19,7 +19,7 @@ import {
   readStateValue,
   writeCacheValue,
   writeStateValue,
-} from "./postgres_store.ts";
+} from "./kv_store.ts";
 
 const AUTH_USER_INDEX_KEY = "auth:users:v1";
 const AUTH_CHALLENGE_NAMESPACE = "auth-challenge";
