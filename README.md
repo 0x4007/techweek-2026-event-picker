@@ -38,21 +38,36 @@ The Deno app runs at `http://localhost:8788` and serves a mobile route/backup/ag
 `app/`. It reads `outputs/signed_up/techweek_signed_up_transport_schedule.csv`, stores mutable
 backend state in Deno KV, and uses the ignored `.env` gateway token for AI requests.
 
-## Standalone Passkey Auth
+## Standalone Account Auth
 
 The app owns its WebAuthn/passkey auth directly. It does not depend on the Raspberry Pi agent auth
-service. Account users, credential metadata, sessions, challenges, and handoffs are stored through
-the Deno KV-backed app state/cache layer.
+service. Account users, credential metadata, sessions, challenges, handoffs, and hashed agent-token
+records are stored through the Deno KV-backed app state/cache layer.
 
 Auth endpoints:
 
-- `GET /api/account/session` - returns the current passkey session or first-user setup state.
+- `GET /api/account/session` - returns the current account session or first-user setup state.
 - `POST /api/auth/register/start` / `POST /api/auth/register/finish` - creates a passkey account.
 - `POST /api/auth/login/start` / `POST /api/auth/login/finish` - signs in with a passkey.
+- `POST /api/auth/agent-token/login` - exchanges an admin-minted agent token for the normal
+  `techweek_session` cookie.
+- `GET /api/account/agent-tokens` - lists token metadata for admins without raw token values.
+- `POST /api/account/agent-tokens` - mints a token for the current admin or an existing
+  `{ "handle": "..." }` / `{ "userId": "..." }` target. Tokens default to seven days and cap at
+  thirty days.
+- `DELETE /api/account/agent-tokens/:id` - revokes an agent token.
 - `POST /api/auth/logout` - clears the local session cookie.
 
 The first registration becomes the admin account. Later registrations require an authenticated admin
-session. No new environment variables are required.
+session. Admins can mint a local Codex token from `/auth.html`; the optional ignored file convention
+is `.codex/techweek-agent-token.json`. Use it with `agent-browser` to authenticate that browser
+profile:
+
+```bash
+deno task account:agent-login -- --origin http://localhost:8788
+```
+
+No new environment variables are required.
 
 For Deno Deploy, attach a Deno KV database to the app. Generated schedule artifacts under
 `outputs/signed_up/` are treated as read-only deployment inputs; notes, leads, passkey auth records,

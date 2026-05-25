@@ -15,6 +15,7 @@ import {
 import { isoUint8Array } from "@simplewebauthn/server/helpers";
 import {
   deleteCacheValue,
+  listCacheValues,
   readCacheValue,
   readStateValue,
   writeCacheValue,
@@ -25,12 +26,16 @@ const AUTH_USER_INDEX_KEY = "auth:users:v1";
 const AUTH_CHALLENGE_NAMESPACE = "auth-challenge";
 const AUTH_SESSION_NAMESPACE = "auth-session";
 const AUTH_HANDOFF_NAMESPACE = "auth-handoff";
+const AUTH_AGENT_TOKEN_NAMESPACE = "auth-agent-token";
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const HANDOFF_TTL_MS = 2 * 60 * 1000;
+const AGENT_TOKEN_DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const AGENT_TOKEN_MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_COOKIE_NAME = "techweek_session";
 const RP_DISPLAY_NAME = "Tech Week Event Picker";
 const TEXT_DECODER = new TextDecoder();
+const TEXT_ENCODER = new TextEncoder();
 
 export type AccountSessionUser = {
   id: string;
@@ -66,6 +71,21 @@ export type AccountAuthFinishResponse = {
   expiresAt: string;
   sessionToken: string;
   session: AccountSessionState;
+};
+
+export type AccountAgentTokenInfo = {
+  id: string;
+  user: AccountSessionUser;
+  createdByUserId: string;
+  createdByHandle: string;
+  createdAt: string;
+  expiresAt: string;
+  lastUsedAt?: string;
+};
+
+export type AccountAgentTokenCreateResponse = {
+  token: string;
+  agentToken: AccountAgentTokenInfo;
 };
 
 export type AccountSessionHandoffInfo = {
@@ -115,8 +135,23 @@ type AuthChallenge = {
 type AuthSession = {
   token: string;
   userId: string;
+  auth?: string;
   createdAt: string;
   expiresAt: string;
+};
+
+type StoredAgentToken = {
+  id: string;
+  tokenHash: string;
+  userId: string;
+  userHandle: string;
+  userIsAdmin: boolean;
+  userCredentialCount: number;
+  createdByUserId: string;
+  createdByHandle: string;
+  createdAt: string;
+  expiresAt: string;
+  lastUsedAt?: string;
 };
 
 type AuthHandoff = {
@@ -142,6 +177,18 @@ type FinishCredentialRequest = {
   response?: unknown;
 };
 
+type CreateAgentTokenRequest = {
+  handle?: unknown;
+  userId?: unknown;
+  ttlDays?: unknown;
+  days?: unknown;
+  expiresInDays?: unknown;
+};
+
+type AgentTokenLoginRequest = {
+  token?: unknown;
+};
+
 export class AccountAuthError extends Error {
   status: number;
 
@@ -164,7 +211,9 @@ export function accountAuthErrorStatus(error: unknown): { status: number; messag
 
 export async function accountSessionState(request: Request): Promise<AccountSessionState> {
   const session = await sessionFromRequest(request);
-  if (session) return sessionState(session.user, session.session.expiresAt);
+  if (session) {
+    return sessionState(session.user, session.session.expiresAt, session.session.auth || "passkey");
+  }
 
   const hasUsers = await authHasUsers();
   if (!hasUsers) {
@@ -399,6 +448,82 @@ export async function finishAccountLogin(request: Request): Promise<AccountAuthF
   return finishResponse(user, session);
 }
 
+export async function createAccountAgentToken(
+  request: Request,
+  creator: AccountSessionUser,
+): Promise<AccountAgentTokenCreateResponse> {
+  if (!creator.isAdmin) throw new AccountAuthError(403, "Admin access required.");
+  const body = await optionalJsonBody<CreateAgentTokenRequest>(request);
+  const target = await resolveAgentTokenTarget(body, creator);
+  const now = new Date();
+  const ttlMs = agentTokenTtlMs(body);
+  const token = newToken("techweek_agent");
+  const tokenHash = await sha256Base64url(token);
+  const stored: StoredAgentToken = {
+    id: newAccountId("agent_token"),
+    tokenHash,
+    userId: target.id,
+    userHandle: target.handle,
+    userIsAdmin: target.isAdmin,
+    userCredentialCount: target.credentialIds.length,
+    createdByUserId: creator.id,
+    createdByHandle: creator.handle,
+    createdAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + ttlMs).toISOString(),
+  };
+  await writeAgentToken(stored, ttlMs);
+  return {
+    token,
+    agentToken: await agentTokenInfo(stored),
+  };
+}
+
+export async function listAccountAgentTokens(): Promise<AccountAgentTokenInfo[]> {
+  const entries = await listCacheValues<StoredAgentToken>(AUTH_AGENT_TOKEN_NAMESPACE);
+  const tokens: AccountAgentTokenInfo[] = [];
+  for (const entry of entries) {
+    tokens.push(await agentTokenInfo(entry.value));
+  }
+  return tokens.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+}
+
+export async function revokeAccountAgentToken(tokenId: string): Promise<boolean> {
+  tokenId = textField(tokenId, 160);
+  if (!tokenId) return false;
+  const entries = await listCacheValues<StoredAgentToken>(AUTH_AGENT_TOKEN_NAMESPACE);
+  const match = entries.find((entry) => entry.value.id === tokenId);
+  if (!match) return false;
+  await deleteCacheValue(AUTH_AGENT_TOKEN_NAMESPACE, match.cacheId);
+  return true;
+}
+
+export async function loginWithAccountAgentToken(
+  request: Request,
+): Promise<AccountAuthFinishResponse> {
+  const body = await jsonBody<AgentTokenLoginRequest>(request);
+  const token = textField(body.token, 500);
+  if (!isPlausibleAgentToken(token)) throw new AccountAuthError(401, "Unauthorized");
+
+  const tokenHash = await sha256Base64url(token);
+  const stored = await readCacheValue<StoredAgentToken>(AUTH_AGENT_TOKEN_NAMESPACE, tokenHash);
+  if (!stored) throw new AccountAuthError(401, "Unauthorized");
+  const expiresAtMs = Date.parse(stored.expiresAt);
+  const remainingTtlMs = expiresAtMs - Date.now();
+  if (!Number.isFinite(expiresAtMs) || remainingTtlMs <= 0) {
+    await deleteCacheValue(AUTH_AGENT_TOKEN_NAMESPACE, tokenHash);
+    throw new AccountAuthError(401, "Unauthorized");
+  }
+
+  const user = await getUser(stored.userId);
+  if (!user) throw new AccountAuthError(401, "Unauthorized");
+  await writeAgentToken(
+    { ...stored, lastUsedAt: new Date().toISOString() },
+    remainingTtlMs,
+  );
+  const session = await createSession(user.id, "agent_token");
+  return finishResponse(user, session);
+}
+
 export async function createAccountSessionHandoff(
   request: Request,
   targetOrigin: string,
@@ -536,11 +661,12 @@ async function readSession(
   return { session, user };
 }
 
-async function createSession(userId: string): Promise<AuthSession> {
+async function createSession(userId: string, auth = "passkey"): Promise<AuthSession> {
   const now = new Date();
   const session: AuthSession = {
     token: newToken("techweek_session"),
     userId,
+    auth,
     createdAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + SESSION_TTL_MS).toISOString(),
   };
@@ -553,10 +679,10 @@ async function createSession(userId: string): Promise<AuthSession> {
   return session;
 }
 
-function sessionState(user: AuthUser, expiresAt: string): AccountSessionState {
+function sessionState(user: AuthUser, expiresAt: string, auth = "passkey"): AccountSessionState {
   return {
     authenticated: true,
-    auth: "passkey",
+    auth,
     user: userInfo(user),
     expiresAt,
     bootstrapConfigured: true,
@@ -565,12 +691,74 @@ function sessionState(user: AuthUser, expiresAt: string): AccountSessionState {
 }
 
 function finishResponse(user: AuthUser, session: AuthSession): AccountAuthFinishResponse {
-  const state = sessionState(user, session.expiresAt);
+  const state = sessionState(user, session.expiresAt, session.auth || "passkey");
   return {
     user: userInfo(user),
     expiresAt: session.expiresAt,
     sessionToken: session.token,
     session: state,
+  };
+}
+
+async function resolveAgentTokenTarget(
+  body: CreateAgentTokenRequest | null,
+  creator: AccountSessionUser,
+): Promise<AuthUser> {
+  const userId = textField(body?.userId, 160);
+  const handle = normalizeAccountHandle(textField(body?.handle, 120));
+  const byUserId = userId ? await getUser(userId) : null;
+  const byHandle = handle ? await getUserByHandle(handle) : null;
+  if (userId && !byUserId) throw new AccountAuthError(404, "account not found");
+  if (handle && !byHandle) throw new AccountAuthError(404, "account not found");
+  if (byUserId && byHandle && byUserId.id !== byHandle.id) {
+    throw new AccountAuthError(400, "handle and userId refer to different accounts");
+  }
+  const target = byUserId ?? byHandle ?? await getUser(creator.id);
+  if (!target) throw new AccountAuthError(404, "account not found");
+  return target;
+}
+
+function agentTokenTtlMs(body: CreateAgentTokenRequest | null): number {
+  const raw = body?.ttlDays ?? body?.expiresInDays ?? body?.days;
+  if (raw === undefined || raw === null || raw === "") return AGENT_TOKEN_DEFAULT_TTL_MS;
+  const days = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+  if (!Number.isFinite(days) || days <= 0) {
+    throw new AccountAuthError(400, "ttlDays must be a positive number");
+  }
+  return Math.round(Math.min(days * 24 * 60 * 60 * 1000, AGENT_TOKEN_MAX_TTL_MS));
+}
+
+async function writeAgentToken(token: StoredAgentToken, ttlMs: number): Promise<void> {
+  await writeCacheValue<StoredAgentToken>(
+    AUTH_AGENT_TOKEN_NAMESPACE,
+    token.tokenHash,
+    token,
+    {
+      ttlMs,
+      metadata: {
+        id: token.id,
+        userId: token.userId,
+        createdByUserId: token.createdByUserId,
+      },
+    },
+  );
+}
+
+async function agentTokenInfo(stored: StoredAgentToken): Promise<AccountAgentTokenInfo> {
+  const user = await getUser(stored.userId);
+  return {
+    id: stored.id,
+    user: user ? userInfo(user) : {
+      id: stored.userId,
+      handle: stored.userHandle,
+      isAdmin: stored.userIsAdmin,
+      credentialCount: stored.userCredentialCount,
+    },
+    createdByUserId: stored.createdByUserId,
+    createdByHandle: stored.createdByHandle,
+    createdAt: stored.createdAt,
+    expiresAt: stored.expiresAt,
+    ...(stored.lastUsedAt ? { lastUsedAt: stored.lastUsedAt } : {}),
   };
 }
 
@@ -829,6 +1017,15 @@ function newToken(prefix: string): string {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   return `${prefix}_${bytesToBase64url(bytes)}`;
+}
+
+function isPlausibleAgentToken(token: string): boolean {
+  return /^techweek_agent_[A-Za-z0-9_-]{32,}$/.test(token);
+}
+
+async function sha256Base64url(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", TEXT_ENCODER.encode(value));
+  return bytesToBase64url(new Uint8Array(digest));
 }
 
 function appendUnique(values: string[], value: string): string[] {

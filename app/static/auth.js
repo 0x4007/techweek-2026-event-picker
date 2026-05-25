@@ -1,9 +1,11 @@
 const params = new URLSearchParams(globalThis.location.search);
 const AUTH_COMPLETE_MESSAGE = "techweek-auth-complete";
+const initialMode = params.get("mode");
 const state = {
-  mode: params.get("mode") === "register" ? "register" : "login",
+  mode: initialMode === "register" ? "register" : initialMode === "token" ? "token" : "login",
   session: null,
   busy: false,
+  agentToken: "",
 };
 
 const els = {
@@ -11,6 +13,12 @@ const els = {
   summary: document.querySelector("[data-summary]"),
   login: document.querySelector("[data-login]"),
   register: document.querySelector("[data-register]"),
+  tokenLogin: document.querySelector("[data-token-login]"),
+  adminAgentToken: document.querySelector("[data-admin-agent-token]"),
+  agentTokenCreate: document.querySelector("[data-agent-token-create]"),
+  agentTokenOutput: document.querySelector("[data-agent-token-output]"),
+  agentTokenTextarea: document.querySelector("[data-agent-token-output] textarea"),
+  copyAgentToken: document.querySelector("[data-copy-agent-token]"),
   message: document.querySelector("[data-message]"),
   modeButtons: Array.from(document.querySelectorAll("[data-mode]")),
 };
@@ -25,6 +33,19 @@ els.login.addEventListener("submit", async (event) => {
 els.register.addEventListener("submit", async (event) => {
   event.preventDefault();
   await register(new FormData(els.register));
+});
+els.tokenLogin.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await tokenSignIn(new FormData(els.tokenLogin));
+});
+els.agentTokenCreate.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await createAgentToken(new FormData(els.agentTokenCreate));
+});
+els.copyAgentToken.addEventListener("click", async () => {
+  if (!state.agentToken) return;
+  await navigator.clipboard?.writeText(state.agentToken);
+  showMessage("Token copied.");
 });
 
 boot();
@@ -45,33 +66,52 @@ async function boot() {
 }
 
 function setMode(mode) {
-  state.mode = mode === "register" ? "register" : "login";
+  state.mode = mode === "register" ? "register" : mode === "token" ? "token" : "login";
   render();
 }
 
 function render() {
   const registering = state.mode === "register";
+  const tokenLogin = state.mode === "token";
   const setupRequired = state.session?.setupRequired === true;
   const registrationAllowed = setupRequired || state.session?.registrationAllowed === true;
-  els.login.hidden = registering;
+  const admin = state.session?.authenticated === true && state.session?.user?.isAdmin === true;
+  els.login.hidden = registering || tokenLogin;
   els.register.hidden = !registering;
-  els.title.textContent = registering ? "Register passkey" : "Passkey sign in";
+  els.tokenLogin.hidden = !tokenLogin;
+  els.adminAgentToken.hidden = !admin;
+  els.title.textContent = registering
+    ? "Register passkey"
+    : tokenLogin
+    ? "Token sign in"
+    : "Passkey sign in";
   els.summary.textContent = registering
     ? setupRequired
       ? "Create the first admin passkey for this app."
       : "Register another passkey from an admin session."
+    : tokenLogin
+    ? "Use an admin-minted agent token for this browser."
     : "Use a saved passkey for this app.";
   els.modeButtons.forEach((button) => {
     button.disabled = state.busy || button.dataset.mode === state.mode ||
       (button.dataset.mode === "register" && !registrationAllowed);
   });
-  Array.from(document.querySelectorAll("button, input")).forEach((control) => {
+  Array.from(document.querySelectorAll("button, input, textarea")).forEach((control) => {
     if (control.matches("[data-mode]")) return;
-    control.disabled = state.busy || (registering && !registrationAllowed);
+    control.disabled = state.busy;
   });
-  const admin = els.register.elements.admin;
-  admin.checked = setupRequired ? true : admin.checked;
-  admin.disabled = state.busy || setupRequired;
+  Array.from(els.register.querySelectorAll("button, input")).forEach((control) => {
+    control.disabled = state.busy || !registrationAllowed;
+  });
+  Array.from(els.adminAgentToken.querySelectorAll("button, input, textarea")).forEach((control) => {
+    control.disabled = state.busy || !admin;
+  });
+  const adminCheckbox = els.register.elements.admin;
+  adminCheckbox.checked = setupRequired ? true : adminCheckbox.checked;
+  adminCheckbox.disabled = state.busy || setupRequired || !registrationAllowed;
+  els.agentTokenOutput.hidden = !state.agentToken;
+  els.copyAgentToken.hidden = !state.agentToken;
+  els.agentTokenTextarea.value = state.agentToken;
 }
 
 async function signIn(form) {
@@ -95,12 +135,13 @@ async function signIn(form) {
       publicKey: toRequestOptions(start.publicKey),
     });
     if (!credential) throw new Error("No passkey was returned.");
-    await requestJSON("/api/auth/login/finish", {
+    const result = await requestJSON("/api/auth/login/finish", {
       method: "POST",
       body: JSON.stringify({
         response: serializeAuthenticationCredential(credential),
       }),
     });
+    state.session = result.session || state.session;
     complete();
   } catch (error) {
     showMessage(error.message || "Passkey sign in failed.", true);
@@ -131,15 +172,61 @@ async function register(form) {
       publicKey: toCreationOptions(start.publicKey),
     });
     if (!credential) throw new Error("No passkey was returned.");
-    await requestJSON("/api/auth/register/finish", {
+    const result = await requestJSON("/api/auth/register/finish", {
       method: "POST",
       body: JSON.stringify({
         response: serializeRegistrationCredential(credential),
       }),
     });
+    state.session = result.session || state.session;
     complete();
   } catch (error) {
     showMessage(error.message || "Passkey registration failed.", true);
+  } finally {
+    state.busy = false;
+    render();
+  }
+}
+
+async function tokenSignIn(form) {
+  state.busy = true;
+  render();
+  showMessage("Signing in.");
+  try {
+    const result = await requestJSON("/api/auth/agent-token/login", {
+      method: "POST",
+      body: JSON.stringify({
+        token: String(form.get("token") || "").trim(),
+      }),
+    });
+    state.session = result.session || state.session;
+    complete();
+  } catch (error) {
+    showMessage(error.message || "Token sign in failed.", true);
+  } finally {
+    state.busy = false;
+    render();
+  }
+}
+
+async function createAgentToken(form) {
+  state.busy = true;
+  state.agentToken = "";
+  render();
+  showMessage("Creating token.");
+  try {
+    const handle = normalizeHandle(form.get("handle"));
+    const ttlDays = Number(form.get("ttlDays") || 7);
+    const body = { ttlDays };
+    if (handle) body.handle = handle;
+    const result = await requestJSON("/api/account/agent-tokens", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    state.agentToken = result.token || "";
+    showMessage("Token created.");
+  } catch (error) {
+    showMessage(error.message || "Could not create token.", true);
   } finally {
     state.busy = false;
     render();

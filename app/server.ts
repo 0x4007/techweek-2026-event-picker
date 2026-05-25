@@ -61,12 +61,16 @@ import {
   type AccountSessionUser,
   clearAccountSessionCookie,
   consumeAccountSessionHandoff,
+  createAccountAgentToken,
   createAccountSessionHandoff,
   finishAccountLogin,
   finishAccountRegistration,
+  listAccountAgentTokens,
+  loginWithAccountAgentToken,
   logoutAccountSession,
   requireAccountSession as requireStoredAccountSession,
   requireAdminAccountSession as requireStoredAdminAccountSession,
+  revokeAccountAgentToken,
   startAccountLogin,
   startAccountRegistration,
 } from "./lib/account_auth.ts";
@@ -957,6 +961,11 @@ async function handleAuthLoginFinish(request: Request): Promise<Response> {
   return authFinishResponse(result, request);
 }
 
+async function handleAuthAgentTokenLogin(request: Request): Promise<Response> {
+  const result = await loginWithAccountAgentToken(request);
+  return authFinishResponse(result, request);
+}
+
 async function handleAuthLogout(request: Request): Promise<Response> {
   await logoutAccountSession(request);
   return new Response(null, {
@@ -970,6 +979,24 @@ async function handleAuthHandoff(request: Request): Promise<Response> {
   const body = recordValue(raw);
   const targetOrigin = textField(body?.embedOrigin, 500) || textField(body?.origin, 500);
   return json(await createAccountSessionHandoff(request, targetOrigin));
+}
+
+async function handleAccountAgentTokensGet(): Promise<Response> {
+  return json({ tokens: await listAccountAgentTokens() });
+}
+
+async function handleAccountAgentTokensPost(request: Request): Promise<Response> {
+  const session = await readAccountSession(request);
+  const user = session.user;
+  if (!session.authenticated || user?.isAdmin !== true) {
+    return json({ error: { message: "Admin access required." } }, { status: 403 });
+  }
+  return json(await createAccountAgentToken(request, user), { status: 201 });
+}
+
+async function handleAccountAgentTokenDelete(tokenId: string): Promise<Response> {
+  const revoked = await revokeAccountAgentToken(tokenId);
+  return revoked ? new Response(null, { status: 204 }) : notFound();
 }
 
 function authFinishResponse(
@@ -5709,6 +5736,9 @@ export async function router(request: Request): Promise<Response> {
     if (request.method === "POST" && pathname === "/api/auth/login/finish") {
       return await handleAuthLoginFinish(request);
     }
+    if (request.method === "POST" && pathname === "/api/auth/agent-token/login") {
+      return await handleAuthAgentTokenLogin(request);
+    }
     if (request.method === "POST" && pathname === "/api/auth/logout") {
       return await handleAuthLogout(request);
     }
@@ -5720,6 +5750,17 @@ export async function router(request: Request): Promise<Response> {
     }
     if (request.method === "GET" && pathname === "/api/account/invite") {
       return await handleAccountInviteGet(request);
+    }
+    if (request.method === "GET" && pathname === "/api/account/agent-tokens") {
+      return await handleAccountAgentTokensGet();
+    }
+    if (request.method === "POST" && pathname === "/api/account/agent-tokens") {
+      return await handleAccountAgentTokensPost(request);
+    }
+    if (request.method === "DELETE" && pathname.startsWith("/api/account/agent-tokens/")) {
+      return await handleAccountAgentTokenDelete(
+        decodeURIComponent(pathname.replace("/api/account/agent-tokens/", "")),
+      );
     }
     if (request.method === "POST" && pathname === "/api/account/session/handoff") {
       return await handleAccountSessionHandoff(request);

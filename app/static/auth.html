@@ -47,6 +47,7 @@
       }
 
       header,
+      section,
       form,
       [data-actions],
       [data-field] {
@@ -55,6 +56,7 @@
       }
 
       h1,
+      h2,
       p {
         margin: 0;
       }
@@ -64,6 +66,11 @@
         line-height: 1.2;
       }
 
+      h2 {
+        font-size: 15px;
+        line-height: 1.25;
+      }
+
       p,
       label {
         color: var(--muted);
@@ -71,7 +78,9 @@
         line-height: 1.45;
       }
 
-      input[type="text"] {
+      input[type="text"],
+      input[type="number"],
+      textarea {
         width: 100%;
         min-height: 42px;
         border: 0;
@@ -84,7 +93,14 @@
         outline: none;
       }
 
+      textarea {
+        min-height: 82px;
+        padding: 10px 12px;
+        resize: vertical;
+      }
+
       input:focus-visible,
+      textarea:focus-visible,
       button:focus-visible {
         outline: 2px solid var(--accent);
         outline-offset: 2px;
@@ -127,7 +143,17 @@
       }
 
       [data-actions] {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      [data-admin-agent-token] {
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+      }
+
+      [data-agent-token-create] {
+        grid-template-columns: minmax(0, 1fr) 82px auto;
+        align-items: end;
       }
 
       [data-message] {
@@ -172,12 +198,51 @@
         <button type="submit">Register passkey</button>
       </form>
 
+      <form data-token-login hidden>
+        <label data-field>
+          <span>Agent token</span>
+          <input
+            name="token"
+            type="text"
+            autocomplete="off"
+            autocapitalize="none"
+            spellcheck="false"
+            required
+          >
+        </label>
+        <button type="submit">Token sign in</button>
+      </form>
+
       <div data-actions>
         <button type="button" data-mode="login">Sign in</button>
+        <button type="button" data-mode="token">Token</button>
         <button type="button" data-mode="register">Register</button>
       </div>
+
+      <section data-admin-agent-token hidden>
+        <header>
+          <h2>Agent token</h2>
+          <p>Mint a short-lived login token for an existing account.</p>
+        </header>
+        <form data-agent-token-create>
+          <label data-field>
+            <span>Username</span>
+            <input name="handle" type="text" autocomplete="username" placeholder="Current">
+          </label>
+          <label data-field>
+            <span>Days</span>
+            <input name="ttlDays" type="number" min="1" max="30" step="1" value="7">
+          </label>
+          <button type="submit">Create token</button>
+        </form>
+        <label data-field data-agent-token-output hidden>
+          <span>New token</span>
+          <textarea readonly spellcheck="false"></textarea>
+        </label>
+        <button type="button" data-copy-agent-token hidden>Copy token</button>
+      </section>
       <p data-message aria-live="polite"></p>
     </main>
-    <script type="module" src="/auth.js?v=20260519-standalone-auth"></script>
+    <script type="module" src="/auth.js?v=20260525-agent-token"></script>
   </body>
 </html>

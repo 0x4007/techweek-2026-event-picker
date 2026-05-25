@@ -14,7 +14,12 @@ import {
   statusLabelForScheduleStatus,
   visibleAgentGatewayError,
 } from "./server.ts";
-import { setKvPathForTest } from "./lib/kv_store.ts";
+import {
+  readStateValue,
+  setKvPathForTest,
+  writeCacheValue,
+  writeStateValue,
+} from "./lib/kv_store.ts";
 
 function assertEquals(actual: unknown, expected: unknown) {
   const actualJson = JSON.stringify(actual);
@@ -66,6 +71,29 @@ function useAccountSessionForTest(
     },
     expiresAt: "2026-06-01T12:00:00.000Z",
   });
+}
+
+type SeedAuthUser = {
+  id: string;
+  handle: string;
+  isAdmin?: boolean;
+  credentialIds?: string[];
+};
+
+async function seedAuthUser(user: SeedAuthUser): Promise<void> {
+  const now = "2026-05-25T12:00:00.000Z";
+  const credentialIds = user.credentialIds ?? [];
+  await writeStateValue(`auth:user:${user.id}`, {
+    id: user.id,
+    handle: user.handle,
+    isAdmin: Boolean(user.isAdmin),
+    credentialIds,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await writeStateValue(`auth:handle:${user.handle}`, user.id);
+  const existing = await readStateValue<string[]>("auth:users:v1") ?? [];
+  await writeStateValue("auth:users:v1", [...new Set([...existing, user.id])].sort());
 }
 
 function kvRouterTest(name: string, fn: () => Promise<void>) {
@@ -463,6 +491,206 @@ kvRouterTest("account session returns authenticated local passkey identity", asy
     assertEquals(getPath(body, ["session", "user", "isAdmin"]), true);
   } finally {
     setAccountSessionForTest(undefined);
+  }
+});
+
+kvRouterTest("admin can mint, list, use, and revoke agent tokens for existing users", async () => {
+  await seedAuthUser({
+    id: "admin_agent_user",
+    handle: "admin",
+    isAdmin: true,
+    credentialIds: ["cred_a", "cred_b"],
+  });
+  await seedAuthUser({
+    id: "target_agent_user",
+    handle: "target",
+    credentialIds: ["cred_target"],
+  });
+  useAccountSessionForTest({
+    id: "admin_agent_user",
+    handle: "admin",
+    isAdmin: true,
+    credentialCount: 2,
+  });
+
+  const selfResponse = await router(
+    new Request("http://localhost/api/account/agent-tokens", {
+      method: "POST",
+      headers: { cookie: "techweek_session=test-session" },
+    }),
+  );
+  assertEquals(selfResponse.status, 201);
+  const selfBody = await selfResponse.json() as Record<string, unknown>;
+  assertEquals(getPath(selfBody, ["agentToken", "user", "id"]), "admin_agent_user");
+  const selfRawToken = String(getPath(selfBody, ["token"]) || "");
+  if (!selfRawToken.startsWith("techweek_agent_")) {
+    throw new Error(`Expected raw agent token at creation, got ${selfRawToken}`);
+  }
+
+  const targetResponse = await router(
+    new Request("http://localhost/api/account/agent-tokens", {
+      method: "POST",
+      headers: ADMIN_STATE_HEADERS,
+      body: JSON.stringify({ handle: "target", ttlDays: 1 }),
+    }),
+  );
+  assertEquals(targetResponse.status, 201);
+  const targetBody = await targetResponse.json() as Record<string, unknown>;
+  const targetRawToken = String(getPath(targetBody, ["token"]) || "");
+  const targetTokenId = String(getPath(targetBody, ["agentToken", "id"]) || "");
+  assertEquals(getPath(targetBody, ["agentToken", "user", "id"]), "target_agent_user");
+  if (!targetRawToken.startsWith("techweek_agent_")) {
+    throw new Error(`Expected target raw agent token at creation, got ${targetRawToken}`);
+  }
+
+  const listResponse = await router(
+    new Request("http://localhost/api/account/agent-tokens", {
+      headers: ADMIN_STATE_HEADERS,
+    }),
+  );
+  assertEquals(listResponse.status, 200);
+  const listBody = await listResponse.json() as Record<string, unknown>;
+  const listedTokens = getPath(listBody, ["tokens"]);
+  if (!Array.isArray(listedTokens) || listedTokens.length !== 2) {
+    throw new Error(`Expected two listed token metadata entries, got ${JSON.stringify(listBody)}`);
+  }
+  const serializedList = JSON.stringify(listBody);
+  if (serializedList.includes(targetRawToken) || serializedList.includes(selfRawToken)) {
+    throw new Error(
+      `Expected listed token metadata not to expose raw token values: ${serializedList}`,
+    );
+  }
+
+  setAccountSessionForTest(undefined);
+  const loginResponse = await router(
+    new Request("http://localhost/api/auth/agent-token/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: targetRawToken }),
+    }),
+  );
+  assertEquals(loginResponse.status, 200);
+  const setCookie = loginResponse.headers.get("set-cookie") || "";
+  if (!setCookie.includes("techweek_session=")) {
+    throw new Error(`Expected agent token login to set session cookie, got ${setCookie}`);
+  }
+  const loginBody = await loginResponse.json() as Record<string, unknown>;
+  assertEquals(getPath(loginBody, ["session", "authenticated"]), true);
+  assertEquals(getPath(loginBody, ["session", "auth"]), "agent_token");
+  assertEquals(getPath(loginBody, ["session", "user", "id"]), "target_agent_user");
+
+  const sessionCookie = setCookie.split(";")[0] || "";
+  const sessionResponse = await router(
+    new Request("http://localhost/api/account/session", {
+      headers: { cookie: sessionCookie },
+    }),
+  );
+  assertEquals(sessionResponse.status, 200);
+  const sessionBody = await sessionResponse.json() as Record<string, unknown>;
+  assertEquals(getPath(sessionBody, ["session", "auth"]), "agent_token");
+  assertEquals(getPath(sessionBody, ["session", "user", "id"]), "target_agent_user");
+
+  useAccountSessionForTest({
+    id: "admin_agent_user",
+    handle: "admin",
+    isAdmin: true,
+    credentialCount: 2,
+  });
+  const revokeResponse = await router(
+    new Request(`http://localhost/api/account/agent-tokens/${targetTokenId}`, {
+      method: "DELETE",
+      headers: ADMIN_STATE_HEADERS,
+    }),
+  );
+  assertEquals(revokeResponse.status, 204);
+
+  setAccountSessionForTest(undefined);
+  const revokedLoginResponse = await router(
+    new Request("http://localhost/api/auth/agent-token/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: targetRawToken }),
+    }),
+  );
+  assertEquals(revokedLoginResponse.status, 401);
+  assertEquals(revokedLoginResponse.headers.get("set-cookie"), null);
+});
+
+kvRouterTest("agent token minting only targets existing accounts", async () => {
+  await seedAuthUser({
+    id: "admin_agent_missing_user",
+    handle: "admin-missing",
+    isAdmin: true,
+  });
+  useAccountSessionForTest({
+    id: "admin_agent_missing_user",
+    handle: "admin-missing",
+    isAdmin: true,
+  });
+  try {
+    const missingHandle = await router(
+      new Request("http://localhost/api/account/agent-tokens", {
+        method: "POST",
+        headers: ADMIN_STATE_HEADERS,
+        body: JSON.stringify({ handle: "missing" }),
+      }),
+    );
+    assertEquals(missingHandle.status, 404);
+
+    const missingUserId = await router(
+      new Request("http://localhost/api/account/agent-tokens", {
+        method: "POST",
+        headers: ADMIN_STATE_HEADERS,
+        body: JSON.stringify({ userId: "missing_user_id" }),
+      }),
+    );
+    assertEquals(missingUserId.status, 404);
+
+    const listResponse = await router(
+      new Request("http://localhost/api/account/agent-tokens", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    const listBody = await listResponse.json() as Record<string, unknown>;
+    assertEquals(getPath(listBody, ["tokens"]), []);
+  } finally {
+    setAccountSessionForTest(undefined);
+  }
+});
+
+kvRouterTest("agent token login rejects malformed unknown and expired tokens", async () => {
+  await seedAuthUser({ id: "expired_agent_user", handle: "expired-agent" });
+  const expiredToken = `techweek_agent_${"A".repeat(43)}`;
+  const expiredHash = await sha256Base64url(expiredToken);
+  await writeCacheValue("auth-agent-token", expiredHash, {
+    id: "agent_token_expired",
+    tokenHash: expiredHash,
+    userId: "expired_agent_user",
+    userHandle: "expired-agent",
+    userIsAdmin: false,
+    userCredentialCount: 0,
+    createdByUserId: "admin_agent_user",
+    createdByHandle: "admin",
+    createdAt: "2026-05-01T12:00:00.000Z",
+    expiresAt: "2026-05-01T12:01:00.000Z",
+  }, { ttlMs: 0 });
+
+  for (
+    const token of [
+      "not-a-token",
+      `techweek_agent_${"B".repeat(43)}`,
+      expiredToken,
+    ]
+  ) {
+    const response = await router(
+      new Request("http://localhost/api/auth/agent-token/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token }),
+      }),
+    );
+    assertEquals(response.status, 401);
+    assertEquals(response.headers.get("set-cookie"), null);
   }
 });
 
@@ -1117,4 +1345,12 @@ function decodeBase64urlText(value: string): string {
     bytes[index] = binary.charCodeAt(index);
   }
   return new TextDecoder().decode(bytes);
+}
+
+async function sha256Base64url(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  const bytes = new Uint8Array(digest);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
 }
