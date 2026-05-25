@@ -384,6 +384,7 @@ function flattenDayEntries(days = []) {
 }
 
 document.body.dataset.view = state.activeView;
+setView(state.activeView, { updateHash: false });
 
 viewButtons.forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.viewButton));
@@ -462,7 +463,9 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeEventModal();
 });
 globalThis.addEventListener("hashchange", () => {
-  if (!applyHashNavigation() || !state.payload) return;
+  const changed = applyHashNavigation();
+  setView(state.activeView, { updateHash: false });
+  if (!changed || !state.payload) return;
   render();
 });
 

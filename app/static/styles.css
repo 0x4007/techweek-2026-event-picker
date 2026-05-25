@@ -306,7 +306,7 @@ body > header > section {
 [data-account-button] {
   flex: 0 1 auto;
   min-width: 36px;
-  max-width: 112px;
+  max-width: none;
   background: var(--soft);
   color: var(--ink);
   box-shadow: none;
@@ -638,6 +638,7 @@ article[data-lead] header section {
 }
 
 [data-card-scan] [data-card-scan-button] {
+  position: relative;
   min-height: 34px;
   max-width: 100%;
   border: 0;
@@ -698,11 +699,20 @@ article[data-lead] header section {
 
 [data-card-scan] [data-card-input] {
   position: absolute;
+  inset: 0;
   width: 1px;
   height: 1px;
+  min-height: 1px;
+  max-height: 1px;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
+  border: 0;
+  clip-path: inset(50%);
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 [data-card-scan] p {
@@ -1258,6 +1268,50 @@ article[data-entry] > p {
 }
 
 @media (max-width: 759px) {
+  body > header > section {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    justify-content: stretch;
+  }
+
+  [data-title-block] {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  body > header nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  [data-account-button] {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  body > header nav button {
+    min-height: 30px;
+    padding: 0 6px;
+    font-size: 11px;
+  }
+
+  body > header nav button svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  body > header nav button span,
+  [data-account-button] span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   [data-next-card] {
     grid-template-columns: auto minmax(0, 1fr);
   }
@@ -1278,7 +1332,7 @@ article[data-entry] > p {
   }
 
   [data-timeline] {
-    grid-template-columns: 34px minmax(0, 1fr) minmax(84px, 0.38fr);
+    grid-template-columns: 34px minmax(0, 1fr) minmax(168px, 0.55fr);
     column-gap: 6px;
   }
 
@@ -1295,7 +1349,7 @@ article[data-entry] > p {
   [data-timeline] article[data-entry][data-option="true"] h3 {
     font-size: 10px;
     line-height: 1.14;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 4;
   }
 
   [data-timeline] article[data-entry][data-option="true"] time {
