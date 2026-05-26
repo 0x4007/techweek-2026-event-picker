@@ -39,19 +39,9 @@ const LEAD_SIGNAL_FIELDS = ["githubHeavy", "aiCodingAdoption"];
 const PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS = 1_500;
 const PARTIFUL_AUTO_SYNC_STATUS_POLL_MS = 20_000;
 const PARTIFUL_AUTO_SYNC_MAX_POLLS = 8;
-const PARTIFUL_FAST_SYNC_TIMEOUT_MS = 60_000;
 const LIVE_ROUTE_REFRESH_TIMEOUT_MS = 150_000;
-const CHAT_EMPTY_GUIDE = [
-  "Action shortcuts",
-  "",
-  "Optimize: rebuild the agenda around approvals, locations, and timing.",
-  "ICS: download the current agenda calendar file.",
-  "Partiful: sync approvals, statuses, and discovered events.",
-  "Next: ask what to do next for the current tab and day.",
-  "Timing: check whether the next event is reachable.",
-  "Options: compare backup choices when the plan changes.",
-  "Pitch: get an opening line and ask for the next event.",
-].join("\n");
+const CHAT_EMPTY_GUIDE =
+  "Ask me anything about today's Tech Week plan and I'll help you stay aligned.";
 const DEV_AUTH_POPUP_POLL_MS = 500;
 const DEV_AUTH_POPUP_TIMEOUT_MS = 2 * 60_000;
 const MOTION_REDUCE_OK = !globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -149,11 +139,11 @@ const state = {
   historyOpen: false,
   agentBusy: false,
   agendaBusy: false,
-  partifulSyncBusy: false,
-  liveRouteRefreshBusy: false,
   partifulAutoSyncRequestBusy: false,
   partifulAutoSyncRequestTimer: 0,
   partifulAutoSyncPollTimer: 0,
+  partifulAutoSyncFallbackBusy: false,
+  partifulAutoSyncFallbackAttempted: false,
   routeTransitionDirection: "none",
   leadEventManuallySelected: false,
   followUpEmailTouched: false,
@@ -170,7 +160,6 @@ const routeList = document.querySelector("[data-route-list]");
 const referenceList = document.querySelector("[data-reference-list]");
 const chatLog = document.querySelector("[data-chat-log]");
 const chatForm = document.querySelector("[data-chat-form]");
-const promptButtons = document.querySelectorAll("[data-ask]");
 const chatDrawer = document.querySelector("[data-agent-drawer]");
 const chatBackdrop = document.querySelector("[data-agent-backdrop]");
 const chatOpenButtons = document.querySelectorAll("[data-chat-open]");
@@ -221,8 +210,7 @@ const followUpEmailPreview = document.querySelector("[data-follow-up-email-previ
 const followUpEmailTo = document.querySelector("[data-follow-up-email-to]");
 const followUpEmailSubject = document.querySelector("[data-follow-up-email-subject]");
 const followUpEmailBody = document.querySelector("[data-follow-up-email-body]");
-const agendaRecalculateButton = document.querySelector("[data-agenda-recalculate]");
-const partifulSyncButton = document.querySelector("[data-partiful-sync]");
+const eventsCalendarDownloadLink = document.querySelector("[data-events-calendar-link]");
 const agendaStatusItems = document.querySelectorAll("[data-agenda-status]");
 const SVG_NS = "http://www.w3.org/2000/svg";
 const VIEW_TITLES = {
@@ -464,7 +452,6 @@ document.addEventListener("keydown", (event) => {
 });
 globalThis.addEventListener("hashchange", () => {
   const changed = applyHashNavigation();
-  setView(state.activeView, { updateHash: false });
   if (!changed || !state.payload) return;
   render();
 });
@@ -474,13 +461,6 @@ renderChat();
 renderAccountButton();
 capturePendingReferralFromUrl();
 void loadAccountSession();
-
-promptButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    openChat();
-    askAgent(button.dataset.ask);
-  });
-});
 
 chatForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -493,8 +473,6 @@ chatForm.addEventListener("submit", (event) => {
 });
 chatForm.elements.prompt.addEventListener("input", updateComposerState);
 chatForm.elements.prompt.addEventListener("keydown", handleChatKeydown);
-agendaRecalculateButton.addEventListener("click", recalculateAgenda);
-partifulSyncButton.addEventListener("click", syncPartifulAndRecalculate);
 
 leadForm.addEventListener("submit", handleLeadSubmit);
 updateComposerState();
@@ -1841,11 +1819,11 @@ function applyHashNavigation() {
   const next = readHashNavigation();
   const previousView = state.activeView;
   const previousDay = state.activeDay;
-  if (next.view) state.activeView = next.view;
+  state.activeView = next.view || "route";
   if (next.day) state.activeDay = next.day;
   if (state.payload) normalizeActiveDay();
   state.routeTransitionDirection = routeTransitionDirection(previousDay, state.activeDay);
-  document.body.dataset.view = state.activeView;
+  setView(state.activeView, { updateHash: false });
   return previousView !== state.activeView || previousDay !== state.activeDay;
 }
 
@@ -1907,7 +1885,11 @@ async function loadSchedule() {
 }
 
 async function loadScheduleForApp(options = {}) {
-  if (scheduleLoadPromise) return await scheduleLoadPromise;
+  if (scheduleLoadPromise) {
+    const result = await scheduleLoadPromise;
+    if (options.scheduleAutoSync) scheduleServerPartifulAutoSync();
+    return result;
+  }
   if (options.showLoading) {
     document.querySelector("[data-next-title]").textContent = "Loading events...";
     setAgendaStatus("Loading events...");
@@ -1937,9 +1919,9 @@ async function loadScheduleAfterAuthentication() {
   }
 }
 
-async function recalculateAgenda() {
-  if (state.agendaBusy || state.partifulSyncBusy || state.liveRouteRefreshBusy) return;
-  setAgendaBusy(true, "Optimizing schedule...");
+async function recalculateAgenda({ silent = false } = {}) {
+  if (state.agendaBusy) return false;
+  setAgendaBusy(true, silent ? "" : "Optimizing schedule...");
   try {
     const response = await fetchWithTimeout(
       "/api/agenda/recalculate",
@@ -1959,111 +1941,17 @@ async function recalculateAgenda() {
     } else if (body.agenda) {
       applyAgendaProposal(body.agenda);
     }
-    const selected = body.agenda?.summary?.selectedEvents ?? countScheduleEvents();
-    const dropped = body.agenda?.summary?.droppedEvents ?? 0;
-    setAgendaBusy(false, `Optimized ${selected} events; ${dropped} alternatives left out.`);
+    if (silent) {
+      setAgendaBusy(false, "");
+    } else {
+      const selected = body.agenda?.summary?.selectedEvents ?? countScheduleEvents();
+      const dropped = body.agenda?.summary?.droppedEvents ?? 0;
+      setAgendaBusy(false, `Optimized ${selected} events; ${dropped} alternatives left out.`);
+    }
+    return true;
   } catch (error) {
     setAgendaBusy(false, error instanceof Error ? error.message : "Could not recalculate agenda.");
-  }
-}
-
-async function syncPartifulAndRecalculate() {
-  await syncPartifulAndRecalculateInTwoPhases({ background: false });
-}
-
-async function syncPartifulAndRecalculateInTwoPhases({ background = false } = {}) {
-  if (state.agendaBusy || state.partifulSyncBusy || state.liveRouteRefreshBusy) {
-    if (!background) setAgendaStatus("Agenda refresh is already running.");
     return false;
-  }
-
-  state.partifulSyncBusy = true;
-  updateAgendaControls();
-  if (!background) {
-    setAgendaStatus("Syncing Partiful approvals... live routes will refine in the background.");
-  }
-
-  try {
-    const response = await fetchWithTimeout(
-      "/api/sync/partiful/headless",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ liveRouting: false, recalculate: true, activate: true }),
-      },
-      PARTIFUL_FAST_SYNC_TIMEOUT_MS,
-    );
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(body?.error?.message || "Could not sync Partiful.");
-    }
-    if (body.schedule) applySchedulePayload(body.schedule);
-    const selected = body.agenda?.summary?.selectedEvents ?? countScheduleEvents();
-    const discovered = body.headless?.targetCount ?? body.ingestion?.snapshotCount ?? 0;
-    const failed = body.headless?.failureCount ?? 0;
-    if (!background) {
-      setAgendaStatus(
-        `Synced ${discovered} Partiful events; agenda now has ${selected} selected.${
-          failed ? ` ${failed} fetches failed.` : ""
-        } Refining live routes in the background.`,
-      );
-    }
-    void refreshLiveRoutesInBackground({ silent: background });
-    return true;
-  } catch (error) {
-    if (background) {
-      console.warn(error);
-    } else {
-      setAgendaStatus(error instanceof Error ? error.message : "Could not sync Partiful.");
-    }
-    return false;
-  } finally {
-    state.partifulSyncBusy = false;
-    updateAgendaControls();
-  }
-}
-
-async function refreshLiveRoutesInBackground({ silent = true } = {}) {
-  if (state.liveRouteRefreshBusy) return false;
-  state.liveRouteRefreshBusy = true;
-  updateAgendaControls();
-  if (!silent) setAgendaStatus("Refreshing live routes in the background...");
-
-  try {
-    const response = await fetchWithTimeout(
-      "/api/agenda/recalculate",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ liveRouting: true, activate: true }),
-      },
-      LIVE_ROUTE_REFRESH_TIMEOUT_MS,
-    );
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(body?.error?.message || "Could not refresh live routes.");
-    }
-    if (body.schedule) {
-      applySchedulePayload(body.schedule);
-    } else if (body.agenda) {
-      applyAgendaProposal(body.agenda);
-    }
-    if (!silent) {
-      const selected = body.agenda?.summary?.selectedEvents ?? countScheduleEvents();
-      setAgendaStatus(`Live routes refreshed; agenda has ${selected} selected events.`);
-    }
-    return true;
-  } catch (error) {
-    if (silent) {
-      console.warn(error);
-    } else {
-      const message = error instanceof Error ? error.message : "Could not refresh live routes.";
-      setAgendaStatus(`Partiful sync completed; ${message}`);
-    }
-    return false;
-  } finally {
-    state.liveRouteRefreshBusy = false;
-    updateAgendaControls();
   }
 }
 
@@ -2111,14 +1999,7 @@ function applyAgendaProposal(agenda) {
 
 function setAgendaBusy(busy, message) {
   state.agendaBusy = busy;
-  updateAgendaControls();
   setAgendaStatus(message || "");
-}
-
-function updateAgendaControls() {
-  const busy = state.agendaBusy || state.partifulSyncBusy || state.liveRouteRefreshBusy;
-  agendaRecalculateButton.disabled = busy;
-  partifulSyncButton.disabled = busy;
 }
 
 function setAgendaStatus(message) {
@@ -2127,8 +2008,14 @@ function setAgendaStatus(message) {
   });
 }
 
+function renderEventsCalendarLink() {
+  if (!eventsCalendarDownloadLink) return;
+  const href = state.payload?.sync?.google?.operationalIcs || "/api/ics/operational";
+  eventsCalendarDownloadLink.href = href;
+}
+
 function scheduleServerPartifulAutoSync(delayMs = PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS) {
-  if (state.accountSession?.authenticated !== true) return;
+  if (!canRunPartifulAutoSync()) return;
   if (state.partifulAutoSyncRequestTimer) {
     globalThis.clearTimeout(state.partifulAutoSyncRequestTimer);
   }
@@ -2139,11 +2026,14 @@ function scheduleServerPartifulAutoSync(delayMs = PARTIFUL_AUTO_SYNC_OPEN_DELAY_
 }
 
 async function requestServerPartifulAutoSync() {
-  if (state.accountSession?.authenticated !== true) return;
+  if (!canRunPartifulAutoSync()) return;
   if (state.partifulAutoSyncRequestBusy || document.hidden) return;
   state.partifulAutoSyncRequestBusy = true;
   try {
-    const response = await fetch("/api/sync/partiful/auto", { method: "POST" });
+    const response = await fetch("/api/sync/partiful/auto", {
+      method: "POST",
+      credentials: "include",
+    });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(
@@ -2152,6 +2042,9 @@ async function requestServerPartifulAutoSync() {
     }
     if (response.status === 202 || body.action === "started" || body.action === "already_running") {
       schedulePartifulAutoSyncSchedulePoll();
+    }
+    if (body.action === "skipped" && !hasActiveAgenda()) {
+      void requestFallbackAgendaRecalculation();
     }
     if (body.partifulAutoSync?.status === "failed" && body.partifulAutoSync?.lastError) {
       setAgendaStatus(`Partiful auto-sync failed: ${body.partifulAutoSync.lastError}`);
@@ -2162,6 +2055,37 @@ async function requestServerPartifulAutoSync() {
     setAgendaStatus(message);
   } finally {
     state.partifulAutoSyncRequestBusy = false;
+  }
+}
+
+function canRunPartifulAutoSync() {
+  return state.accountSession?.authenticated === true &&
+    state.accountSession?.user?.isAdmin === true;
+}
+
+function hasActiveAgenda() {
+  return Boolean(state.payload?.activeAgenda?.agendaRunId);
+}
+
+async function requestFallbackAgendaRecalculation() {
+  if (
+    !canRunPartifulAutoSync() ||
+    state.partifulAutoSyncFallbackBusy || state.partifulAutoSyncFallbackAttempted ||
+    hasActiveAgenda()
+  ) return;
+  state.partifulAutoSyncFallbackAttempted = true;
+  state.partifulAutoSyncFallbackBusy = true;
+  try {
+    const recalculated = await recalculateAgenda({ silent: true });
+    if (recalculated && !hasActiveAgenda()) {
+      setAgendaStatus(
+        "Agenda is stale: automatic sync was recently skipped and no active agenda is available.",
+      );
+    }
+  } catch (error) {
+    setAgendaStatus(error instanceof Error ? error.message : "Could not recalculate agenda.");
+  } finally {
+    state.partifulAutoSyncFallbackBusy = false;
   }
 }
 
@@ -2202,11 +2126,14 @@ function surfacePartifulAutoSyncStatus() {
   const autoSync = state.payload?.sync?.partifulAuto;
   if (autoSync?.status === "failed" && autoSync.lastError) {
     setAgendaStatus(`Partiful auto-sync failed: ${autoSync.lastError}`);
+    return;
   }
+  setAgendaStatus("");
 }
 
 function render() {
   renderNext();
+  renderEventsCalendarLink();
   renderDayTabs();
   renderRouteList();
   renderReferenceList();
@@ -2324,14 +2251,19 @@ function renderRouteList() {
   const optionEntries = sameDayOptionEntries(state.activeDay);
   const lanes = computeCollisionLanes(entries);
   const optionLanes = computeCollisionLanes(optionEntries);
+  const timelineEntries = [...entries, ...optionEntries]
+    .sort((a, b) =>
+      eventStartEpochMs(a) - eventStartEpochMs(b) || eventEndEpochMs(a) - eventEndEpochMs(b)
+    );
   const timeline = document.createElement("section");
   timeline.dataset.timeline = "";
   timeline.dataset.transition = state.routeTransitionDirection || "none";
   timeline.style.setProperty("--slots", "96");
   timeline.append(
     renderTimeRail(),
-    ...entries.map((entry) => renderTimelineEntry(entry, lanes)),
-    ...optionEntries.map((entry) => renderTimelineEntry(entry, optionLanes)),
+    ...timelineEntries.map((entry) =>
+      renderTimelineEntry(entry, entry.calendar === "reference" ? optionLanes : lanes)
+    ),
   );
   routeList.replaceChildren(timeline);
   state.routeTransitionDirection = "none";
@@ -5295,15 +5227,15 @@ function setBusy(busy) {
   state.agentBusy = busy;
   chatNewButton.disabled = busy;
   chatHistoryToggle.disabled = busy;
-  promptButtons.forEach((button) => {
-    button.disabled = busy;
-  });
   updateComposerState();
 }
 
 loadScheduleForApp({ scheduleAutoSync: true }).catch(() => {});
 globalThis.setInterval(refreshAutomaticLeadEvent, LEAD_EVENT_REFRESH_MS);
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) refreshAutomaticLeadEvent();
-  if (!document.hidden) scheduleServerPartifulAutoSync();
+  if (document.hidden) return;
+  refreshAutomaticLeadEvent();
+  void loadScheduleForApp({ scheduleAutoSync: true }).catch((error) => {
+    console.warn(error);
+  });
 });

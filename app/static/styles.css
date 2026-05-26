@@ -371,7 +371,7 @@ body > header p {
 body > header nav {
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   min-width: 0;
   padding: 2px;
@@ -401,6 +401,65 @@ main {
 main > section {
   display: grid;
   gap: 12px;
+}
+
+[data-panel="backup"] > section:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+[data-events-calendar-link] {
+  min-height: 30px;
+  padding: 0 8px;
+  background: var(--soft);
+  color: var(--muted);
+  box-shadow: none;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+[data-events-calendar-link]:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.invite-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.invite-row strong,
+.invite-row a {
+  min-width: 0;
+}
+
+.invite-row a,
+.invite-row button {
+  background: var(--soft);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.invite-row a {
+  flex: 1 1 auto;
+  justify-content: start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.invite-row button {
+  flex: 0 0 auto;
+}
+
+.invite-row a:hover,
+.invite-row button:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
 }
 
 [data-next-card],
@@ -498,8 +557,6 @@ menu {
 
 menu button,
 menu a,
-[data-prompts] button,
-[data-prompts] a,
 [data-day-tabs] button {
   min-height: 24px;
   background: var(--soft);
@@ -631,6 +688,7 @@ article[data-lead] header section {
 }
 
 [data-card-scan] {
+  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 6px 8px;
@@ -698,18 +756,20 @@ article[data-lead] header section {
 }
 
 [data-card-scan] [data-card-input] {
-  position: absolute;
-  inset: 0;
-  width: 1px;
-  height: 1px;
-  min-height: 1px;
-  max-height: 1px;
-  margin: 0;
-  padding: 0;
+  position: fixed;
+  top: -100vh;
+  left: -100vw;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  max-height: 1px !important;
+  margin: 0 !important;
+  padding: 0 !important;
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
   border: 0;
+  appearance: none;
   clip-path: inset(50%);
   clip: rect(0 0 0 0);
   white-space: nowrap;
@@ -1292,11 +1352,14 @@ article[data-entry] > p {
     grid-column: 2;
     grid-row: 1;
     justify-self: end;
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
   }
 
   body > header nav button {
     min-height: 30px;
-    padding: 0 6px;
+    padding: 0 4px;
     font-size: 11px;
   }
 
@@ -1305,11 +1368,19 @@ article[data-entry] > p {
     height: 12px;
   }
 
-  body > header nav button span,
-  [data-account-button] span {
+  body > header nav button span {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  [data-account-button] span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
   [data-next-card] {
@@ -1332,28 +1403,42 @@ article[data-entry] > p {
   }
 
   [data-timeline] {
-    grid-template-columns: 34px minmax(0, 1fr) minmax(168px, 0.55fr);
-    column-gap: 6px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+    gap: 8px;
+    min-height: 0;
+    background: none;
   }
 
-  [data-timeline] article[data-entry]:not([data-option="true"]) {
+  [data-time-rail] {
+    display: none;
+  }
+
+  [data-timeline] article[data-entry] {
+    grid-column: 1 !important;
+    grid-row: auto !important;
     width: 100% !important;
     margin-left: 0 !important;
+    min-height: 52px;
+    padding: 9px 10px;
+    overflow: visible;
   }
 
-  [data-timeline] article[data-entry][data-option="true"] {
-    min-height: 34px;
-    padding: 6px;
+  [data-timeline] article[data-entry] h3 {
+    font-size: 12px;
+    line-height: 1.22;
+    -webkit-line-clamp: 3;
+  }
+
+  [data-timeline] article[data-entry] time {
+    flex: 0 0 auto;
+    color: var(--muted);
   }
 
   [data-timeline] article[data-entry][data-option="true"] h3 {
-    font-size: 10px;
-    line-height: 1.14;
     -webkit-line-clamp: 4;
-  }
-
-  [data-timeline] article[data-entry][data-option="true"] time {
-    display: none;
   }
 
   [data-timeline] article[data-entry][data-option="true"] [data-meta] {
@@ -2145,7 +2230,7 @@ article[data-entry] > p {
   grid-area: composer;
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: 4px;
   align-self: end;
 }
 
@@ -2176,7 +2261,7 @@ form[data-dev-chat-form] {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: 6px;
-  padding: 6px;
+  padding: 5px;
   border-radius: 20px;
   background: var(--drawer-glass-strong);
   box-shadow: var(--composer-shadow);
@@ -2211,68 +2296,9 @@ form[data-dev-chat-form] textarea:focus {
   font-size: 11px;
 }
 
-[data-prompts] {
-  --prompt-fade-width: 20px;
-  position: relative;
-  width: 100%;
-  max-width: 100%;
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: stretch;
-  gap: 6px;
-  padding: 2px 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  overscroll-behavior-x: contain;
-  white-space: nowrap;
-  scroll-snap-type: x proximity;
-  scroll-padding-inline: 0;
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    #000 var(--prompt-fade-width),
-    #000 calc(100% - var(--prompt-fade-width)),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    #000 var(--prompt-fade-width),
-    #000 calc(100% - var(--prompt-fade-width)),
-    transparent 100%
-  );
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-}
-
-[data-prompts]::-webkit-scrollbar {
-  display: none;
-}
-
-[data-prompts] button,
-[data-prompts] a {
-  flex: 0 0 auto;
-  min-width: 0;
-  justify-content: center;
-  background: var(--accent);
-  color: var(--accent-ink);
-  box-shadow: var(--primary-shadow);
-  backdrop-filter: blur(18px);
-}
-
-[data-prompts] button:hover,
-[data-prompts] a:hover,
 [data-event-modal] menu button:hover,
 [data-event-modal] menu a:hover {
   background: var(--primary-hover);
-}
-
-[data-prompts] button[data-variant="primary"],
-[data-prompts] a[data-variant="primary"] {
-  background: var(--accent);
-  color: var(--accent-ink);
 }
 
 [data-agent-composer] [data-agenda-status] {
@@ -2334,10 +2360,6 @@ form[data-dev-chat-form] textarea:focus {
 @media (min-width: 760px) {
   body > header {
     align-items: center;
-  }
-
-  body > header nav {
-    max-width: 330px;
   }
 
   main {

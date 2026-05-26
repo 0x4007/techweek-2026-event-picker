@@ -169,6 +169,15 @@
       <section data-panel="backup" hidden>
         <section>
           <h2>Events</h2>
+          <a
+            data-events-calendar-link
+            href="/api/ics/operational"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <svg><use href="#icon-download"></use></svg>
+            <span>Download calendar</span>
+          </a>
         </section>
         <section aria-label="Event entries" data-reference-list></section>
       </section>
@@ -245,7 +254,14 @@
                 role="button"
                 tabindex="0"
               >
-                <input type="file" accept="image/*" capture="environment" data-card-input>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  data-card-input
+                  aria-hidden="true"
+                  tabindex="-1"
+                >
                 <svg><use href="#icon-camera"></use></svg><span>Scan card</span>
               </label>
               <p data-card-scan-status>Prefills only. Review before saving.</p>
@@ -463,55 +479,6 @@
       <section aria-label="Chat history" data-chat-history hidden></section>
       <section data-chat-log aria-live="polite"></section>
       <section data-agent-composer>
-        <section aria-label="Quick prompts" data-prompts>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-agenda-recalculate
-            data-variant="primary"
-          >
-            <svg><use href="#icon-sparkles"></use></svg><span>Optimize</span>
-          </button>
-          <a href="/api/ics/operational" data-motion="button" data-motion-hidden="true">
-            <svg><use href="#icon-download"></use></svg><span>ICS</span>
-          </a>
-          <button type="button" data-motion="button" data-motion-hidden="true" data-partiful-sync>
-            <svg><use href="#icon-refresh"></use></svg><span>Partiful</span>
-          </button>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-ask="What should I do next?"
-          >
-            <svg><use href="#icon-calendar"></use></svg><span>Next</span>
-          </button>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-ask="Can I make the next event on time?"
-          >
-            <svg><use href="#icon-clock"></use></svg><span>Timing</span>
-          </button>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-ask="Which event option should I use tonight if the primary falls through?"
-          >
-            <svg><use href="#icon-layers"></use></svg><span>Options</span>
-          </button>
-          <button
-            type="button"
-            data-motion="button"
-            data-motion-hidden="true"
-            data-ask="Give me the opening line and ask for the next event."
-          >
-            <svg><use href="#icon-sparkles"></use></svg><span>Pitch</span>
-          </button>
-        </section>
         <p data-agent-agenda-status data-agenda-status></p>
         <form data-chat-form>
           <textarea

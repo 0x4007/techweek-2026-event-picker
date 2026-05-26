@@ -654,6 +654,41 @@ Deno.test({
 });
 
 Deno.test({
+  name: "events hash shows the Events view and exposes one operational calendar download",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withIphonePage(async (page) => {
+        await page.goto(`${baseUrl}/#events/TW-5978`);
+        await page.locator('[data-panel="backup"]').waitFor({ state: "visible" });
+
+        assert(
+          await page.locator('[data-panel="route"]').isHidden(),
+          "Expected Agenda panel to be hidden for an Events deep link.",
+        );
+        assert(
+          await page.locator("[data-page-title]").textContent() === "Events",
+          "Expected page title to match the visible Events panel.",
+        );
+        assert(
+          await page.locator("[data-events-calendar-link]").count() === 1,
+          "Expected exactly one Events calendar download link.",
+        );
+
+        const href = await page.locator("[data-events-calendar-link]").getAttribute("href");
+        assert(href, "Expected Events calendar link to have an href.");
+        assert(
+          new URL(href, baseUrl).pathname === "/api/ics/operational",
+          `Expected operational ICS href, got ${href}.`,
+        );
+        await assertNoHorizontalOverflow(page);
+      });
+    });
+  },
+});
+
+Deno.test({
   name: "CRM event selector uses current route event or previous event only",
   sanitizeOps: false,
   sanitizeResources: false,
@@ -1193,6 +1228,79 @@ Deno.test({
           theme.themeControlLabels.length === 0,
           `Expected no dark-mode UI controls, got ${theme.themeControlLabels.join(", ")}`,
         );
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "dark Invites utility controls keep readable contrast",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withIphonePage(async (page) => {
+        await page.emulateMedia({ colorScheme: "dark" });
+        await page.goto(baseUrl);
+        await page.getByRole("button", { name: "Invites" }).click();
+        await page.waitForFunction(() => {
+          const win = globalThis as unknown as {
+            document: {
+              querySelector(selector: string): {
+                hasAttribute(name: string): boolean;
+              } | null;
+            };
+          };
+          const button = win.document.querySelector("[data-invite-copy-code]");
+          return button && !button.hasAttribute("disabled");
+        });
+
+        const controls = await page.evaluate(() => {
+          type ElementLike = { textContent?: string | null };
+          const win = globalThis as unknown as {
+            document: { querySelectorAll(selector: string): ArrayLike<ElementLike> };
+            getComputedStyle(element: ElementLike): { backgroundColor: string; color: string };
+          };
+          const rgb = (value: string) =>
+            (value.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
+          const luminance = (channels: number[]) => {
+            const srgb = channels.map((channel) => {
+              const normalized = channel / 255;
+              return normalized <= 0.03928
+                ? normalized / 12.92
+                : ((normalized + 0.055) / 1.055) ** 2.4;
+            });
+            return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+          };
+          return Array.from(win.document.querySelectorAll(".invite-row a, .invite-row button")).map(
+            (control) => {
+              const styles = win.getComputedStyle(control);
+              const foreground = luminance(rgb(styles.color));
+              const background = luminance(rgb(styles.backgroundColor));
+              const ratio = (Math.max(foreground, background) + 0.05) /
+                (Math.min(foreground, background) + 0.05);
+              return {
+                ratio,
+                color: styles.color,
+                backgroundColor: styles.backgroundColor,
+                text: control.textContent?.trim() || "",
+              };
+            },
+          );
+        });
+
+        assert(
+          controls.length === 3,
+          `Expected three Invite utility controls, got ${controls.length}.`,
+        );
+        for (const control of controls) {
+          assert(
+            control.ratio >= 4.5,
+            `Expected readable Invite control contrast for "${control.text}", got ${
+              control.ratio.toFixed(2)
+            } for ${control.color} on ${control.backgroundColor}.`,
+          );
+        }
       });
     });
   },
@@ -1940,6 +2048,24 @@ Deno.test({
             await page.locator("[data-chat-fab]").click();
             await assertNoHorizontalOverflow(page);
 
+            const drawer = page.locator("[data-agent-drawer]");
+            assert(
+              await drawer.locator("[data-prompts]").count() === 0,
+              "Expected the agent drawer to omit the quick-action rail.",
+            );
+            for (
+              const label of ["Optimize", "ICS", "Partiful", "Next", "Timing", "Options", "Pitch"]
+            ) {
+              assert(
+                await drawer.getByRole("button", { name: label }).count() === 0,
+                `Expected no ${label} quick-action button in the agent drawer.`,
+              );
+              assert(
+                await drawer.getByRole("link", { name: label }).count() === 0,
+                `Expected no ${label} quick-action link in the agent drawer.`,
+              );
+            }
+
             const textarea = page.locator("form[data-chat-form] textarea");
             await textarea.fill("What should I do next?");
             await page.keyboard.press("Enter");
@@ -1976,6 +2102,298 @@ Deno.test({
             await assertNoHorizontalOverflow(page);
           });
         });
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "Partiful auto-sync failure surfaces in agenda status without chat quick actions",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withIphonePage(async (page) => {
+        let autoSyncRequests = 0;
+        await page.addInitScript(() => {
+          const nativeSetTimeout = globalThis.setTimeout;
+          const patchedSetTimeout = (
+            handler: Parameters<typeof setTimeout>[0],
+            timeout?: number,
+          ) => {
+            const delay = timeout === 1_500 || timeout === 20_000 ? 20 : timeout;
+            return nativeSetTimeout(handler, delay);
+          };
+          globalThis.setTimeout = patchedSetTimeout as typeof setTimeout;
+        });
+        await page.route(`${baseUrl}/api/sync/partiful/auto`, async (route) => {
+          autoSyncRequests += 1;
+          await route.fulfill({
+            status: 500,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ error: { message: "Automatic sync failed in E2E." } }),
+          });
+        });
+
+        await page.goto(baseUrl);
+        await waitForTestCondition(
+          () => autoSyncRequests > 0,
+          "Expected Partiful auto-sync to run on page load.",
+        );
+        await page.waitForFunction(() => {
+          const win = globalThis as unknown as {
+            document: { querySelector(selector: string): { textContent?: string | null } | null };
+          };
+          const status = win.document.querySelector("[data-agenda-status]")?.textContent || "";
+          return status.includes("Automatic sync failed in E2E.");
+        });
+
+        assert(
+          await page.locator("[data-agent-drawer] [data-prompts]").count() === 0,
+          "Expected auto-sync failure not to restore chat quick actions.",
+        );
+        await assertNoHorizontalOverflow(page);
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "Partiful auto-sync completion refreshes the schedule and activated agenda",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withIphonePage(async (page) => {
+        let autoSyncRequests = 0;
+        let scheduleReads = 0;
+        let autoSyncStarted = false;
+
+        await page.addInitScript(() => {
+          const nativeSetTimeout = globalThis.setTimeout;
+          const patchedSetTimeout = (
+            handler: Parameters<typeof setTimeout>[0],
+            timeout?: number,
+          ) => {
+            const delay = timeout === 1_500 || timeout === 20_000 ? 20 : timeout;
+            return nativeSetTimeout(handler, delay);
+          };
+          globalThis.setTimeout = patchedSetTimeout as typeof setTimeout;
+        });
+
+        await page.route(`${baseUrl}/api/schedule`, async (route) => {
+          scheduleReads += 1;
+          const response = await fetch(`${baseUrl}/api/schedule`, {
+            headers: E2E_AUTH_HEADERS,
+          });
+          const body = await response.json() as JsonRecord;
+          if (autoSyncStarted) {
+            body.activeAgenda = {
+              agendaRunId: "e2e-auto-agenda",
+              generatedAt: "2026-05-25T12:00:00.000Z",
+              summary: { selectedEvents: 1, droppedEvents: 0 },
+            };
+            const state = body.state as JsonRecord | undefined;
+            if (state) state.activeAgendaRunId = "e2e-auto-agenda";
+            const sync = body.sync as JsonRecord | undefined;
+            const partifulAuto = sync?.partifulAuto as JsonRecord | undefined;
+            if (partifulAuto) partifulAuto.status = "completed";
+            const next = body.next as JsonRecord | undefined;
+            if (next) next.displayTitle = "Auto activated agenda event";
+          }
+          await route.fulfill({
+            status: response.status,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          });
+        });
+        await page.route(`${baseUrl}/api/sync/partiful/auto`, async (route) => {
+          autoSyncRequests += 1;
+          autoSyncStarted = true;
+          await route.fulfill({
+            status: 202,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "started" }),
+          });
+        });
+
+        await page.goto(baseUrl);
+        await waitForTestCondition(
+          () => autoSyncRequests > 0,
+          "Expected Partiful auto-sync to run on page load.",
+        );
+        await page.locator("[data-next-title]").filter({ hasText: "Auto activated agenda event" })
+          .waitFor();
+        assert(scheduleReads >= 2, "Expected schedule to refresh after auto-sync started.");
+        await assertNoHorizontalOverflow(page);
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "non-admin sessions do not run background auto-sync or fallback recalculation",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      const scheduleResponse = await fetch(`${baseUrl}/api/schedule`, {
+        headers: E2E_AUTH_HEADERS,
+      });
+      assert(scheduleResponse.ok, "Expected admin fixture schedule to load.");
+      const schedulePayload = await scheduleResponse.json() as JsonRecord;
+
+      setAccountSessionForTest({
+        authenticated: true,
+        auth: "passkey",
+        user: {
+          id: "e2e_user",
+          handle: "e2e-user",
+          isAdmin: false,
+          credentialCount: 1,
+        },
+        expiresAt: "2026-06-01T12:00:00.000Z",
+      });
+
+      await withIphonePage(async (page) => {
+        let autoSyncRequests = 0;
+        let recalculateRequests = 0;
+        await page.addInitScript(() => {
+          const nativeSetTimeout = globalThis.setTimeout;
+          const patchedSetTimeout = (
+            handler: Parameters<typeof setTimeout>[0],
+            timeout?: number,
+          ) => {
+            const delay = timeout === 1_500 || timeout === 20_000 ? 20 : timeout;
+            return nativeSetTimeout(handler, delay);
+          };
+          globalThis.setTimeout = patchedSetTimeout as typeof setTimeout;
+        });
+        await page.route(`${baseUrl}/api/schedule`, async (route) => {
+          const body = structuredClone(schedulePayload) as JsonRecord;
+          body.activeAgenda = null;
+          const state = body.state as JsonRecord | undefined;
+          if (state) state.activeAgendaRunId = "stale-active-agenda-run";
+          await route.fulfill({
+            status: scheduleResponse.status,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          });
+        });
+        await page.route(`${baseUrl}/api/sync/partiful/auto`, async (route) => {
+          autoSyncRequests += 1;
+          await route.fulfill({
+            status: 500,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ error: { message: "Non-admin should not auto-sync." } }),
+          });
+        });
+        await page.route(`${baseUrl}/api/agenda/recalculate`, async (route) => {
+          recalculateRequests += 1;
+          await route.fulfill({
+            status: 500,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ error: { message: "Non-admin should not recalculate." } }),
+          });
+        });
+
+        await page.goto(baseUrl);
+        await page.locator("[data-next-card]").waitFor();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        assert(
+          autoSyncRequests === 0,
+          `Expected non-admin page load not to call Partiful auto-sync, got ${autoSyncRequests}.`,
+        );
+        assert(
+          recalculateRequests === 0,
+          `Expected non-admin page load not to call fallback recalculation, got ${recalculateRequests}.`,
+        );
+        assert(
+          !(await page.locator("[data-next-card] [data-agenda-status]").textContent() || "")
+            .includes("Non-admin"),
+          "Expected no non-admin auto-sync failure to surface in agenda status.",
+        );
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "recently skipped Partiful auto-sync recalculates once when active agenda run is stale",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withIphonePage(async (page) => {
+        let recalculateRequests = 0;
+        await page.addInitScript(() => {
+          const nativeSetTimeout = globalThis.setTimeout;
+          const patchedSetTimeout = (
+            handler: Parameters<typeof setTimeout>[0],
+            timeout?: number,
+          ) => {
+            const delay = timeout === 1_500 || timeout === 20_000 ? 20 : timeout;
+            return nativeSetTimeout(handler, delay);
+          };
+          globalThis.setTimeout = patchedSetTimeout as typeof setTimeout;
+        });
+
+        await page.route(`${baseUrl}/api/schedule`, async (route) => {
+          const response = await fetch(`${baseUrl}/api/schedule`, {
+            headers: E2E_AUTH_HEADERS,
+          });
+          const body = await response.json() as JsonRecord;
+          body.activeAgenda = null;
+          const state = body.state as JsonRecord | undefined;
+          if (state) state.activeAgendaRunId = "stale-active-agenda-run";
+          await route.fulfill({
+            status: response.status,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          });
+        });
+        await page.route(`${baseUrl}/api/sync/partiful/auto`, async (route) => {
+          await route.fulfill({
+            status: 200,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "skipped", reason: "recent" }),
+          });
+        });
+        await page.route(`${baseUrl}/api/agenda/recalculate`, async (route) => {
+          recalculateRequests += 1;
+          const response = await fetch(`${baseUrl}/api/schedule`, {
+            headers: E2E_AUTH_HEADERS,
+          });
+          const schedule = await response.json() as JsonRecord;
+          schedule.activeAgenda = {
+            agendaRunId: "e2e-fallback-agenda",
+            generatedAt: "2026-05-25T12:00:00.000Z",
+            summary: { selectedEvents: 1, droppedEvents: 0 },
+          };
+          const state = schedule.state as JsonRecord | undefined;
+          if (state) state.activeAgendaRunId = "e2e-fallback-agenda";
+          await route.fulfill({
+            status: 200,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              schedule,
+              agenda: { summary: { selectedEvents: 1, droppedEvents: 0 } },
+            }),
+          });
+        });
+
+        await page.goto(baseUrl);
+        await waitForTestCondition(
+          () => recalculateRequests === 1,
+          "Expected one fallback agenda recalculation after a skipped auto-sync.",
+        );
+        await page.evaluate('document.dispatchEvent(new Event("visibilitychange"))');
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        assert(
+          recalculateRequests === 1,
+          `Expected fallback recalculation to run once, got ${recalculateRequests}.`,
+        );
       });
     });
   },
@@ -2022,10 +2440,9 @@ Deno.test({
               const patchedSetTimeout = (
                 handler: Parameters<typeof setTimeout>[0],
                 timeout?: number,
-                ...args: unknown[]
               ) => {
                 const delay = timeout === 1_500 || timeout === 20_000 ? 20 : timeout;
-                return nativeSetTimeout(handler, delay, ...args);
+                return nativeSetTimeout(handler, delay);
               };
               globalThis.setTimeout = patchedSetTimeout as typeof setTimeout;
             });
