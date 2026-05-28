@@ -267,6 +267,26 @@
               <p data-card-scan-status>Prefills only. Review before saving.</p>
               <img alt="" data-card-preview hidden>
             </section>
+            <section data-lead-transcript>
+              <p>Prefer dictation? Paste your transcript into the field below and click parse.</p>
+              <label>
+                <span>Transcript paste</span>
+                <textarea
+                  data-transcript-input
+                  rows="7"
+                  placeholder="Name&#10;Company&#10;Role&#10;Email&#10;Phone&#10;Buyer type: Engineering leader | Founder/operator | Platform/DevEx | OSS/DevRel | IC builder | Investor/advisor | GTM/operator | Other&#10;GitHub-heavy: yes | no | unknown&#10;AI coding adoption: yes | no | unknown&#10;Pain mentioned&#10;Strong quote&#10;Follow-up ask&#10;Next step date (YYYY-MM-DD)&#10;Notes"
+                ></textarea>
+              </label>
+              <button
+                type="button"
+                data-motion="button"
+                data-motion-hidden="true"
+                data-transcript-button
+              >
+                Parse transcript
+              </button>
+              <p data-transcript-status></p>
+            </section>
             <section data-lead-fields>
               <label>
                 <span>Name</span>

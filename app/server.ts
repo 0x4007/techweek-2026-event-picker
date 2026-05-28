@@ -710,6 +710,12 @@ type LeadDraft = {
   role: string;
   email: string;
   phone: string;
+  buyerType: string;
+  githubHeavy: LeadSignal;
+  aiCodingAdoption: LeadSignal;
+  painMentioned: string;
+  strongQuote: string;
+  nextStepDate: string;
   notes: string;
   followUp: string;
   ocr?: OcrDraftMetadata;
@@ -4195,6 +4201,34 @@ function cardOcrChatBody(imageDataUrl: string): OcrRequestBody {
   };
 }
 
+function transcriptLeadPrompt(eventTitle = ""): string {
+  const eventContext = eventTitle ? ` Event title: ${eventTitle}.` : "";
+  return `You are extracting CRM lead fields from a spoken transcript. ${eventContext} Return only JSON with:
+name, company, role, email, phone, buyerType, githubHeavy, aiCodingAdoption, painMentioned,
+strongQuote, followUp, nextStepDate, notes.
+Rules:
+- Use empty string when a field is not present.
+- githubHeavy and aiCodingAdoption must be one of: "yes", "no", "unknown".
+- buyerType should be "Unknown" only if genuinely unknown.
+- nextStepDate must be YYYY-MM-DD only, otherwise use empty string.`;
+}
+
+function transcriptLeadChatBody(transcript: string, eventTitle = ""): OcrRequestBody {
+  return {
+    model: AGENT_MODEL,
+    stream: false,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: transcriptLeadPrompt(eventTitle) },
+          { type: "text", text: `Transcript:\n${transcript}` },
+        ],
+      },
+    ],
+  };
+}
+
 function imageDebugSummary(imageDataUrl: string) {
   const match = imageDataUrl.match(/^data:([^;,]+)(?:;[^,]*)?,/);
   return {
@@ -4301,15 +4335,37 @@ function draftDebug(draft: LeadDraft): Record<string, unknown> {
     hasRole: Boolean(draft.role),
     hasEmail: Boolean(draft.email),
     hasPhone: Boolean(draft.phone),
+    hasBuyerType: Boolean(draft.buyerType),
+    hasGithubHeavy: draft.githubHeavy !== "unknown",
+    hasAiCodingAdoption: draft.aiCodingAdoption !== "unknown",
+    hasPainMentioned: Boolean(draft.painMentioned),
+    hasStrongQuote: Boolean(draft.strongQuote),
+    hasFollowUp: Boolean(draft.followUp),
+    hasNextStepDate: Boolean(draft.nextStepDate),
     hasNotes: Boolean(draft.notes),
     followUpLength: draft.followUp.length,
   };
 }
 
 function leadDraftHasUsableFields(draft: LeadDraft): boolean {
-  return Boolean(
-    draft.name.trim() || draft.company.trim() || draft.email.trim() || draft.phone.trim(),
-  );
+  const hasText = [
+    draft.name,
+    draft.company,
+    draft.role,
+    draft.email,
+    draft.phone,
+    draft.buyerType,
+    draft.painMentioned,
+    draft.strongQuote,
+    draft.followUp,
+    draft.nextStepDate,
+    draft.notes,
+  ].some((value) => {
+    const normalized = value.trim();
+    return normalized && normalized.toLowerCase() !== "unknown";
+  });
+  const hasSignals = draft.githubHeavy !== "unknown" || draft.aiCodingAdoption !== "unknown";
+  return hasText || hasSignals;
 }
 
 function clientMetadata(value: unknown): unknown {
@@ -4921,6 +4977,174 @@ async function handleLeadOcr(request: Request): Promise<Response> {
   });
 }
 
+async function handleLeadTranscript(request: Request): Promise<Response> {
+  const body = await request.json().catch(() => null);
+  const rawBody = body && typeof body === "object" ? body as Record<string, unknown> : {};
+  const requestId = textField(rawBody.requestId, 120) || createRequestId("transcript");
+  if (!body || typeof body !== "object") {
+    logJson("transcript_error", {
+      requestId,
+      stage: "parse_request_body",
+      request: requestDebug(request),
+    });
+    return endpointError("Expected a JSON body.", requestId, 400);
+  }
+
+  if (typeof rawBody.transcript !== "string") {
+    logJson("transcript_error", {
+      requestId,
+      stage: "validate_transcript",
+      request: requestDebug(request),
+      clientMetadata: clientMetadata(rawBody.clientMetadata),
+    });
+    return endpointError("transcript must be a non-empty string.", requestId, 400);
+  }
+
+  const transcript = rawBody.transcript.trim();
+  if (!transcript) {
+    logJson("transcript_error", {
+      requestId,
+      stage: "validate_transcript",
+      request: requestDebug(request),
+      clientMetadata: clientMetadata(rawBody.clientMetadata),
+    });
+    return endpointError("transcript must be a non-empty string.", requestId, 400);
+  }
+
+  const eventTitle = textField(rawBody.eventTitle, 240);
+  logJson("transcript_start", {
+    requestId,
+    eventTitle,
+    request: requestDebug(request),
+    clientMetadata: clientMetadata(rawBody.clientMetadata),
+    transcriptPreview: truncateDebug(transcript, 240),
+    transcriptLength: transcript.length,
+  });
+
+  const { token, chatUrl } = gatewayConfig();
+  if (!token) {
+    logJson("transcript_error", {
+      requestId,
+      stage: "gateway_config",
+      message: "UOS_AI_TOKEN is not configured.",
+    });
+    return endpointError("UOS_AI_TOKEN is not configured.", requestId, 503);
+  }
+
+  const transcriptBody = transcriptLeadChatBody(transcript, eventTitle);
+  let result: { upstream: Response; model: string };
+  try {
+    result = await callOcrGateway(chatUrl, token, transcriptBody);
+  } catch (error) {
+    logJson("transcript_error", {
+      requestId,
+      stage: "gateway_fetch",
+      error: safeError(error),
+    });
+    return endpointError("Lead transcript parsing failed.", requestId, 502, safeError(error));
+  }
+
+  const responseBody = await readGatewayBody(result.upstream);
+  const upstreamDebug = {
+    model: result.model,
+    ok: result.upstream.ok,
+    status: result.upstream.status,
+    statusText: result.upstream.statusText,
+    headers: debugHeaders(result.upstream.headers),
+    body: truncateDebug(responseBody),
+  };
+  logJson("transcript_upstream", {
+    requestId,
+    ...upstreamDebug,
+  });
+
+  if (!result.upstream.ok) {
+    const upstreamMessage = gatewayErrorMessage(responseBody);
+    const clientStatus = result.upstream.status === 429 ? 429 : 502;
+    const clientMessage = result.upstream.status === 429
+      ? "AI gateway rate limit exceeded."
+      : "Lead transcript parsing failed.";
+    logJson("transcript_error", {
+      requestId,
+      stage: "gateway_response",
+      message: upstreamMessage,
+      upstream: upstreamDebug,
+    });
+    return endpointError(
+      clientMessage,
+      requestId,
+      clientStatus,
+      {
+        upstreamStatus: result.upstream.status,
+        upstreamMessage,
+        upstreamHeaders: debugHeaders(result.upstream.headers),
+      },
+      responseDebugHeaders(result.upstream.headers, requestId),
+    );
+  }
+
+  const content = responseOutputText(responseBody);
+  if (!content) {
+    logJson("transcript_error", {
+      requestId,
+      stage: "response_shape",
+      upstream: upstreamDebug,
+    });
+    return endpointError(
+      "AI gateway returned an unexpected transcript response shape.",
+      requestId,
+      500,
+      responseBody,
+      responseDebugHeaders(result.upstream.headers, requestId),
+    );
+  }
+
+  let draft: LeadDraft;
+  try {
+    draft = normalizeLeadDraft(extractJsonObject(content));
+  } catch (error) {
+    logJson("transcript_error", {
+      requestId,
+      stage: "parse_gateway_json",
+      error: safeError(error),
+      content: truncateDebug(content),
+    });
+    return endpointError(
+      error instanceof Error ? error.message : "Could not parse transcript response.",
+      requestId,
+      500,
+      { content },
+      responseDebugHeaders(result.upstream.headers, requestId),
+    );
+  }
+  if (!leadDraftHasUsableFields(draft)) {
+    logJson("transcript_error", {
+      requestId,
+      stage: "empty_draft",
+      draft: draftDebug(draft),
+      content: truncateDebug(content),
+    });
+    return endpointError(
+      "Transcript parsing did not find any lead fields.",
+      requestId,
+      422,
+      { content, draft: draftDebug(draft) },
+      responseDebugHeaders(result.upstream.headers, requestId),
+    );
+  }
+
+  logJson("transcript_success", {
+    requestId,
+    model: result.model,
+    draft: draftDebug(draft),
+    rawCharacters: content.length,
+  });
+  return json({
+    requestId,
+    draft,
+  }, { headers: responseDebugHeaders(result.upstream.headers, requestId) });
+}
+
 function extractJsonObject(text: string): unknown {
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   try {
@@ -4940,6 +5164,7 @@ function normalizeLeadDraft(value: unknown): LeadDraft {
     : {};
   const company = textField(raw.company, 180);
   const role = textField(raw.role ?? raw.title, 180);
+  const buyerType = textField(raw.buyerType ?? raw.targetType, 120);
   const notes = leadNotesText([
     raw.notes,
     raw.website,
@@ -4957,8 +5182,14 @@ function normalizeLeadDraft(value: unknown): LeadDraft {
     role,
     email: normalizeOcrEmail(raw.email ?? contact.email),
     phone: normalizeOcrPhone(raw.phone ?? contact.phone),
+    buyerType,
+    githubHeavy: normalizeLeadSignal(raw.githubHeavy ?? contact.githubHeavy),
+    aiCodingAdoption: normalizeLeadSignal(raw.aiCodingAdoption ?? contact.aiCodingAdoption),
+    painMentioned: textField(raw.painMentioned ?? raw.painPoints ?? raw.pain, 1200),
+    strongQuote: textField(raw.strongQuote ?? raw.quote ?? raw.testimonial, 900),
     notes,
     followUp: textField(raw.followUpAsk ?? raw.followUp ?? raw.follow_up, 300),
+    nextStepDate: normalizeLeadNextStepDate(raw.nextStepDate ?? raw.nextStepDateEstimate),
   };
 }
 
@@ -5978,6 +6209,9 @@ export async function router(request: Request): Promise<Response> {
     }
     if (request.method === "POST" && url.pathname === "/api/leads/ocr") {
       return await handleLeadOcr(request);
+    }
+    if (request.method === "POST" && url.pathname === "/api/leads/transcript") {
+      return await handleLeadTranscript(request);
     }
     if (request.method === "POST" && url.pathname === "/api/client-log") {
       return await handleClientLog(request);

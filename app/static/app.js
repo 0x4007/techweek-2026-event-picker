@@ -3216,9 +3216,11 @@ async function requestLeadTranscriptDraft({ requestId, transcript, eventTitle })
     }, OCR_REQUEST_TIMEOUT_MS);
   } catch (error) {
     throw new Error(
-      `${error instanceof DOMException && error.name === "AbortError"
-        ? "Transcript parse request timed out."
-        : "Transcript parse request failed."} Debug: ${requestId}`,
+      `${
+        error instanceof DOMException && error.name === "AbortError"
+          ? "Transcript parse request timed out."
+          : "Transcript parse request failed."
+      } Debug: ${requestId}`,
     );
   }
 
@@ -3234,11 +3236,15 @@ async function requestLeadTranscriptDraft({ requestId, transcript, eventTitle })
   });
   if (!response.ok) {
     throw new Error(
-      `${body?.error?.message || "Could not parse transcript."} Debug: ${body?.error?.requestId || requestId}`,
+      `${body?.error?.message || "Could not parse transcript."} Debug: ${
+        body?.error?.requestId || requestId
+      }`,
     );
   }
   if (!leadDraftHasUsableFields(body?.draft)) {
-    throw new Error(`Transcript parse did not find any lead fields. Debug: ${body?.requestId || requestId}`);
+    throw new Error(
+      `Transcript parse did not find any lead fields. Debug: ${body?.requestId || requestId}`,
+    );
   }
   return body;
 }
@@ -3311,17 +3317,19 @@ async function fetchWithTimeout(url, options, timeoutMs) {
 }
 
 function applyLeadDraft(draft) {
-  for (const field of [
-    "name",
-    "company",
-    "role",
-    "email",
-    "phone",
-    "painMentioned",
-    "strongQuote",
-    "followUp",
-    "notes",
-  ]) {
+  for (
+    const field of [
+      "name",
+      "company",
+      "role",
+      "email",
+      "phone",
+      "painMentioned",
+      "strongQuote",
+      "followUp",
+      "notes",
+    ]
+  ) {
     if (typeof draft[field] === "string" && draft[field].trim()) {
       leadForm.elements[field].value = draft[field].trim();
     }
@@ -3329,9 +3337,10 @@ function applyLeadDraft(draft) {
   if (typeof leadForm.elements.nextStepDate?.value === "string") {
     leadForm.elements.nextStepDate.value = normalizeLeadDraftDate(draft?.nextStepDate);
   }
-  const buyerType = typeof draft.buyerType === "string" && draft.buyerType.trim().toLowerCase() !== "unknown"
-    ? draft.buyerType.trim()
-    : "";
+  const buyerType =
+    typeof draft.buyerType === "string" && draft.buyerType.trim().toLowerCase() !== "unknown"
+      ? draft.buyerType.trim()
+      : "";
   if (buyerType && leadForm.elements.buyerType) {
     leadForm.elements.buyerType.value = buyerType;
   }
@@ -3348,7 +3357,9 @@ function leadDraftHasUsableFields(draft) {
     if (field === "buyerType") return value.toLowerCase() !== "unknown";
     return true;
   });
-  const hasSignals = LEAD_SIGNAL_FIELDS.some((field) => normalizeLeadSignalValue(draft[field]) !== "unknown");
+  const hasSignals = LEAD_SIGNAL_FIELDS.some((field) =>
+    normalizeLeadSignalValue(draft[field]) !== "unknown"
+  );
   return hasText || hasSignals;
 }
 
