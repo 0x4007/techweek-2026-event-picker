@@ -7,7 +7,15 @@
   },
   "deploy": {
     "org": "0x4007",
-    "app": "techweek-2026-event-picker"
+    "app": "techweek-2026-event-picker",
+    "install": "true",
+    "build": "true",
+    "predeploy": "true",
+    "runtime": {
+      "type": "dynamic",
+      "entrypoint": "./app/server.ts",
+      "cwd": "."
+    }
   },
   "tasks": {
     "dev": "deno run --unstable-kv --env-file=.env --watch --allow-read=app,outputs,.codex,data,docs,/Users/nv/.codex,/Users/nv/repos/ubiquity-os-marketplace/text-conversation-rewards --allow-write=.codex,/Users/nv/.codex --allow-run=tesseract,magick --allow-env --allow-net app/server.ts",
