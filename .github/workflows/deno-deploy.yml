@@ -115,7 +115,24 @@ jobs:
           max_attempts=5
           while true; do
             set +e
-            output="$(deno deploy --token "$DENO_DEPLOY_TOKEN" --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" --prod "$DEPLOY_ROOT" 2>&1)"
+            output="$(deno deploy \
+              --token "$DENO_DEPLOY_TOKEN" \
+              --org "$DENO_DEPLOY_ORG" \
+              --app "$DENO_DEPLOY_APP" \
+              --prod \
+              --source local \
+              --do-not-use-detected-build-config \
+              --app-directory . \
+              --runtime-mode dynamic \
+              --entrypoint "$ENTRYPOINT" \
+              --working-directory . \
+              --install-command true \
+              --build-command true \
+              --pre-deploy-command true \
+              --build-timeout 5 \
+              --build-memory-limit 1024 \
+              --region "$DENO_DEPLOY_REGION" \
+              "$DEPLOY_ROOT" 2>&1)"
             status=$?
             set -e
 
