@@ -99,6 +99,7 @@ const LOCAL_OCR_DIR = new URL("../.codex/ocr-local/", import.meta.url);
 const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
 const PARTIFUL_AUTH_JSON_ENV = "TECHWEEK_PARTIFUL_AUTH_JSON";
 const DEFAULT_PORT = 8788;
+const DENO_DEPLOY_DEFAULT_PORT = 8000;
 const TIME_ZONE = "America/New_York";
 const AGENT_MODEL = "gpt-5.5";
 const LOCAL_OCR_TIMEOUT_MS = 7_000;
@@ -189,6 +190,9 @@ function resolvePreferredPort(): number {
   const parsedPort = Number.parseInt(envPort ?? "", 10);
   if (Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535) {
     return parsedPort;
+  }
+  if (Deno.env.get("DENO_DEPLOY") || Deno.env.get("DENO_DEPLOYMENT_ID")) {
+    return DENO_DEPLOY_DEFAULT_PORT;
   }
   return DEFAULT_PORT;
 }
