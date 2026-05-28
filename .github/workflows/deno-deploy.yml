@@ -117,7 +117,19 @@ jobs:
           provision_output="$(deno deploy database provision "$database_name" --kind denokv --token "$DENO_DEPLOY_TOKEN" --org "$DENO_DEPLOY_ORG" 2>&1)"
           provision_status=$?
           set -e
-          if [ "$provision_status" -ne 0 ] && ! printf '%s\n' "$provision_output" | grep -Eqi 'already|exist'; then
+          if [ "$provision_status" -ne 0 ] && printf '%s\n' "$provision_output" | grep -Eqi 'limit|already|exist'; then
+            list_output="$(deno deploy database list --token "$DENO_DEPLOY_TOKEN" --org "$DENO_DEPLOY_ORG" 2>&1)"
+            existing_database_name="$(printf '%s\n' "$list_output" | awk -F '│' 'tolower($0) ~ /denokv/ { name = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", name); print name; exit }')"
+            if [ -z "$existing_database_name" ]; then
+              existing_database_name="$(printf '%s\n' "$list_output" | awk 'tolower($0) ~ /denokv/ { print $1; exit }')"
+            fi
+            if [ -z "$existing_database_name" ]; then
+              echo "$provision_output"
+              echo "$list_output"
+              exit "$provision_status"
+            fi
+            database_name="$existing_database_name"
+          elif [ "$provision_status" -ne 0 ]; then
             echo "$provision_output"
             exit "$provision_status"
           fi
