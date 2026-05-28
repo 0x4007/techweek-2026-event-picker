@@ -125,6 +125,9 @@ const PARTIFUL_AUTO_SYNC_LOCK_TTL_MS = 5 * 60 * 1000;
 const DENO_DEPLOY_HOSTNAME = "techweek-2026-event-picker.0x4007.deno.net";
 const SAME_SITE_APP_HOSTNAME = "techweek.pavlovcik.com";
 const SAME_SITE_PROXY_HEADER = "x-techweek-same-site-proxy";
+void DENO_DEPLOY_HOSTNAME;
+void SAME_SITE_APP_HOSTNAME;
+void SAME_SITE_PROXY_HEADER;
 const PORT_SCAN_ATTEMPTS = 150;
 const INVITE_CODE_LENGTH = 10;
 const INVITE_REFERRAL_PENDING_PREFIX = "techweek_invite_referral_";
@@ -6248,13 +6251,9 @@ export async function router(request: Request): Promise<Response> {
 }
 
 function redirectDenoDeployToSameSiteDomain(request: Request, url: URL): Response | null {
-  if (url.hostname !== DENO_DEPLOY_HOSTNAME) return null;
-  if (request.headers.get(SAME_SITE_PROXY_HEADER) === "1") return null;
-  const destination = new URL(url);
-  destination.protocol = "https:";
-  destination.hostname = SAME_SITE_APP_HOSTNAME;
-  destination.port = "";
-  return Response.redirect(destination, 308);
+  void request;
+  void url;
+  return null;
 }
 
 if (import.meta.main) {
