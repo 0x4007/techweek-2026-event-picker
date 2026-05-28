@@ -268,13 +268,13 @@
               <img alt="" data-card-preview hidden>
             </section>
             <section data-lead-transcript>
-              <p>Prefer dictation? Paste your transcript into the field below and click parse.</p>
+              <p>Prefer dictation? Upload a card first, then paste the remaining fields and click parse.</p>
               <label>
                 <span>Transcript paste</span>
                 <textarea
                   data-transcript-input
                   rows="7"
-                  placeholder="Name&#10;Company&#10;Role&#10;Email&#10;Phone&#10;Buyer type: Engineering leader | Founder/operator | Platform/DevEx | OSS/DevRel | IC builder | Investor/advisor | GTM/operator | Other&#10;GitHub-heavy: yes | no | unknown&#10;AI coding adoption: yes | no | unknown&#10;Pain mentioned&#10;Strong quote&#10;Follow-up ask&#10;Next step date (YYYY-MM-DD)&#10;Notes"
+                  placeholder="1. Name&#10;2. Company&#10;3. Role&#10;4. Email&#10;5. Phone&#10;---&#10;6. Buyer type: Engineering leader | Founder/operator | Platform/DevEx | OSS/DevRel | IC builder | Investor/advisor | GTM/operator | Other&#10;7. GitHub-heavy: yes | no | unknown&#10;8. AI coding adoption: yes | no | unknown&#10;9. Pain mentioned&#10;10. Strong quote&#10;11. Follow-up ask&#10;12. Next step date (YYYY-MM-DD)&#10;13. Notes"
                 ></textarea>
               </label>
               <button
@@ -287,114 +287,126 @@
               </button>
               <p data-transcript-status></p>
             </section>
-            <section data-lead-fields>
+            <button
+              type="button"
+              data-motion="button"
+              data-motion-hidden="true"
+              data-lead-fields-toggle
+              aria-expanded="false"
+              aria-controls="crm-lead-fields"
+            >
+              <span>Show lead fields</span>
+            </button>
+            <section id="crm-lead-fields" data-lead-fields-panel hidden>
+              <section data-lead-fields>
+                <label>
+                  <span>Name</span>
+                  <input name="name" autocomplete="name">
+                </label>
+                <label>
+                  <span>Company</span>
+                  <input name="company" autocomplete="organization">
+                </label>
+                <label>
+                  <span>Role</span>
+                  <input name="role" autocomplete="organization-title">
+                </label>
+                <label>
+                  <span>Buyer type</span>
+                  <select name="buyerType">
+                    <option value="">Unknown</option>
+                    <option>Engineering leader</option>
+                    <option>Founder/operator</option>
+                    <option>Platform/DevEx</option>
+                    <option>OSS/DevRel</option>
+                    <option>IC builder</option>
+                    <option>Investor/advisor</option>
+                    <option>GTM/operator</option>
+                    <option>Other</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Email</span>
+                  <input name="email" type="email" autocomplete="email" inputmode="email">
+                </label>
+                <label>
+                  <span>Phone</span>
+                  <input name="phone" type="tel" autocomplete="tel" inputmode="tel">
+                </label>
+              </section>
+              <section data-lead-signals>
+                <label>
+                  <span>GitHub-heavy?</span>
+                  <select name="githubHeavy">
+                    <option value="unknown">Unknown</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </label>
+                <label>
+                  <span>AI coding adoption?</span>
+                  <select name="aiCodingAdoption">
+                    <option value="unknown">Unknown</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </label>
+              </section>
               <label>
-                <span>Name</span>
-                <input name="name" autocomplete="name">
+                <span>Pain mentioned</span>
+                <textarea
+                  name="painMentioned"
+                  rows="2"
+                  placeholder="Manual evidence, review visibility, attribution gaps..."
+                ></textarea>
               </label>
               <label>
-                <span>Company</span>
-                <input name="company" autocomplete="organization">
+                <span>Strong quote</span>
+                <textarea
+                  name="strongQuote"
+                  rows="2"
+                  placeholder="Exact words worth remembering"
+                ></textarea>
               </label>
+              <section data-lead-meta>
+                <label>
+                  <span>Follow-up ask</span>
+                  <input name="followUp" placeholder="20 min call / intro / sample packet">
+                </label>
+                <label>
+                  <span>Next step date</span>
+                  <input name="nextStepDate" type="date">
+                </label>
+              </section>
+              <p data-lead-priority-preview></p>
+              <label data-send-follow-up>
+                <input type="checkbox" name="sendFollowUpEmail">
+                <span data-follow-up-email-copy>
+                  <strong>Send follow-up email</strong>
+                  <small data-follow-up-email-summary>Immediately after saving</small>
+                </span>
+                <small data-follow-up-email-status>Email off</small>
+              </label>
+              <section data-follow-up-email-preview aria-live="polite">
+                <p><strong>To</strong><span data-follow-up-email-to></span></p>
+                <p><strong>Subject</strong><span data-follow-up-email-subject></span></p>
+                <p><strong>Body</strong><span data-follow-up-email-body></span></p>
+              </section>
               <label>
-                <span>Role</span>
-                <input name="role" autocomplete="organization-title">
+                <span>Notes</span>
+                <textarea
+                  name="notes"
+                  rows="3"
+                  placeholder="Loose context, intro path, reminders..."
+                ></textarea>
               </label>
-              <label>
-                <span>Buyer type</span>
-                <select name="buyerType">
-                  <option value="">Unknown</option>
-                  <option>Engineering leader</option>
-                  <option>Founder/operator</option>
-                  <option>Platform/DevEx</option>
-                  <option>OSS/DevRel</option>
-                  <option>IC builder</option>
-                  <option>Investor/advisor</option>
-                  <option>GTM/operator</option>
-                  <option>Other</option>
-                </select>
-              </label>
-              <label>
-                <span>Email</span>
-                <input name="email" type="email" autocomplete="email" inputmode="email">
-              </label>
-              <label>
-                <span>Phone</span>
-                <input name="phone" type="tel" autocomplete="tel" inputmode="tel">
-              </label>
+              <p data-lead-error hidden></p>
+              <menu>
+                <button type="submit" data-motion="button" data-motion-hidden="true">
+                  <svg><use href="#icon-check"></use></svg><span>Save lead</span>
+                </button>
+              </menu>
             </section>
-            <section data-lead-signals>
-              <label>
-                <span>GitHub-heavy?</span>
-                <select name="githubHeavy">
-                  <option value="unknown">Unknown</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-              <label>
-                <span>AI coding adoption?</span>
-                <select name="aiCodingAdoption">
-                  <option value="unknown">Unknown</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </label>
-            </section>
-            <label>
-              <span>Pain mentioned</span>
-              <textarea
-                name="painMentioned"
-                rows="2"
-                placeholder="Manual evidence, review visibility, attribution gaps..."
-              ></textarea>
-            </label>
-            <label>
-              <span>Strong quote</span>
-              <textarea
-                name="strongQuote"
-                rows="2"
-                placeholder="Exact words worth remembering"
-              ></textarea>
-            </label>
-            <section data-lead-meta>
-              <label>
-                <span>Follow-up ask</span>
-                <input name="followUp" placeholder="20 min call / intro / sample packet">
-              </label>
-              <label>
-                <span>Next step date</span>
-                <input name="nextStepDate" type="date">
-              </label>
-            </section>
-            <p data-lead-priority-preview></p>
-            <label data-send-follow-up>
-              <input type="checkbox" name="sendFollowUpEmail">
-              <span data-follow-up-email-copy>
-                <strong>Send follow-up email</strong>
-                <small data-follow-up-email-summary>Immediately after saving</small>
-              </span>
-              <small data-follow-up-email-status>Email off</small>
-            </label>
-            <section data-follow-up-email-preview aria-live="polite">
-              <p><strong>To</strong><span data-follow-up-email-to></span></p>
-              <p><strong>Subject</strong><span data-follow-up-email-subject></span></p>
-              <p><strong>Body</strong><span data-follow-up-email-body></span></p>
-            </section>
-            <label>
-              <span>Notes</span>
-              <textarea
-                name="notes"
-                rows="3"
-                placeholder="Loose context, intro path, reminders..."
-              ></textarea>
-            </label>
-            <p data-lead-error hidden></p>
-            <menu>
-              <button type="submit" data-motion="button" data-motion-hidden="true">
-                <svg><use href="#icon-check"></use></svg><span>Save lead</span>
-              </button>
-            </menu>
           </form>
         </section>
         <section aria-label="Captured leads" data-leads-list></section>

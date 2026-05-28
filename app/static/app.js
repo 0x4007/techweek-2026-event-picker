@@ -41,6 +41,7 @@ const PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS = 1_500;
 const PARTIFUL_AUTO_SYNC_STATUS_POLL_MS = 20_000;
 const PARTIFUL_AUTO_SYNC_MAX_POLLS = 8;
 const LIVE_ROUTE_REFRESH_TIMEOUT_MS = 150_000;
+const TRANSCRIPT_MIN_HEIGHT_PX = 300;
 const CHAT_EMPTY_GUIDE =
   "Ask me anything about today's Tech Week plan and I'll help you stay aligned.";
 const CHAT_SHARE_EMPTY_GUIDE = "No shared messages found for this link.";
@@ -153,6 +154,7 @@ const state = {
   routeTransitionDirection: "none",
   leadEventManuallySelected: false,
   followUpEmailTouched: false,
+  leadFieldsExpanded: false,
   ocrMetadata: null,
   sharedMode: false,
   sharedChatId: "",
@@ -225,6 +227,8 @@ const cardPreview = document.querySelector("[data-card-preview]");
 const transcriptInput = document.querySelector("[data-transcript-input]");
 const transcriptButton = document.querySelector("[data-transcript-button]");
 const transcriptStatus = document.querySelector("[data-transcript-status]");
+const leadFieldsPanel = document.querySelector("[data-lead-fields-panel]");
+const leadFieldsToggle = document.querySelector("[data-lead-fields-toggle]");
 const followUpEmailStatus = document.querySelector("[data-follow-up-email-status]");
 const followUpEmailSummary = document.querySelector("[data-follow-up-email-summary]");
 const followUpEmailPreview = document.querySelector("[data-follow-up-email-preview]");
@@ -233,6 +237,23 @@ const followUpEmailSubject = document.querySelector("[data-follow-up-email-subje
 const followUpEmailBody = document.querySelector("[data-follow-up-email-body]");
 const eventsCalendarDownloadLink = document.querySelector("[data-events-calendar-link]");
 const agendaStatusItems = document.querySelectorAll("[data-agenda-status]");
+const transcriptPlaceholderSizer = (() => {
+  const sizer = document.createElement("textarea");
+  sizer.setAttribute("aria-hidden", "true");
+  sizer.tabIndex = -1;
+  sizer.disabled = true;
+  sizer.style.cssText = [
+    "position: fixed",
+    "top: -9999px",
+    "left: -9999px",
+    "visibility: hidden",
+    "overflow: hidden",
+    "resize: none",
+    "height: auto",
+    "min-height: 0",
+  ].join(";");
+  return sizer;
+})();
 const SVG_NS = "http://www.w3.org/2000/svg";
 const VIEW_TITLES = {
   route: "Agenda",
@@ -460,6 +481,9 @@ leadForm.elements.sendFollowUpEmail.addEventListener("change", () => {
   state.followUpEmailTouched = true;
   renderFollowUpEmailControl();
 });
+leadFieldsToggle?.addEventListener("click", () => {
+  setLeadFieldsExpanded(!state.leadFieldsExpanded);
+});
 leadForm.addEventListener("input", () => {
   renderLeadPriorityPreview();
   renderFollowUpEmailControl();
@@ -488,6 +512,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeDevChat();
   if (event.key === "Escape") closeEventModal();
 });
+globalThis.addEventListener("resize", syncTranscriptInputMinHeight);
 globalThis.addEventListener("hashchange", () => {
   const changed = applyHashNavigation();
   if (!changed || !state.payload) return;
@@ -497,6 +522,7 @@ globalThis.addEventListener("hashchange", () => {
 hydrateChatHistory();
 renderChat();
 renderAccountButton();
+syncTranscriptInputMinHeight();
 capturePendingReferralFromUrl();
 void initializeSharedChatFromLocation();
 void loadAccountSession();
@@ -2450,6 +2476,48 @@ function renderCRM() {
   renderLeadPriorityPreview();
   renderFollowUpEmailControl();
   renderLeadList(selected?.calendarBlockId || "");
+  syncLeadFieldsPanel();
+  syncTranscriptInputMinHeight();
+}
+
+function syncLeadFieldsPanel() {
+  if (!leadFieldsPanel || !leadFieldsToggle) return;
+  const label = leadFieldsToggle.querySelector("span") || leadFieldsToggle;
+  leadFieldsPanel.hidden = !state.leadFieldsExpanded;
+  leadFieldsToggle.setAttribute("aria-expanded", String(state.leadFieldsExpanded));
+  label.textContent = state.leadFieldsExpanded ? "Hide lead fields" : "Show lead fields";
+}
+
+function syncTranscriptInputMinHeight() {
+  if (!transcriptInput) return;
+  if (!transcriptPlaceholderSizer.isConnected) {
+    document.body.append(transcriptPlaceholderSizer);
+  }
+  const style = getComputedStyle(transcriptInput);
+  const width = Math.max(1, Math.round(transcriptInput.getBoundingClientRect().width));
+  transcriptPlaceholderSizer.value = transcriptInput.getAttribute("placeholder") || "";
+  transcriptPlaceholderSizer.style.width = `${width}px`;
+  transcriptPlaceholderSizer.style.minHeight = "0";
+  transcriptPlaceholderSizer.style.padding = style.padding;
+  transcriptPlaceholderSizer.style.border = style.border;
+  transcriptPlaceholderSizer.style.boxSizing = style.boxSizing;
+  transcriptPlaceholderSizer.style.font = style.font;
+  transcriptPlaceholderSizer.style.lineHeight = style.lineHeight;
+  transcriptPlaceholderSizer.style.letterSpacing = style.letterSpacing;
+  transcriptPlaceholderSizer.style.wordSpacing = style.wordSpacing;
+  transcriptPlaceholderSizer.style.direction = style.direction;
+  transcriptPlaceholderSizer.style.textAlign = style.textAlign;
+  transcriptPlaceholderSizer.style.textIndent = style.textIndent;
+  transcriptPlaceholderSizer.style.textTransform = style.textTransform;
+  transcriptPlaceholderSizer.style.whiteSpace = "pre-wrap";
+  transcriptPlaceholderSizer.style.overflowWrap = "break-word";
+  const minHeight = Math.max(TRANSCRIPT_MIN_HEIGHT_PX, transcriptPlaceholderSizer.scrollHeight);
+  transcriptInput.style.minHeight = `${Math.ceil(minHeight)}px`;
+}
+
+function setLeadFieldsExpanded(expanded) {
+  state.leadFieldsExpanded = Boolean(expanded);
+  syncLeadFieldsPanel();
 }
 
 function renderFollowUpEmailControl() {
@@ -2952,6 +3020,7 @@ async function handleLeadSubmit(event) {
     const selectedId = action.calendarBlockId;
     leadForm.reset();
     leadForm.elements.calendarBlockId.value = selectedId;
+    setLeadFieldsExpanded(false);
     state.followUpEmailTouched = false;
     renderFollowUpEmailControl();
     renderCRM();
@@ -2988,6 +3057,7 @@ async function handleLeadTranscriptParse() {
     const body = await requestLeadTranscriptDraft({ requestId, transcript, eventTitle });
     state.ocrMetadata = null;
     applyLeadDraft(body.draft || {});
+    setLeadFieldsExpanded(true);
     setTranscriptStatus(`Transcript parsed. Review and save. ${requestId}`);
   } catch (error) {
     await logClientEvent("transcript_request_error", {
@@ -3059,6 +3129,7 @@ async function handleCardInput() {
     const body = await requestOcrDraft({ requestId, file, image, eventTitle });
     state.ocrMetadata = body?.ocrMetadata ?? null;
     applyLeadDraft(body.draft || {});
+    setLeadFieldsExpanded(true);
     setCardScanStatus(`Card scanned. Review and save. ${requestId}`);
   } catch (error) {
     await logClientEvent("ocr_client_error", {
