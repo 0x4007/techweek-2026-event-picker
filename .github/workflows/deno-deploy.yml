@@ -141,5 +141,5 @@ jobs:
         run: |
           set -euo pipefail
           base_url="https://${DENO_DEPLOY_APP}.${DENO_DEPLOY_ORG}.deno.net"
-          curl -fsS "$base_url/" >/dev/null
-          curl -fsS "$base_url/api/health" | grep -q '"status": "ready"'
+          curl -fsSL "$base_url/" >/dev/null
+          curl -fsSL "$base_url/api/health" | grep -q '"status": "ready"'
