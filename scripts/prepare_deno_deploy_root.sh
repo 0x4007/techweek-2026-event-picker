@@ -6,6 +6,14 @@ fail() {
   exit 2
 }
 
+copy_if_exists() {
+  local source="$1"
+  local target_dir="$2"
+  if [ -e "$source" ]; then
+    cp "$source" "$target_dir/"
+  fi
+}
+
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repo_root="$(cd -- "$script_dir/.." && pwd -P)"
 home_root="$(cd -- "${HOME:-/}" && pwd -P)"
@@ -48,6 +56,7 @@ esac
 rm -rf -- "$root"
 mkdir -p \
   "$root/app" \
+  "$root/e2e" \
   "$root/outputs/signed_up" \
   "$root/data/rankings" \
   "$root/docs/agenda" \
@@ -55,6 +64,7 @@ mkdir -p \
   "$root/scripts/lib"
 
 cp -R app/. "$root/app/"
+[ ! -d e2e ] || cp -R e2e/. "$root/e2e/"
 cp deno.json deno.lock README.md "$root/"
 
 cp \
@@ -67,12 +77,19 @@ cp \
   data/rankings/techweek_nyc_accolades_full_rerank_top_picks.md \
   "$root/data/rankings/"
 
-cp docs/agenda/TECHWEEK_AGENDA.md "$root/docs/agenda/"
-cp \
-  docs/handoffs/SIGNUP_AGENT_HANDOFF.md \
-  docs/handoffs/SIGNUP_STATE_HANDOFF.md \
-  docs/handoffs/BACKUP_SIGNUP_AGENT_HANDOFF.md \
-  "$root/docs/handoffs/"
+copy_if_exists docs/agenda/TECHWEEK_AGENDA.md "$root/docs/agenda"
+copy_if_exists docs/handoffs/SIGNUP_AGENT_HANDOFF.md "$root/docs/handoffs"
+copy_if_exists docs/handoffs/SIGNUP_STATE_HANDOFF.md "$root/docs/handoffs"
+copy_if_exists docs/handoffs/BACKUP_SIGNUP_AGENT_HANDOFF.md "$root/docs/handoffs"
 
 cp -R scripts/lib/. "$root/scripts/lib/"
-cp scripts/build_signed_up_calendar.ts scripts/build_signed_up_calendar_test.ts "$root/scripts/"
+copy_if_exists scripts/build_signed_up_calendar.ts "$root/scripts"
+copy_if_exists scripts/build_signed_up_calendar_test.ts "$root/scripts"
+copy_if_exists scripts/sync_partiful_config_test.ts "$root/scripts"
+copy_if_exists scripts/capture_partiful_auth_from_browser.ts "$root/scripts"
+copy_if_exists scripts/login_account_with_agent_token.ts "$root/scripts"
+copy_if_exists scripts/sync_partiful_headless.ts "$root/scripts"
+copy_if_exists scripts/list_twilio_partiful_codes.ts "$root/scripts"
+copy_if_exists scripts/login_partiful_with_twilio.ts "$root/scripts"
+copy_if_exists scripts/prepare_deno_deploy_root.sh "$root/scripts"
+copy_if_exists scripts/prepare_deno_deploy_root_test.ts "$root/scripts"
