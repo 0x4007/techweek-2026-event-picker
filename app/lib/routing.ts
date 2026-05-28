@@ -227,6 +227,7 @@ export const DEFAULT_OPERATIONAL_ROUTE_IDS = [
   "4444",
   "5529",
   "4664",
+  "6642",
   "5372",
   "5114",
   "5722",

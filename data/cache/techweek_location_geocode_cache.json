@@ -84,7 +84,7 @@
     "used_query": "620 Eighth Ave,, New York, NY 10018"
   },
   "Delancey St Essex St, New York, NY": {
-    "display_name": "Delancey Street\u2013Essex Street, Delancey Street, Lower East Side, Manhattan Community Board 3, Manhattan, New York County, New York, 10002, United States",
+    "display_name": "Delancey Street–Essex Street, Delancey Street, Lower East Side, Manhattan Community Board 3, Manhattan, New York County, New York, 10002, United States",
     "lat": 40.7186182,
     "lon": -73.9881357,
     "used_query": "Delancey St Essex St, New York, NY"
@@ -172,5 +172,17 @@
     "lat": 40.7459513,
     "lon": -73.984086,
     "used_query": "135 Madison Ave, New York, NY 10016"
+  },
+  "Central Park, Manhattan, NY": {
+    "lat": 40.7827725,
+    "lon": -73.9653627,
+    "display_name": "Central Park, New York County, New York, 11025, United States",
+    "used_query": "Central Park, Manhattan, NY"
+  },
+  "Chinatown, Manhattan, NY": {
+    "lat": 40.7164913,
+    "lon": -73.9962504,
+    "display_name": "Chinatown, Lower Manhattan, Manhattan, New York County, New York, 10013, United States",
+    "used_query": "Chinatown, Manhattan, NY"
   }
 }

@@ -84,6 +84,38 @@ export async function readStateEntry<T>(key: string): Promise<StateValueSnapshot
   };
 }
 
+export async function readSharedChat<T>(shareId: string): Promise<T | null> {
+  const kv = await getKv();
+  const result = await kv.get<T>(["shared_chat", shareId]);
+  if (result.value === null) return null;
+  return await readKvJsonValue<T>(kv, ["shared_chat", shareId], result.value);
+}
+
+export async function listSharedChats<T>(limit = 1000): Promise<
+  Array<{ shareId: string; value: T }>
+> {
+  const kv = await getKv();
+  const entries: Array<{ shareId: string; value: T }> = [];
+  const maxEntries = Number.isFinite(limit) && limit > 0 ? Math.trunc(limit) : null;
+  for await (const entry of kv.list<unknown>({ prefix: ["shared_chat"] })) {
+    const shareId = typeof entry.key[1] === "string" ? entry.key[1] : "";
+    if (!shareId) continue;
+    let value: T | null = null;
+    try {
+      value = await readKvJsonValue<T>(kv, entry.key, entry.value);
+    } catch {
+      continue;
+    }
+    if (!value || typeof value !== "object") continue;
+    const record = value as Record<string, unknown>;
+    const recordShareId = typeof record.shareId === "string" ? record.shareId : "";
+    if (recordShareId !== shareId) continue;
+    entries.push({ shareId, value });
+    if (maxEntries !== null && entries.length >= maxEntries) break;
+  }
+  return entries;
+}
+
 export async function writeStateValue<T>(key: string, value: T): Promise<void> {
   const kv = await getKv();
   const logicalKey = stateKey(key);
@@ -108,6 +140,32 @@ export async function writeStateValueIfVersion<T>(
   if (result.ok) return result.versionstamp;
   await cleanupPreparedChunks(kv, logicalKey, prepared);
   return null;
+}
+
+export async function writeSharedChat<T>(shareId: string, value: T): Promise<void> {
+  const kv = await getKv();
+  const key = ["shared_chat", shareId];
+  try {
+    await kv.set(key, value);
+    return;
+  } catch (error) {
+    if (!isQuotaExceededError(error)) throw error;
+    await purgeSoftDeletedSharedChatsInStore(kv, 200);
+    await kv.set(key, value);
+  }
+}
+
+export async function deleteSharedChat(shareId: string): Promise<void> {
+  const kv = await getKv();
+  const key: Deno.KvKey = ["shared_chat", shareId];
+  const current = await kv.get<unknown>(key);
+  if (current.value === null) return;
+  await deleteStoredValue(kv, key, current.value);
+}
+
+export async function purgeSoftDeletedSharedChats(limit = 200): Promise<number> {
+  const kv = await getKv();
+  return await purgeSoftDeletedSharedChatsInStore(kv, limit);
 }
 
 export async function readCacheValue<T>(namespace: string, cacheId: string): Promise<T | null> {
@@ -200,6 +258,54 @@ function stateKey(key: string): Deno.KvKey {
 
 function cacheKey(namespace: string, cacheId: string): Deno.KvKey {
   return [...cachePrefix(namespace), cacheId];
+}
+
+async function purgeSoftDeletedSharedChatsInStore(
+  kv: Deno.Kv,
+  limit = 200,
+): Promise<number> {
+  const sharedChats = await listSharedChats<unknown>(0);
+  const softDeleted = sharedChats
+    .map((item) => {
+      const value = item.value as Record<string, unknown>;
+      return {
+        key: ["shared_chat", item.shareId] as Deno.KvKey,
+        deletedAt: typeof value.deletedAt === "string" ? value.deletedAt : "",
+      };
+    })
+    .filter((item) => item.deletedAt);
+
+  softDeleted.sort((left, right) => {
+    const leftAt = Date.parse(left.deletedAt || "");
+    const rightAt = Date.parse(right.deletedAt || "");
+    if (Number.isNaN(leftAt) && Number.isNaN(rightAt)) return 0;
+    if (Number.isNaN(leftAt)) return 1;
+    if (Number.isNaN(rightAt)) return -1;
+    return leftAt - rightAt;
+  });
+
+  const cleanupTargets = limit > 0 ? softDeleted.slice(0, limit) : softDeleted;
+  await Promise.all(
+    cleanupTargets.map(async (entry) => {
+      const current = await kv.get<unknown>(entry.key);
+      if (current.value !== null) {
+        await deleteStoredValue(kv, entry.key, current.value);
+      }
+    }),
+  );
+  return cleanupTargets.length;
+}
+
+function isQuotaExceededError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const message = String((error as { message?: unknown }).message || "").toLowerCase();
+  const name = String((error as { name?: unknown }).name || "").toLowerCase();
+  const messageMentionsQuota = message.includes("quota") ||
+    message.includes("out of space") ||
+    message.includes("storage limit") ||
+    message.includes("storage exceeded");
+  return name.includes("quota") || name.includes("full") || messageMentionsQuota ||
+    (message.includes("storage") && message.includes("exceed"));
 }
 
 function kvSetOptions(ttlMs: number | undefined): { expireIn?: number } | undefined {

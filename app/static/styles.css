@@ -687,6 +687,10 @@ article[data-lead] header section {
   resize: vertical;
 }
 
+[data-lead-transcript] textarea {
+  min-height: 300px;
+}
+
 [data-card-scan] {
   position: relative;
   display: grid;
@@ -1725,6 +1729,64 @@ article[data-entry] > p {
 [data-agent-tools] button[aria-expanded="true"] {
   background: var(--accent);
   color: var(--accent-ink);
+}
+
+[data-chat-share-result],
+[data-chat-shared] {
+  display: grid;
+  gap: 6px;
+}
+
+[data-chat-share-result] {
+  padding: 0 2px;
+}
+
+[data-chat-share-status] {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+[data-chat-share-link] {
+  width: 100%;
+  min-height: 30px;
+  justify-content: start;
+  padding: 6px 8px;
+  background: var(--drawer-glass);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(18px);
+}
+
+[data-chat-share-link]:hover {
+  color: var(--accent);
+}
+
+[data-chat-shared] {
+  padding: 4px 6px;
+  border-radius: 14px;
+  background: var(--drawer-glass);
+  backdrop-filter: blur(18px);
+}
+
+[data-chat-shared-message] {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+[data-chat-fork] {
+  width: 100%;
+  min-height: 34px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--primary-shadow);
 }
 
 [data-chat-history] {

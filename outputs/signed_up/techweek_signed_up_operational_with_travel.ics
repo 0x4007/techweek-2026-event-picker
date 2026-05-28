@@ -24,59 +24,59 @@ END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
 UID:5529aae1-88c8-50dc-9e10-2627f8c4b84d@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260601T031300
 DTEND;TZID=America/New_York:20260601T111300
 SUMMARY:Sleep: 8 hours
 LOCATION:15 Cliff Street\, New York\, NY 10038
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260601-SLEEP\nRerankID: \nP
- artifulID: \nStaggered late sleep block\; night-to-night bedtime shift sta
- ys within 30 minutes.\nRSVP status: registered\nCategory: sleep\nVenue bas
- is: 15 Cliff Street\, New York\, NY 10038 (sleep_buffer)\nGoogle Maps: htt
- ps://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2
- C+NY+10038\nRank/tier/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260601-SLEEP\nRerankID:\nPar
+ tifulID:\nStaggered late sleep block\; night-to-night bedtime shift stays 
+ within 30 minutes.\nRSVP status: registered\nCategory: sleep\nVenue basis:
+  15 Cliff Street\, New York\, NY 10038 (sleep_buffer)\nGoogle Maps: https:
+ //www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+N
+ Y+10038\nRank/tier/score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:efa5407c-aa9e-578f-ae39-de0d437e5ebf@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260601T121500
 DTEND;TZID=America/New_York:20260601T131500
 SUMMARY:Meal: Lunch / reset
 LOCATION:15 Cliff Street\, New York\, NY 10038
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260601-MEAL-LUNCH\nRerankID
- : \nPartifulID: \nOne-hour food buffer before leaving for the first event.
- \nRSVP status: registered\nCategory: meal\nVenue basis: 15 Cliff Street\, 
- New York\, NY 10038 (meal_buffer)\nGoogle Maps: https://www.google.com/map
- s/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/s
- core:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260601-MEAL-LUNCH\nRerankID:
+ \nPartifulID:\nOne-hour food buffer before leaving for the first event.\nR
+ SVP status: registered\nCategory: meal\nVenue basis: 15 Cliff Street\, New
+  York\, NY 10038 (meal_buffer)\nGoogle Maps: https://www.google.com/maps/s
+ earch/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/scor
+ e:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:846d43aa-615d-5ef0-82fc-37e60609c85c@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260601T132100
 DTEND;TZID=America/New_York:20260601T140000
 SUMMARY:Travel: 15 Cliff Street\, New York\, NY 10038 -> Beyond the Spec Ma
  sterclass: Engineering in the Age of Agents
 LOCATION:15 Cliff Street\, New York\, NY 10038 -> Flatiron
 DESCRIPTION:TechWeekID: TW-6408\nCalendarBlockID: TW-6408-TRAVEL-IN\nRerank
- ID: \nPartifulID: FHiuNwzr13e3YBI4ssUX\nWalk 3 min to Fulton St (2/3)\; su
- bway 29 min\; walk 2 min from 23 St-Baruch College (4/6)\; includes 5 min 
- buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: 15 Cliff 
- Street\, New York\, NY 10038 -> Flatiron ()\nGoogle Maps: https://www.goog
- le.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7408
- 301%2C-73.9868072\nRank/tier/score:  /  / \nURL: https://partiful.com/e/FH
- iuNwzr13e3YBI4ssUX
+ ID:\nPartifulID: FHiuNwzr13e3YBI4ssUX\nWalk 3 min to Fulton St (2/3)\; sub
+ way 29 min\; walk 2 min from 23 St-Baruch College (4/6)\; includes 5 min b
+ uffer.\nRSVP status: registered\nCategory: travel\nVenue basis: 15 Cliff S
+ treet\, New York\, NY 10038 -> Flatiron ()\nGoogle Maps: https://www.googl
+ e.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.74083
+ 01%2C-73.9868072&travelmode=transit\nRank/tier/score:  /  /\nURL: https://
+ partiful.com/e/FHiuNwzr13e3YBI4ssUX
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/FHiuNwzr13e3YBI4ssUX
 END:VEVENT
 BEGIN:VEVENT
 UID:fa32bd10-a69d-5513-93fa-96903b4c039d@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260601T140000
 DTEND;TZID=America/New_York:20260601T150000
 SUMMARY:[PENDING] Beyond the Spec Masterclass: Engineering in the Age of Ag
@@ -103,28 +103,28 @@ URL:https://partiful.com/e/FHiuNwzr13e3YBI4ssUX
 END:VEVENT
 BEGIN:VEVENT
 UID:1403a52e-3927-5832-b03c-7e2b6397cbe4@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260601T155000
 DTEND;TZID=America/New_York:20260601T160000
 SUMMARY:Travel: Beyond the Spec Masterclass: Engineering in the Age of Agen
  ts -> From Vibe Coding to AI-Driven Development
 LOCATION:Beyond the Spec Masterclass: Engineering in the Age of Agents -> W
  eWork\, 135 Madison Ave\, New York\, NY
-DESCRIPTION:TechWeekID: TW-44\nCalendarBlockID: TW-44-TRAVEL-IN\nRerankID: 
- \nPartifulID: xowd9F3kB7mPFN1luUwY\nWalk approx 10 min / 767 m using OSM-g
- eocoded points.\nRSVP status: registered\nCategory: travel\nVenue basis: B
- eyond the Spec Masterclass: Engineering in the Age of Agents -> WeWork\, 1
- 35 Madison Ave\, New York\, NY ()\nGoogle Maps: https://www.google.com/map
- s/dir/?api=1&origin=40.7408301%2C-73.9868072&destination=40.7459513%2C-73.
- 984086&travelmode=walking\nRank/tier/score:  /  / \nURL: https://partiful.
- com/e/xowd9F3kB7mPFN1luUwY
+DESCRIPTION:TechWeekID: TW-44\nCalendarBlockID: TW-44-TRAVEL-IN\nRerankID:\
+ nPartifulID: xowd9F3kB7mPFN1luUwY\nWalk approx 10 min / 767 m using OSM-ge
+ ocoded points.\nRSVP status: registered\nCategory: travel\nVenue basis: Be
+ yond the Spec Masterclass: Engineering in the Age of Agents -> WeWork\, 13
+ 5 Madison Ave\, New York\, NY ()\nGoogle Maps: https://www.google.com/maps
+ /dir/?api=1&origin=40.7408301%2C-73.9868072&destination=40.7459513%2C-73.9
+ 84086&travelmode=walking\nRank/tier/score:  /  /\nURL: https://partiful.co
+ m/e/xowd9F3kB7mPFN1luUwY
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/xowd9F3kB7mPFN1luUwY
 END:VEVENT
 BEGIN:VEVENT
 UID:d895f8c5-ecb2-5b38-aee0-7407a84bafa0@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260601T160000
 DTEND;TZID=America/New_York:20260601T170000
 SUMMARY:[PENDING] From Vibe Coding to AI-Driven Development
@@ -149,27 +149,27 @@ URL:https://partiful.com/e/xowd9F3kB7mPFN1luUwY
 END:VEVENT
 BEGIN:VEVENT
 UID:0d1b348b-6e7d-5e63-b2a2-d804be433902@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260601T172800
 DTEND;TZID=America/New_York:20260601T180000
 SUMMARY:Travel: From Vibe Coding to AI-Driven Development -> Open Source Mu
  st Win
 LOCATION:From Vibe Coding to AI-Driven Development -> New York\, NY
 DESCRIPTION:TechWeekID: TW-5978\nCalendarBlockID: TW-5978-TRAVEL-IN\nRerank
- ID: \nPartifulID: OF1vP5L8dtXKRtInyWKs\nWalk 3 min to 33 St (4/6)\; subway
-  23 min\; walk 1 min from Delancey St-Essex St (F)\; includes 5 min buffer
- .\nRSVP status: registered\nCategory: travel\nVenue basis: From Vibe Codin
- g to AI-Driven Development -> New York\, NY ()\nGoogle Maps: https://www.g
- oogle.com/maps/dir/?api=1&origin=40.7459513%2C-73.984086&destination=40.71
- 8618%2C-73.988136\nRank/tier/score:  /  / \nURL: https://partiful.com/e/OF
- 1vP5L8dtXKRtInyWKs?c=s6u4EYds
+ ID:\nPartifulID: OF1vP5L8dtXKRtInyWKs\nWalk 3 min to 33 St (4/6)\; subway 
+ 23 min\; walk 1 min from Delancey St-Essex St (F)\; includes 5 min buffer.
+ \nRSVP status: registered\nCategory: travel\nVenue basis: From Vibe Coding
+  to AI-Driven Development -> New York\, NY ()\nGoogle Maps: https://www.go
+ ogle.com/maps/dir/?api=1&origin=40.7459513%2C-73.984086&destination=40.718
+ 618%2C-73.988136&travelmode=transit\nRank/tier/score:  /  /\nURL: https://
+ partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
 END:VEVENT
 BEGIN:VEVENT
 UID:eff88aaf-9ccf-5735-8f9b-77ec6b957c16@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260601T180000
 DTEND;TZID=America/New_York:20260601T210000
 SUMMARY:[REG] Open Source Must Win
@@ -196,78 +196,78 @@ URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
 END:VEVENT
 BEGIN:VEVENT
 UID:8a216e0e-79f4-5ed4-b1ad-21695adbd67d@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260601T210000
 DTEND;TZID=America/New_York:20260601T220000
 SUMMARY:Meal: Dinner after Open Source Must Win
 LOCATION:Lower East Side
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260601-MEAL-DINNER\nRerankI
- D: \nPartifulID: \nOne-hour meal buffer before heading home.\nRSVP status:
-  registered\nCategory: meal\nVenue basis: Lower East Side (meal_buffer)\nG
- oogle Maps: https://www.google.com/maps/search/?api=1&query=Lower+East+Sid
- e%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260601-MEAL-DINNER\nRerankID
+ :\nPartifulID:\nOne-hour meal buffer before heading home.\nRSVP status: re
+ gistered\nCategory: meal\nVenue basis: Lower East Side (meal_buffer)\nGoog
+ le Maps: https://www.google.com/maps/search/?api=1&query=Lower+East+Side%2
+ C+New+York%2C+NY\nRank/tier/score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:d34b410f-2059-59b7-8d8d-74a71ae6dfee@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260601T220000
 DTEND;TZID=America/New_York:20260601T223000
 SUMMARY:Travel: Open Source Must Win -> 15 Cliff Street\, New York\, NY 100
  38
 LOCATION:Open Source Must Win -> 15 Cliff Street\, New York\, NY 10038
 DESCRIPTION:TechWeekID: TW-5978\nCalendarBlockID: TW-20260601-TRAVEL-HOME\n
- RerankID: \nPartifulID: OF1vP5L8dtXKRtInyWKs\nWalk approx 30 min / 2327 m 
- using OSM-geocoded points.\nRSVP status: registered\nCategory: travel\nVen
- ue basis: Open Source Must Win -> 15 Cliff Street\, New York\, NY 10038 ()
- \nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.718618%2C-
- 73.988136&destination=40.7084297%2C-74.0056635&travelmode=walking\nRank/ti
- er/score:  /  / \nURL: https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4E
- Yds
+ RerankID:\nPartifulID: OF1vP5L8dtXKRtInyWKs\nWalk approx 30 min / 2327 m u
+ sing OSM-geocoded points.\nRSVP status: registered\nCategory: travel\nVenu
+ e basis: Open Source Must Win -> 15 Cliff Street\, New York\, NY 10038 ()\
+ nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.718618%2C-7
+ 3.988136&destination=40.7084297%2C-74.0056635&travelmode=walking\nRank/tie
+ r/score:  /  /\nURL: https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYd
+ s
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
 END:VEVENT
 BEGIN:VEVENT
 UID:61ae82be-b7ef-59ea-b72e-285cd028ce74@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260602T024300
 DTEND;TZID=America/New_York:20260602T104300
 SUMMARY:Sleep: 8 hours
 LOCATION:15 Cliff Street\, New York\, NY 10038
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260602-SLEEP\nRerankID: \nP
- artifulID: \nStaggered late sleep block\; wake leaves 30 minutes before th
- e first travel block.\nRSVP status: registered\nCategory: sleep\nVenue bas
- is: 15 Cliff Street\, New York\, NY 10038 (sleep_buffer)\nGoogle Maps: htt
- ps://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2
- C+NY+10038\nRank/tier/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260602-SLEEP\nRerankID:\nPar
+ tifulID:\nStaggered late sleep block\; wake leaves 30 minutes before the f
+ irst travel block.\nRSVP status: registered\nCategory: sleep\nVenue basis:
+  15 Cliff Street\, New York\, NY 10038 (sleep_buffer)\nGoogle Maps: https:
+ //www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+N
+ Y+10038\nRank/tier/score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:a49ef921-7fba-5110-a649-b888f10f9abc@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260602T111200
 DTEND;TZID=America/New_York:20260602T120000
 SUMMARY:Travel: 15 Cliff Street\, New York\, NY 10038 -> How to Write a Boo
  k on AI in Enterprise SDLC While Patterns Keep Changing
 LOCATION:15 Cliff Street\, New York\, NY 10038 -> New York\, NY
 DESCRIPTION:TechWeekID: TW-4551\nCalendarBlockID: TW-4551-TRAVEL-IN\nRerank
- ID: \nPartifulID: M7pXmV8sOXT11yHb9pKw\nWalk 3 min to Fulton St (2/3)\; su
- bway 38 min\; walk 2 min from 42 St-Bryant Pk (B/D/F/M)\; includes 5 min b
- uffer.\nRSVP status: registered\nCategory: travel\nVenue basis: 15 Cliff S
- treet\, New York\, NY 10038 -> New York\, NY ()\nGoogle Maps: https://www.
- google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.
- 753751%2C-73.983543\nRank/tier/score:  /  / \nURL: https://partiful.com/e/
- M7pXmV8sOXT11yHb9pKw
+ ID:\nPartifulID: M7pXmV8sOXT11yHb9pKw\nWalk 3 min to Fulton St (2/3)\; sub
+ way 38 min\; walk 2 min from 42 St-Bryant Pk (B/D/F/M)\; includes 5 min bu
+ ffer.\nRSVP status: registered\nCategory: travel\nVenue basis: 15 Cliff St
+ reet\, New York\, NY 10038 -> New York\, NY ()\nGoogle Maps: https://www.g
+ oogle.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7
+ 53751%2C-73.983543&travelmode=transit\nRank/tier/score:  /  /\nURL: https:
+ //partiful.com/e/M7pXmV8sOXT11yHb9pKw
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
 END:VEVENT
 BEGIN:VEVENT
 UID:03b6979e-69e1-581c-9666-f024735c3118@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260602T120000
 DTEND;TZID=America/New_York:20260602T134500
 SUMMARY:[REG] How to Write a Book on AI in Enterprise SDLC While Patterns K
@@ -294,22 +294,22 @@ URL:https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
 END:VEVENT
 BEGIN:VEVENT
 UID:35d34daf-4ab9-5fb5-95f3-502cc4b4b828@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260602T134500
 DTEND;TZID=America/New_York:20260602T144500
 SUMMARY:Meal: Lunch / reset
 LOCATION:Midtown
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260602-MEAL-LUNCH\nRerankID
- : \nPartifulID: \nOne-hour break after the Enterprise SDLC session.\nRSVP 
- status: registered\nCategory: meal\nVenue basis: Midtown (meal_buffer)\nGo
- ogle Maps: https://www.google.com/maps/search/?api=1&query=Midtown+Manhatt
- an%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260602-MEAL-LUNCH\nRerankID:
+ \nPartifulID:\nOne-hour break after the Enterprise SDLC session.\nRSVP sta
+ tus: registered\nCategory: meal\nVenue basis: Midtown (meal_buffer)\nGoogl
+ e Maps: https://www.google.com/maps/search/?api=1&query=Midtown+Manhattan%
+ 2C+New+York%2C+NY\nRank/tier/score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:12db12ba-c3ab-5ffd-8d03-c308733cced9@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260602T160000
 DTEND;TZID=America/New_York:20260602T173000
 SUMMARY:[PENDING] From Copilot to Control Plane - Visdom
@@ -334,26 +334,26 @@ URL:https://partiful.com/e/bn5h1g13xzOV6R5XkLaE
 END:VEVENT
 BEGIN:VEVENT
 UID:37d2cef5-64f8-5471-a7f4-7b9a8b26cc43@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260602T173600
 DTEND;TZID=America/New_York:20260602T180000
 SUMMARY:Travel: From Copilot to Control Plane - Visdom -> Future of DevEx
 LOCATION:From Copilot to Control Plane - Visdom -> SoHo
 DESCRIPTION:TechWeekID: TW-4161\nCalendarBlockID: TW-4161-TRAVEL-IN\nRerank
- ID: \nPartifulID: 7DYGSiY1WUuRSvEnD5gp\nWalk 2 min to 42 St-Bryant Pk (B/D
- /F/M)\; subway 17 min\; walk 0 min from Prince St (N/Q/R/W)\; includes 5 m
- in buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: From C
- opilot to Control Plane - Visdom -> SoHo ()\nGoogle Maps: https://www.goog
- le.com/maps/dir/?api=1&origin=40.753751%2C-73.983543&destination=40.724329
- %2C-73.997702\nRank/tier/score:  /  / \nURL: https://partiful.com/e/7DYGSi
- Y1WUuRSvEnD5gp?c=aQ_TnSt9
+ ID:\nPartifulID: 7DYGSiY1WUuRSvEnD5gp\nWalk 2 min to 42 St-Bryant Pk (B/D/
+ F/M)\; subway 17 min\; walk 0 min from Prince St (N/Q/R/W)\; includes 5 mi
+ n buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: From Co
+ pilot to Control Plane - Visdom -> SoHo ()\nGoogle Maps: https://www.googl
+ e.com/maps/dir/?api=1&origin=40.753751%2C-73.983543&destination=40.724329%
+ 2C-73.997702&travelmode=transit\nRank/tier/score:  /  /\nURL: https://part
+ iful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 END:VEVENT
 BEGIN:VEVENT
 UID:ddb32591-8b87-5e6f-b247-4c9057734bd1@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260602T180000
 DTEND;TZID=America/New_York:20260602T210000
 SUMMARY:[PENDING] Future of DevEx
@@ -378,93 +378,93 @@ URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 END:VEVENT
 BEGIN:VEVENT
 UID:77ab45c3-2236-566b-aef6-8e6a8eab23be@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260602T210000
 DTEND;TZID=America/New_York:20260602T220000
 SUMMARY:Meal: Dinner after Future of DevEx
 LOCATION:SoHo
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260602-MEAL-DINNER\nRerankI
- D: \nPartifulID: \nOne-hour meal buffer before heading home.\nRSVP status:
-  registered\nCategory: meal\nVenue basis: SoHo (meal_buffer)\nGoogle Maps:
-  https://www.google.com/maps/search/?api=1&query=SoHo%2C+New+York%2C+NY\nR
- ank/tier/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260602-MEAL-DINNER\nRerankID
+ :\nPartifulID:\nOne-hour meal buffer before heading home.\nRSVP status: re
+ gistered\nCategory: meal\nVenue basis: SoHo (meal_buffer)\nGoogle Maps: ht
+ tps://www.google.com/maps/search/?api=1&query=SoHo%2C+New+York%2C+NY\nRank
+ /tier/score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:046c3636-03d2-5f11-af07-25b1c46bcf06@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260602T220000
 DTEND;TZID=America/New_York:20260602T222100
 SUMMARY:Travel: Future of DevEx -> 15 Cliff Street\, New York\, NY 10038
 LOCATION:Future of DevEx -> 15 Cliff Street\, New York\, NY 10038
 DESCRIPTION:TechWeekID: TW-4161\nCalendarBlockID: TW-20260602-TRAVEL-HOME\n
- RerankID: \nPartifulID: 7DYGSiY1WUuRSvEnD5gp\nWalk 0 min to Prince St (N/Q
- /R/W)\; subway 13 min\; walk 3 min from Fulton St (2/3)\; includes 5 min b
- uffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Future of 
- DevEx -> 15 Cliff Street\, New York\, NY 10038 ()\nGoogle Maps: https://ww
- w.google.com/maps/dir/?api=1&origin=40.724329%2C-73.997702&destination=40.
- 7084297%2C-74.0056635\nRank/tier/score:  /  / \nURL: https://partiful.com/
- e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
+ RerankID:\nPartifulID: 7DYGSiY1WUuRSvEnD5gp\nWalk 0 min to Prince St (N/Q/
+ R/W)\; subway 13 min\; walk 3 min from Fulton St (2/3)\; includes 5 min bu
+ ffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Future of D
+ evEx -> 15 Cliff Street\, New York\, NY 10038 ()\nGoogle Maps: https://www
+ .google.com/maps/dir/?api=1&origin=40.724329%2C-73.997702&destination=40.7
+ 084297%2C-74.0056635&travelmode=transit\nRank/tier/score:  /  /\nURL: http
+ s://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 END:VEVENT
 BEGIN:VEVENT
 UID:808600b0-3f03-5bca-b15c-8aa9fb29e9ce@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T024500
 DTEND;TZID=America/New_York:20260603T104500
 SUMMARY:Sleep: 8 hours
 LOCATION:15 Cliff Street\, New York\, NY 10038
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260603-SLEEP\nRerankID: \nP
- artifulID: \nStaggered late sleep block\; wake lands on the quick breakfas
- t/lunch block.\nRSVP status: registered\nCategory: sleep\nVenue basis: 15 
- Cliff Street\, New York\, NY 10038 (sleep_buffer)\nGoogle Maps: https://ww
- w.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10
- 038\nRank/tier/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260603-SLEEP\nRerankID:\nPar
+ tifulID:\nStaggered late sleep block\; wake lands on the quick breakfast/l
+ unch block.\nRSVP status: registered\nCategory: sleep\nVenue basis: 15 Cli
+ ff Street\, New York\, NY 10038 (sleep_buffer)\nGoogle Maps: https://www.g
+ oogle.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
+ \nRank/tier/score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:b81098cf-27a6-544d-990c-b30d52651b55@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T104500
 DTEND;TZID=America/New_York:20260603T111500
 SUMMARY:Meal: Quick breakfast / lunch before dense Wednesday
 LOCATION:15 Cliff Street\, New York\, NY 10038
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260603-MEAL-LUNCH\nRerankID
- : \nPartifulID: \nHectic-day 30-minute food buffer before the midday run s
- tarts.\nRSVP status: registered\nCategory: meal\nVenue basis: 15 Cliff Str
- eet\, New York\, NY 10038 (meal_buffer)\nGoogle Maps: https://www.google.c
- om/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/
- tier/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260603-MEAL-LUNCH\nRerankID:
+ \nPartifulID:\nHectic-day 30-minute food buffer before the midday run star
+ ts.\nRSVP status: registered\nCategory: meal\nVenue basis: 15 Cliff Street
+ \, New York\, NY 10038 (meal_buffer)\nGoogle Maps: https://www.google.com/
+ maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tie
+ r/score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:752da39d-d6a0-5315-8e41-4268a9fc2d9f@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T112800
 DTEND;TZID=America/New_York:20260603T120000
 SUMMARY:Travel: 15 Cliff Street\, New York\, NY 10038 -> Building secure AI
   for your data: DeepFellow Demo + Q&A
 LOCATION:15 Cliff Street\, New York\, NY 10038 -> Chelsea
 DESCRIPTION:TechWeekID: TW-5889\nCalendarBlockID: TW-5889-TRAVEL-IN\nRerank
- ID: \nPartifulID: 4HvzWY1VZlHgK21fMBUz\nWalk 3 min to Fulton St (2/3)\; su
- bway 20 min\; walk 4 min from 23 St (A/C/E)\; includes 5 min buffer.\nRSVP
-  status: registered\nCategory: travel\nVenue basis: 15 Cliff Street\, New 
- York\, NY 10038 -> Chelsea ()\nGoogle Maps: https://www.google.com/maps/di
- r/?api=1&origin=40.7084297%2C-74.0056635&destination=40.744081%2C-73.99956
- 2\nRank/tier/score:  /  / \nURL: https://partiful.com/e/4HvzWY1VZlHgK21fMB
- Uz?c=g5NbnbjN
+ ID:\nPartifulID: 4HvzWY1VZlHgK21fMBUz\nWalk 3 min to Fulton St (2/3)\; sub
+ way 20 min\; walk 4 min from 23 St (A/C/E)\; includes 5 min buffer.\nRSVP 
+ status: registered\nCategory: travel\nVenue basis: 15 Cliff Street\, New Y
+ ork\, NY 10038 -> Chelsea ()\nGoogle Maps: https://www.google.com/maps/dir
+ /?api=1&origin=40.7084297%2C-74.0056635&destination=40.744081%2C-73.999562
+ &travelmode=transit\nRank/tier/score:  /  /\nURL: https://partiful.com/e/4
+ HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
 END:VEVENT
 BEGIN:VEVENT
 UID:fa9922e0-1d50-5ba1-954b-455b076f0139@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T120000
 DTEND;TZID=America/New_York:20260603T131500
 SUMMARY:[PENDING] Building secure AI for your data: DeepFellow Demo + Q&A
@@ -480,17 +480,17 @@ DESCRIPTION:TechWeekID: TW-5889\nCalendarBlockID: TW-5889-SCHEDULE\nRerankI
  eds\, audit trails\, manager sign-off.\nFollow-up: Offer a follow-up focus
  ed on source-linked evidence without surveillance dashboards.\nRSVP status
  : applied\nCategory: primary\nVenue basis: 23rd Street and 8th Avenue\, Ne
- w York\, NY (approx_neighborhood_hidden)\nGoogle Maps: https://www.google.
- com/maps/search/?api=1&query=23rd+Street+and+8th+Avenue%2C+New+York%2C+NY\
- nRank/tier/score: 16 / S / 80\nURL: https://partiful.com/e/4HvzWY1VZlHgK21
- fMBUz?c=g5NbnbjN
+ w York\, NY (approx_from_calendar_location)\nGoogle Maps: https://www.goog
+ le.com/maps/search/?api=1&query=23rd+Street+and+8th+Avenue%2C+New+York%2C+
+ NY\nRank/tier/score: 16 / S / 80\nURL: https://partiful.com/e/4HvzWY1VZlHg
+ K21fMBUz?c=g5NbnbjN
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
 END:VEVENT
 BEGIN:VEVENT
 UID:966d56cd-917c-5a3c-845d-a1c80095733e@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T133500
 DTEND;TZID=America/New_York:20260603T140000
 SUMMARY:Travel: Building secure AI for your data: DeepFellow Demo + Q&A -> 
@@ -498,20 +498,20 @@ SUMMARY:Travel: Building secure AI for your data: DeepFellow Demo + Q&A ->
 LOCATION:Building secure AI for your data: DeepFellow Demo + Q&A -> 1155 6t
  h Ave\, New York\, NY 10036
 DESCRIPTION:TechWeekID: TW-4444\nCalendarBlockID: TW-4444-TRAVEL-IN\nRerank
- ID: \nPartifulID: 1N6CtiCpYquktoTh5NUm\nWalk 4 min to 23 St (A/C/E)\; subw
- ay 11 min\; walk 5 min from Times Sq-42 St (GS)\; includes 5 min buffer.\n
- RSVP status: registered\nCategory: travel\nVenue basis: Building secure AI
-  for your data: DeepFellow Demo + Q&A -> 1155 6th Ave\, New York\, NY 1003
- 6 ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.744081
- %2C-73.999562&destination=40.7564611%2C-73.9831996\nRank/tier/score:  /  /
-  \nURL: https://partiful.com/e/1N6CtiCpYquktoTh5NUm
+ ID:\nPartifulID: 1N6CtiCpYquktoTh5NUm\nWalk 4 min to 23 St (A/C/E)\; subwa
+ y 11 min\; walk 5 min from Times Sq-42 St (GS)\; includes 5 min buffer.\nR
+ SVP status: registered\nCategory: travel\nVenue basis: Building secure AI 
+ for your data: DeepFellow Demo + Q&A -> 1155 6th Ave\, New York\, NY 10036
+  ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.744081%
+ 2C-73.999562&destination=40.7564611%2C-73.9831996&travelmode=transit\nRank
+ /tier/score:  /  /\nURL: https://partiful.com/e/1N6CtiCpYquktoTh5NUm
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/1N6CtiCpYquktoTh5NUm
 END:VEVENT
 BEGIN:VEVENT
 UID:9b72522c-81e3-5ff6-b942-903f38cc44de@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T140000
 DTEND;TZID=America/New_York:20260603T150000
 SUMMARY:[REG] The Future of Coding Agents and IDE
@@ -537,41 +537,41 @@ URL:https://partiful.com/e/1N6CtiCpYquktoTh5NUm
 END:VEVENT
 BEGIN:VEVENT
 UID:6d6b39d5-90c4-5f4c-ba83-32859a704848@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T150000
 DTEND;TZID=America/New_York:20260603T153000
 SUMMARY:Meal: Quick food / reset
 LOCATION:Midtown
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260603-MEAL-FOOD\nRerankID:
-  \nPartifulID: \nHectic-day 30-minute grab-and-go slot before the next wal
- k.\nRSVP status: registered\nCategory: meal\nVenue basis: Midtown (meal_bu
- ffer)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=Midtow
- n+Manhattan%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260603-MEAL-FOOD\nRerankID:\
+ nPartifulID:\nHectic-day 30-minute grab-and-go slot before the next walk.\
+ nRSVP status: registered\nCategory: meal\nVenue basis: Midtown (meal_buffe
+ r)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=Midtown+M
+ anhattan%2C+New+York%2C+NY\nRank/tier/score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:3b504dc4-eb63-52c9-9648-a065a1ffce92@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T154000
 DTEND;TZID=America/New_York:20260603T160000
 SUMMARY:Travel: The Future of Coding Agents and IDE -> Fireside chat - When
   coding agents are the user?
 LOCATION:The Future of Coding Agents and IDE -> New York\, NY
 DESCRIPTION:TechWeekID: TW-5529\nCalendarBlockID: TW-5529-TRAVEL-IN\nRerank
- ID: \nPartifulID: E8NhJNHWGhMetLlrFvQ7\nWalk approx 20 min / 1595 m using 
- OSM-geocoded points.\nRSVP status: registered\nCategory: travel\nVenue bas
- is: The Future of Coding Agents and IDE -> New York\, NY ()\nGoogle Maps: 
- https://www.google.com/maps/dir/?api=1&origin=40.7564611%2C-73.9831996&des
- tination=40.7458%2C-73.9888&travelmode=walking\nRank/tier/score:  /  / \nU
- RL: https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
+ ID:\nPartifulID: E8NhJNHWGhMetLlrFvQ7\nWalk approx 20 min / 1595 m using O
+ SM-geocoded points.\nRSVP status: registered\nCategory: travel\nVenue basi
+ s: The Future of Coding Agents and IDE -> New York\, NY ()\nGoogle Maps: h
+ ttps://www.google.com/maps/dir/?api=1&origin=40.7564611%2C-73.9831996&dest
+ ination=40.7458%2C-73.9888&travelmode=walking\nRank/tier/score:  /  /\nURL
+ : https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
 END:VEVENT
 BEGIN:VEVENT
 UID:ddc0c184-15cb-51af-8391-566a44d99597@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T160000
 DTEND;TZID=America/New_York:20260603T171500
 SUMMARY:[REG] Fireside chat - When coding agents are the user?
@@ -597,27 +597,27 @@ URL:https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
 END:VEVENT
 BEGIN:VEVENT
 UID:5a93a757-7a3a-551a-a210-cadd6be7f6a0@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T174000
 DTEND;TZID=America/New_York:20260603T180000
 SUMMARY:Travel: Fireside chat - When coding agents are the user? -> MCP in 
  the Wild: Panel & Night of Networking
 LOCATION:Fireside chat - When coding agents are the user? -> East Village
 DESCRIPTION:TechWeekID: TW-4664\nCalendarBlockID: TW-4664-TRAVEL-IN\nRerank
- ID: \nPartifulID: 6ZuudQBBZXcMNjdMynJ2\nWalk 1 min to 28 St (N/Q/R/W)\; su
- bway 13 min\; walk 1 min from Astor Pl (4/6)\; includes 5 min buffer.\nRSV
- P status: registered\nCategory: travel\nVenue basis: Fireside chat - When 
- coding agents are the user? -> East Village ()\nGoogle Maps: https://www.g
- oogle.com/maps/dir/?api=1&origin=40.7458%2C-73.9888&destination=40.72985%2
- C-73.99139\nRank/tier/score:  /  / \nURL: https://partiful.com/events/6Zuu
- dQBBZXcMNjdMynJ2
+ ID:\nPartifulID: 6ZuudQBBZXcMNjdMynJ2\nWalk 1 min to 28 St (N/Q/R/W)\; sub
+ way 13 min\; walk 1 min from Astor Pl (4/6)\; includes 5 min buffer.\nRSVP
+  status: registered\nCategory: travel\nVenue basis: Fireside chat - When c
+ oding agents are the user? -> East Village ()\nGoogle Maps: https://www.go
+ ogle.com/maps/dir/?api=1&origin=40.7458%2C-73.9888&destination=40.72985%2C
+ -73.99139&travelmode=transit\nRank/tier/score:  /  /\nURL: https://partifu
+ l.com/events/6ZuudQBBZXcMNjdMynJ2
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
 END:VEVENT
 BEGIN:VEVENT
 UID:675881a5-a86b-58af-9f4a-7422e1cc4277@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T180000
 DTEND;TZID=America/New_York:20260603T203000
 SUMMARY:[PENDING] MCP in the Wild: Panel & Night of Networking
@@ -642,22 +642,22 @@ URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
 END:VEVENT
 BEGIN:VEVENT
 UID:cea3f270-ece4-525d-8f5a-367a8926e749@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T203000
 DTEND;TZID=America/New_York:20260603T213000
 SUMMARY:Meal: Dinner after MCP in the Wild
 LOCATION:East Village
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260603-MEAL-DINNER\nRerankI
- D: \nPartifulID: \nOne-hour meal buffer before heading home.\nRSVP status:
-  registered\nCategory: meal\nVenue basis: East Village (meal_buffer)\nGoog
- le Maps: https://www.google.com/maps/search/?api=1&query=East+Village%2C+N
- ew+York%2C+NY\nRank/tier/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260603-MEAL-DINNER\nRerankID
+ :\nPartifulID:\nOne-hour meal buffer before heading home.\nRSVP status: re
+ gistered\nCategory: meal\nVenue basis: East Village (meal_buffer)\nGoogle 
+ Maps: https://www.google.com/maps/search/?api=1&query=East+Village%2C+New+
+ York%2C+NY\nRank/tier/score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:bfe26f7f-6307-51ce-b1b2-1c78dcce93c9@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260603T213000
 DTEND;TZID=America/New_York:20260603T215100
 SUMMARY:Travel: MCP in the Wild: Panel & Night of Networking -> 15 Cliff St
@@ -665,74 +665,118 @@ SUMMARY:Travel: MCP in the Wild: Panel & Night of Networking -> 15 Cliff St
 LOCATION:MCP in the Wild: Panel & Night of Networking -> 15 Cliff Street\, 
  New York\, NY 10038
 DESCRIPTION:TechWeekID: TW-4664\nCalendarBlockID: TW-20260603-TRAVEL-HOME\n
- RerankID: \nPartifulID: 6ZuudQBBZXcMNjdMynJ2\nWalk 1 min to Astor Pl (4/6)
- \; subway 12 min\; walk 3 min from Fulton St (2/3)\; includes 5 min buffer
- .\nRSVP status: registered\nCategory: travel\nVenue basis: MCP in the Wild
- : Panel & Night of Networking -> 15 Cliff Street\, New York\, NY 10038 ()\
- nGoogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.72985%2C-73
- .99139&destination=40.7084297%2C-74.0056635\nRank/tier/score:  /  / \nURL:
-  https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
+ RerankID:\nPartifulID: 6ZuudQBBZXcMNjdMynJ2\nWalk 1 min to Astor Pl (4/6)\
+ ; subway 12 min\; walk 3 min from Fulton St (2/3)\; includes 5 min buffer.
+ \nRSVP status: registered\nCategory: travel\nVenue basis: MCP in the Wild:
+  Panel & Night of Networking -> 15 Cliff Street\, New York\, NY 10038 ()\n
+ Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.72985%2C-73.
+ 99139&destination=40.7084297%2C-74.0056635&travelmode=transit\nRank/tier/s
+ core:  /  /\nURL: https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
 END:VEVENT
 BEGIN:VEVENT
 UID:f8ca278a-b74c-55ae-821e-c3b8631c9f26@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260604T031500
 DTEND;TZID=America/New_York:20260604T111500
 SUMMARY:Sleep: 8 hours
 LOCATION:15 Cliff Street\, New York\, NY 10038
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260604-SLEEP\nRerankID: \nP
- artifulID: \nStaggered late sleep block\; night-to-night bedtime shift sta
- ys within 30 minutes.\nRSVP status: registered\nCategory: sleep\nVenue bas
- is: 15 Cliff Street\, New York\, NY 10038 (sleep_buffer)\nGoogle Maps: htt
- ps://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2
- C+NY+10038\nRank/tier/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260604-SLEEP\nRerankID:\nPar
+ tifulID:\nStaggered late sleep block\; night-to-night bedtime shift stays 
+ within 30 minutes.\nRSVP status: registered\nCategory: sleep\nVenue basis:
+  15 Cliff Street\, New York\, NY 10038 (sleep_buffer)\nGoogle Maps: https:
+ //www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+N
+ Y+10038\nRank/tier/score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
+UID:fd622549-393e-5d20-8422-0d775fe49023@techweek-2026-event-picker
+DTSTAMP:20260528T080659Z
+DTSTART;TZID=America/New_York:20260604T115900
+DTEND;TZID=America/New_York:20260604T123000
+SUMMARY:Travel: 15 Cliff Street\, New York\, NY 10038 -> The Semiconductor 
+ & AI Supply Chain Lunch: Investors & Operators
+LOCATION:15 Cliff Street\, New York\, NY 10038 -> Nomad
+DESCRIPTION:TechWeekID: TW-6642\nCalendarBlockID: TW-6642-TRAVEL-IN\nRerank
+ ID:\nPartifulID: WJe6XcxPXwbpCiCVLCas\nWalk 3 min to Fulton St (2/3)\; sub
+ way 22 min\; walk 1 min from 28 St (N/Q/R/W)\; includes 5 min buffer.\nRSV
+ P status: registered\nCategory: travel\nVenue basis: 15 Cliff Street\, New
+  York\, NY 10038 -> Nomad ()\nGoogle Maps: https://www.google.com/maps/dir
+ /?api=1&origin=40.7084297%2C-74.0056635&destination=40.7458%2C-73.9888&tra
+ velmode=transit\nRank/tier/score:  /  /\nURL: https://partiful.com/e/WJe6X
+ cxPXwbpCiCVLCas
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+URL:https://partiful.com/e/WJe6XcxPXwbpCiCVLCas
+END:VEVENT
+BEGIN:VEVENT
+UID:9791c2b2-e0af-57c8-a034-9fc7ddd42f87@techweek-2026-event-picker
+DTSTAMP:20260528T080659Z
+DTSTART;TZID=America/New_York:20260604T123000
+DTEND;TZID=America/New_York:20260604T140000
+SUMMARY:[PENDING] The Semiconductor & AI Supply Chain Lunch: Investors & Op
+ erators
+LOCATION:Nomad
+DESCRIPTION:TechWeekID: TW-6642\nCalendarBlockID: TW-6642-SCHEDULE\nRerankI
+ D: 6642\nPartifulID: WJe6XcxPXwbpCiCVLCas\nLatest-feed add with no direct 
+ conflict\; keep on the route if approved\, otherwise use as a reference-on
+ ly lunch option. Wait for host approval Existing Partiful guest record fou
+ nd\; left unchanged. rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
+ \nRSVP status: applied\nCategory: latest-added-route\nVenue basis: 28th St
+ reet and Broadway\, New York\, NY (approx_from_calendar_location)\nGoogle 
+ Maps: https://www.google.com/maps/search/?api=1&query=28th+Street+and+Broa
+ dway%2C+New+York%2C+NY\nRank/tier/score: added-12 / B / 51\nURL: https://p
+ artiful.com/e/WJe6XcxPXwbpCiCVLCas
+STATUS:TENTATIVE
+TRANSP:OPAQUE
+URL:https://partiful.com/e/WJe6XcxPXwbpCiCVLCas
+END:VEVENT
+BEGIN:VEVENT
 UID:9ffe7488-71c1-5096-8b23-a9d858c2f417@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260604T143000
 DTEND;TZID=America/New_York:20260604T153000
 SUMMARY:Meal: Late lunch / reset
 LOCATION:15 Cliff Street\, New York\, NY 10038
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260604-MEAL-LUNCH\nRerankID
- : \nPartifulID: \nOne-hour meal buffer before leaving for the Thursday rou
- te.\nRSVP status: registered\nCategory: meal\nVenue basis: 15 Cliff Street
- \, New York\, NY 10038 (meal_buffer)\nGoogle Maps: https://www.google.com/
- maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tie
- r/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260604-MEAL-LUNCH\nRerankID:
+ \nPartifulID:\nOne-hour meal buffer before leaving for the Thursday route.
+ \nRSVP status: registered\nCategory: meal\nVenue basis: 15 Cliff Street\, 
+ New York\, NY 10038 (meal_buffer)\nGoogle Maps: https://www.google.com/map
+ s/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/s
+ core:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:46388065-4db5-5dc7-a344-5ed26454666a@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
-DTSTART;TZID=America/New_York:20260604T153500
+DTSTAMP:20260528T080659Z
+DTSTART;TZID=America/New_York:20260604T154600
 DTEND;TZID=America/New_York:20260604T160000
-SUMMARY:Travel: 15 Cliff Street\, New York\, NY 10038 -> Shipping Faster wi
- th AI Coding Agents: What's Working and What's Not
-LOCATION:15 Cliff Street\, New York\, NY 10038 -> New York\, NY
+SUMMARY:Travel: The Semiconductor & AI Supply Chain Lunch: Investors & Oper
+ ators -> Shipping Faster with AI Coding Agents: What's Working and What's 
+ Not
+LOCATION:The Semiconductor & AI Supply Chain Lunch: Investors & Operators -
+ > New York\, NY
 DESCRIPTION:TechWeekID: TW-5372\nCalendarBlockID: TW-5372-TRAVEL-IN\nRerank
- ID: \nPartifulID: 5K5c4eODrGPKME7or20H\nWalk 3 min to Fulton St (2/3)\; su
- bway 17 min\; walk 0 min from Prince St (N/Q/R/W)\; includes 5 min buffer.
- \nRSVP status: registered\nCategory: travel\nVenue basis: 15 Cliff Street\
- , New York\, NY 10038 -> New York\, NY ()\nGoogle Maps: https://www.google
- .com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.724329
- %2C-73.997702\nRank/tier/score:  /  / \nURL: https://partiful.com/e/5K5c4e
- ODrGPKME7or20H
+ ID:\nPartifulID: 5K5c4eODrGPKME7or20H\nWalk 1 min to 28 St (N/Q/R/W)\; sub
+ way 8 min\; walk 0 min from Prince St (N/Q/R/W)\; includes 5 min buffer.\n
+ RSVP status: registered\nCategory: travel\nVenue basis: The Semiconductor 
+ & AI Supply Chain Lunch: Investors & Operators -> New York\, NY ()\nGoogle
+  Maps: https://www.google.com/maps/dir/?api=1&origin=40.7458%2C-73.9888&de
+ stination=40.724329%2C-73.997702&travelmode=transit\nRank/tier/score:  /  
+ /\nURL: https://partiful.com/e/5K5c4eODrGPKME7or20H
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/5K5c4eODrGPKME7or20H
 END:VEVENT
 BEGIN:VEVENT
 UID:15f56d44-ee0e-5d50-97c9-c8adff07b4e3@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260604T160000
-DTEND;TZID=America/New_York:20260604T185100
+DTEND;TZID=America/New_York:20260604T183800
 SUMMARY:[PENDING] Shipping Faster with AI Coding Agents: What's Working and
   What's Not
 LOCATION:New York\, NY
@@ -741,47 +785,46 @@ DESCRIPTION:TechWeekID: TW-5372\nCalendarBlockID: TW-5372-SCHEDULE\nRerankI
  n make the registered 19:00 Stop Making AI Guess event. Wait for host appr
  oval Submitted via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; 
  plusOne=none. Route calendar shortens this from the event's scheduled 19:0
- 0 end\; leave 9 min early for transit.\nSales coaching:\nPitch: Accolades 
- credits the engineering work commit counts miss\, using source-linked GitH
- ub and Slack evidence.\nOpen: This is a direct AI-coding workflow room. St
- art with manager trust.\nAsk: What changed in your review process after AI
-  started writing more code?\nListen for: Review overload\, shallow approva
- ls\, unclear ownership\, productivity claims without evidence.\nFollow-up:
-  Ask for a buyer call with the engineering leader responsible for AI codin
- g adoption.\nRSVP status: applied\nCategory: primary\nVenue basis: Spring 
- St and Broadway\, New York\, NY (approx_neighborhood_hidden)\nGoogle Maps:
-  https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2C
- +New+York%2C+NY\nRank/tier/score: 4 / S / 100\nURL: https://partiful.com/e
- /5K5c4eODrGPKME7or20H
+ 0 end\; leave 22 min early for transit.\nSales coaching:\nPitch: Accolades
+  credits the engineering work commit counts miss\, using source-linked Git
+ Hub and Slack evidence.\nOpen: This is a direct AI-coding workflow room. S
+ tart with manager trust.\nAsk: What changed in your review process after A
+ I started writing more code?\nListen for: Review overload\, shallow approv
+ als\, unclear ownership\, productivity claims without evidence.\nFollow-up
+ : Ask for a buyer call with the engineering leader responsible for AI codi
+ ng adoption.\nRSVP status: applied\nCategory: primary\nVenue basis: Spring
+  St and Broadway\, New York\, NY (approx_neighborhood_hidden)\nGoogle Maps
+ : https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2
+ C+New+York%2C+NY\nRank/tier/score: 4 / S / 100\nURL: https://partiful.com/
+ e/5K5c4eODrGPKME7or20H
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/5K5c4eODrGPKME7or20H
 END:VEVENT
 BEGIN:VEVENT
 UID:9e3c9ffb-534f-53ff-a05a-f9be8f6da7cd@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
-DTSTART;TZID=America/New_York:20260604T185100
+DTSTAMP:20260528T080659Z
+DTSTART;TZID=America/New_York:20260604T183800
 DTEND;TZID=America/New_York:20260604T190000
 SUMMARY:Travel: Shipping Faster with AI Coding Agents: What's Working and W
  hat's Not -> Stop Making AI Guess: When Your Codebase Becomes the Spec
 LOCATION:Shipping Faster with AI Coding Agents: What's Working and What's N
  ot -> Union Square
 DESCRIPTION:TechWeekID: TW-5114\nCalendarBlockID: TW-5114-TRAVEL-IN\nRerank
- ID: \nPartifulID: X0u5GrmzvIUTrjoAOgVm\nLeave previous event 9 min before 
- its scheduled end.\nWalk 0 min to Prince St (N/Q/R/W)\; subway 4 min\; wal
- k 0 min from 14 St-Union Sq (N/Q/R/W)\; includes 5 min buffer.\nRSVP statu
- s: registered\nCategory: travel\nVenue basis: Shipping Faster with AI Codi
- ng Agents: What's Working and What's Not -> Union Square ()\nGoogle Maps: 
- https://www.google.com/maps/dir/?api=1&origin=40.724329%2C-73.997702&desti
- nation=40.735736%2C-73.990568\nRank/tier/score:  /  / \nURL: https://parti
- ful.com/e/X0u5GrmzvIUTrjoAOgVm
+ ID:\nPartifulID: X0u5GrmzvIUTrjoAOgVm\nLeave previous event 22 min before 
+ its scheduled end.\nWalk approx 22 min / 1755 m using OSM-geocoded points.
+ \nRSVP status: registered\nCategory: travel\nVenue basis: Shipping Faster 
+ with AI Coding Agents: What's Working and What's Not -> Union Square ()\nG
+ oogle Maps: https://www.google.com/maps/dir/?api=1&origin=40.724329%2C-73.
+ 997702&destination=40.735736%2C-73.990568&travelmode=walking\nRank/tier/sc
+ ore:  /  /\nURL: https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
 END:VEVENT
 BEGIN:VEVENT
 UID:b2d7f748-f6f3-52b6-9c90-295fa1c9d774@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260604T190000
 DTEND;TZID=America/New_York:20260604T204500
 SUMMARY:[REG] Stop Making AI Guess: When Your Codebase Becomes the Spec
@@ -798,31 +841,32 @@ DESCRIPTION:TechWeekID: TW-5114\nCalendarBlockID: TW-5114-SCHEDULE\nRerankI
  ew trails\, stale docs\, manager confidence.\nFollow-up: Ask to exchange n
  otes on codebase evidence and Accolades after the event.\nRSVP status: reg
  istered\nCategory: apply\nVenue basis: Union Square\, Manhattan\, New York
- \, NY (approx_neighborhood_hidden)\nGoogle Maps: https://www.google.com/ma
- ps/search/?api=1&query=Union+Square%2C+Manhattan%2C+New+York%2C+NY\nRank/t
- ier/score: 21 / S / 76\nURL: https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
+ \, NY (approx_from_calendar_location)\nGoogle Maps: https://www.google.com
+ /maps/search/?api=1&query=Union+Square%2C+Manhattan%2C+New+York%2C+NY\nRan
+ k/tier/score: 21 / S / 76\nURL: https://partiful.com/e/X0u5GrmzvIUTrjoAOgV
+ m
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
 END:VEVENT
 BEGIN:VEVENT
 UID:67d5b9f1-ffa2-5a26-bc0c-73ecdc610229@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260604T204500
 DTEND;TZID=America/New_York:20260604T214500
 SUMMARY:Meal: Dinner after Stop Making AI Guess
 LOCATION:Union Square
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260604-MEAL-DINNER\nRerankI
- D: \nPartifulID: \nOne-hour meal buffer before heading home.\nRSVP status:
-  registered\nCategory: meal\nVenue basis: Union Square (meal_buffer)\nGoog
- le Maps: https://www.google.com/maps/search/?api=1&query=Union+Square%2C+M
- anhattan%2C+New+York%2C+NY\nRank/tier/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260604-MEAL-DINNER\nRerankID
+ :\nPartifulID:\nOne-hour meal buffer before heading home.\nRSVP status: re
+ gistered\nCategory: meal\nVenue basis: Union Square (meal_buffer)\nGoogle 
+ Maps: https://www.google.com/maps/search/?api=1&query=Union+Square%2C+Manh
+ attan%2C+New+York%2C+NY\nRank/tier/score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:13da028c-c76e-5ef0-ad10-58fa20cd2852@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260604T214500
 DTEND;TZID=America/New_York:20260604T220400
 SUMMARY:Travel: Stop Making AI Guess: When Your Codebase Becomes the Spec -
@@ -830,72 +874,73 @@ SUMMARY:Travel: Stop Making AI Guess: When Your Codebase Becomes the Spec -
 LOCATION:Stop Making AI Guess: When Your Codebase Becomes the Spec -> 15 Cl
  iff Street\, New York\, NY 10038
 DESCRIPTION:TechWeekID: TW-5114\nCalendarBlockID: TW-20260604-TRAVEL-HOME\n
- RerankID: \nPartifulID: X0u5GrmzvIUTrjoAOgVm\nWalk 0 min to 14 St-Union Sq
-  (N/Q/R/W)\; subway 11 min\; walk 3 min from Fulton St (2/3)\; includes 5 
- min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Stop 
- Making AI Guess: When Your Codebase Becomes the Spec -> 15 Cliff Street\, 
- New York\, NY 10038 ()\nGoogle Maps: https://www.google.com/maps/dir/?api=
- 1&origin=40.735736%2C-73.990568&destination=40.7084297%2C-74.0056635\nRank
- /tier/score:  /  / \nURL: https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
+ RerankID:\nPartifulID: X0u5GrmzvIUTrjoAOgVm\nWalk 0 min to 14 St-Union Sq 
+ (N/Q/R/W)\; subway 11 min\; walk 3 min from Fulton St (2/3)\; includes 5 m
+ in buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Stop M
+ aking AI Guess: When Your Codebase Becomes the Spec -> 15 Cliff Street\, N
+ ew York\, NY 10038 ()\nGoogle Maps: https://www.google.com/maps/dir/?api=1
+ &origin=40.735736%2C-73.990568&destination=40.7084297%2C-74.0056635&travel
+ mode=transit\nRank/tier/score:  /  /\nURL: https://partiful.com/e/X0u5Grmz
+ vIUTrjoAOgVm
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
 END:VEVENT
 BEGIN:VEVENT
 UID:8f04113f-9b45-56c3-af34-26c2d1de08ba@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260605T034500
 DTEND;TZID=America/New_York:20260605T114500
 SUMMARY:Sleep: 8 hours
 LOCATION:15 Cliff Street\, New York\, NY 10038
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260605-SLEEP\nRerankID: \nP
- artifulID: \nStaggered late sleep block\; night-to-night bedtime shift sta
- ys within 30 minutes.\nRSVP status: registered\nCategory: sleep\nVenue bas
- is: 15 Cliff Street\, New York\, NY 10038 (sleep_buffer)\nGoogle Maps: htt
- ps://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2
- C+NY+10038\nRank/tier/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260605-SLEEP\nRerankID:\nPar
+ tifulID:\nStaggered late sleep block\; night-to-night bedtime shift stays 
+ within 30 minutes.\nRSVP status: registered\nCategory: sleep\nVenue basis:
+  15 Cliff Street\, New York\, NY 10038 (sleep_buffer)\nGoogle Maps: https:
+ //www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+N
+ Y+10038\nRank/tier/score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:819d3128-6873-5bf8-ae42-fe7f40120315@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260605T151000
 DTEND;TZID=America/New_York:20260605T161000
 SUMMARY:Meal: Early dinner before Bare Metal
 LOCATION:15 Cliff Street\, New York\, NY 10038
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260605-MEAL-DINNER\nRerankI
- D: \nPartifulID: \nOne-hour food buffer before the Friday evening event.\n
- RSVP status: registered\nCategory: meal\nVenue basis: 15 Cliff Street\, Ne
- w York\, NY 10038 (meal_buffer)\nGoogle Maps: https://www.google.com/maps/
- search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/sco
- re:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260605-MEAL-DINNER\nRerankID
+ :\nPartifulID:\nOne-hour food buffer before the Friday evening event.\nRSV
+ P status: registered\nCategory: meal\nVenue basis: 15 Cliff Street\, New Y
+ ork\, NY 10038 (meal_buffer)\nGoogle Maps: https://www.google.com/maps/sea
+ rch/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/score:
+   /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:e0e99f41-a181-517b-be10-3c63a0f3eb64@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260605T162100
 DTEND;TZID=America/New_York:20260605T170000
 SUMMARY:Travel: 15 Cliff Street\, New York\, NY 10038 -> Bare Metal Happy H
  our: Autonomous Systems & Agent Fleet Orchestration
 LOCATION:15 Cliff Street\, New York\, NY 10038 -> Union Square
 DESCRIPTION:TechWeekID: TW-5722\nCalendarBlockID: TW-5722-TRAVEL-IN\nRerank
- ID: \nPartifulID: jkjGahQgmH9PLIxjfTFt\nWalk 3 min to Fulton St (2/3)\; su
- bway 27 min\; walk 4 min from 14 St-Union Sq (N/Q/R/W)\; includes 5 min bu
- ffer.\nRSVP status: registered\nCategory: travel\nVenue basis: 15 Cliff St
- reet\, New York\, NY 10038 -> Union Square ()\nGoogle Maps: https://www.go
- ogle.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.73
- 65763%2C-73.9885429\nRank/tier/score:  /  / \nURL: https://partiful.com/e/
- jkjGahQgmH9PLIxjfTFt
+ ID:\nPartifulID: jkjGahQgmH9PLIxjfTFt\nWalk 3 min to Fulton St (2/3)\; sub
+ way 27 min\; walk 4 min from 14 St-Union Sq (N/Q/R/W)\; includes 5 min buf
+ fer.\nRSVP status: registered\nCategory: travel\nVenue basis: 15 Cliff Str
+ eet\, New York\, NY 10038 -> Union Square ()\nGoogle Maps: https://www.goo
+ gle.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.736
+ 5763%2C-73.9885429&travelmode=transit\nRank/tier/score:  /  /\nURL: https:
+ //partiful.com/e/jkjGahQgmH9PLIxjfTFt
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
 END:VEVENT
 BEGIN:VEVENT
 UID:b041ab5e-83d6-5a47-b34d-7a4f724462b7@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260605T170000
 DTEND;TZID=America/New_York:20260605T200000
 SUMMARY:[PENDING] Bare Metal Happy Hour: Autonomous Systems & Agent Fleet O
@@ -922,7 +967,7 @@ URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
 END:VEVENT
 BEGIN:VEVENT
 UID:529f0c1b-c1d5-59df-9f68-7a46f9f3f6a6@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260605T200000
 DTEND;TZID=America/New_York:20260605T202300
 SUMMARY:Travel: Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orc
@@ -930,31 +975,31 @@ SUMMARY:Travel: Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orc
 LOCATION:Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestrat
  ion -> 15 Cliff Street\, New York\, NY 10038
 DESCRIPTION:TechWeekID: TW-5722\nCalendarBlockID: TW-20260605-TRAVEL-HOME\n
- RerankID: \nPartifulID: jkjGahQgmH9PLIxjfTFt\nWalk 4 min to 14 St-Union Sq
-  (N/Q/R/W)\; subway 11 min\; walk 3 min from Fulton St (2/3)\; includes 5 
- min buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Bare 
- Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> 15 Cli
- ff Street\, New York\, NY 10038 ()\nGoogle Maps: https://www.google.com/ma
- ps/dir/?api=1&origin=40.7365763%2C-73.9885429&destination=40.7084297%2C-74
- .0056635\nRank/tier/score:  /  / \nURL: https://partiful.com/e/jkjGahQgmH9
- PLIxjfTFt
+ RerankID:\nPartifulID: jkjGahQgmH9PLIxjfTFt\nWalk 4 min to 14 St-Union Sq 
+ (N/Q/R/W)\; subway 11 min\; walk 3 min from Fulton St (2/3)\; includes 5 m
+ in buffer.\nRSVP status: registered\nCategory: travel\nVenue basis: Bare M
+ etal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> 15 Clif
+ f Street\, New York\, NY 10038 ()\nGoogle Maps: https://www.google.com/map
+ s/dir/?api=1&origin=40.7365763%2C-73.9885429&destination=40.7084297%2C-74.
+ 0056635&travelmode=transit\nRank/tier/score:  /  /\nURL: https://partiful.
+ com/e/jkjGahQgmH9PLIxjfTFt
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
 END:VEVENT
 BEGIN:VEVENT
 UID:3b2904e3-5c20-5aae-b8b9-c69bc5b836d8@techweek-2026-event-picker
-DTSTAMP:20260514T041136Z
+DTSTAMP:20260528T080659Z
 DTSTART;TZID=America/New_York:20260606T041500
 DTEND;TZID=America/New_York:20260606T121500
 SUMMARY:Sleep: 8 hours
 LOCATION:15 Cliff Street\, New York\, NY 10038
-DESCRIPTION:TechWeekID: \nCalendarBlockID: TW-20260606-SLEEP\nRerankID: \nP
- artifulID: \nStaggered late sleep block after the final Tech Week route da
- y.\nRSVP status: registered\nCategory: sleep\nVenue basis: 15 Cliff Street
- \, New York\, NY 10038 (sleep_buffer)\nGoogle Maps: https://www.google.com
- /maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/ti
- er/score:  /  / \nURL: 
+DESCRIPTION:TechWeekID:\nCalendarBlockID: TW-20260606-SLEEP\nRerankID:\nPar
+ tifulID:\nStaggered late sleep block after the final Tech Week route day.\
+ nRSVP status: registered\nCategory: sleep\nVenue basis: 15 Cliff Street\, 
+ New York\, NY 10038 (sleep_buffer)\nGoogle Maps: https://www.google.com/ma
+ ps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038\nRank/tier/
+ score:  /  /\nURL:
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 END:VEVENT

@@ -41,8 +41,10 @@ const PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS = 1_500;
 const PARTIFUL_AUTO_SYNC_STATUS_POLL_MS = 20_000;
 const PARTIFUL_AUTO_SYNC_MAX_POLLS = 8;
 const LIVE_ROUTE_REFRESH_TIMEOUT_MS = 150_000;
+const TRANSCRIPT_MIN_HEIGHT_PX = 300;
 const CHAT_EMPTY_GUIDE =
   "Ask me anything about today's Tech Week plan and I'll help you stay aligned.";
+const CHAT_SHARE_EMPTY_GUIDE = "No shared messages found for this link.";
 const DEV_AUTH_POPUP_POLL_MS = 500;
 const DEV_AUTH_POPUP_TIMEOUT_MS = 2 * 60_000;
 const TIMELINE_LAYOUT_MODE_KEY = "techweek-timeline-layout-mode";
@@ -152,7 +154,12 @@ const state = {
   routeTransitionDirection: "none",
   leadEventManuallySelected: false,
   followUpEmailTouched: false,
+  leadFieldsExpanded: false,
   ocrMetadata: null,
+  sharedMode: false,
+  sharedChatId: "",
+  sharedMessages: [],
+  sharedModeError: "",
 };
 const initialNavigation = readHashNavigation();
 state.activeView = initialNavigation.view || state.activeView;
@@ -170,8 +177,16 @@ const chatBackdrop = document.querySelector("[data-agent-backdrop]");
 const chatOpenButtons = document.querySelectorAll("[data-chat-open]");
 const chatCloseButton = document.querySelector("[data-chat-close]");
 const chatNewButton = document.querySelector("[data-chat-new]");
+const chatShareButton = document.querySelector("[data-chat-share]");
+const chatShareResult = document.querySelector("[data-chat-share-result]");
+const chatShareStatus = document.querySelector("[data-chat-share-status]");
+const chatShareLink = document.querySelector("[data-chat-share-link]");
+const chatShareCopyButton = document.querySelector("[data-chat-share-copy]");
 const chatHistory = document.querySelector("[data-chat-history]");
 const chatHistoryToggle = document.querySelector("[data-chat-history-toggle]");
+const chatSharedNotice = document.querySelector("[data-chat-shared]");
+const chatSharedMessage = document.querySelector("[data-chat-shared-message]");
+const chatForkButton = document.querySelector("[data-chat-fork]");
 const devChatOpenButton = document.querySelector("[data-dev-chat-open]");
 const devChatDrawer = document.querySelector("[data-dev-agent-drawer]");
 const devChatBackdrop = document.querySelector("[data-dev-agent-backdrop]");
@@ -212,6 +227,8 @@ const cardPreview = document.querySelector("[data-card-preview]");
 const transcriptInput = document.querySelector("[data-transcript-input]");
 const transcriptButton = document.querySelector("[data-transcript-button]");
 const transcriptStatus = document.querySelector("[data-transcript-status]");
+const leadFieldsPanel = document.querySelector("[data-lead-fields-panel]");
+const leadFieldsToggle = document.querySelector("[data-lead-fields-toggle]");
 const followUpEmailStatus = document.querySelector("[data-follow-up-email-status]");
 const followUpEmailSummary = document.querySelector("[data-follow-up-email-summary]");
 const followUpEmailPreview = document.querySelector("[data-follow-up-email-preview]");
@@ -220,6 +237,23 @@ const followUpEmailSubject = document.querySelector("[data-follow-up-email-subje
 const followUpEmailBody = document.querySelector("[data-follow-up-email-body]");
 const eventsCalendarDownloadLink = document.querySelector("[data-events-calendar-link]");
 const agendaStatusItems = document.querySelectorAll("[data-agenda-status]");
+const transcriptPlaceholderSizer = (() => {
+  const sizer = document.createElement("textarea");
+  sizer.setAttribute("aria-hidden", "true");
+  sizer.tabIndex = -1;
+  sizer.disabled = true;
+  sizer.style.cssText = [
+    "position: fixed",
+    "top: -9999px",
+    "left: -9999px",
+    "visibility: hidden",
+    "overflow: hidden",
+    "resize: none",
+    "height: auto",
+    "min-height: 0",
+  ].join(";");
+  return sizer;
+})();
 const SVG_NS = "http://www.w3.org/2000/svg";
 const VIEW_TITLES = {
   route: "Agenda",
@@ -392,7 +426,16 @@ chatOpenButtons.forEach((button) => {
 
 chatCloseButton.addEventListener("click", closeChat);
 chatNewButton.addEventListener("click", startNewChat);
+chatShareButton?.addEventListener("click", () => {
+  void createSharedChat();
+});
+chatShareCopyButton?.addEventListener("click", () => {
+  if (chatShareLink && !chatShareLink.hidden && chatShareLink.textContent) {
+    void copyText(chatShareLink.textContent || chatShareLink.href);
+  }
+});
 chatHistoryToggle.addEventListener("click", toggleChatHistory);
+chatForkButton?.addEventListener("click", forkSharedChat);
 chatBackdrop.addEventListener("click", closeChat);
 if (devAgentEnabled) {
   devChatOpenButton.hidden = false;
@@ -438,6 +481,9 @@ leadForm.elements.sendFollowUpEmail.addEventListener("change", () => {
   state.followUpEmailTouched = true;
   renderFollowUpEmailControl();
 });
+leadFieldsToggle?.addEventListener("click", () => {
+  setLeadFieldsExpanded(!state.leadFieldsExpanded);
+});
 leadForm.addEventListener("input", () => {
   renderLeadPriorityPreview();
   renderFollowUpEmailControl();
@@ -466,6 +512,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeDevChat();
   if (event.key === "Escape") closeEventModal();
 });
+globalThis.addEventListener("resize", syncTranscriptInputMinHeight);
 globalThis.addEventListener("hashchange", () => {
   const changed = applyHashNavigation();
   if (!changed || !state.payload) return;
@@ -475,13 +522,16 @@ globalThis.addEventListener("hashchange", () => {
 hydrateChatHistory();
 renderChat();
 renderAccountButton();
+syncTranscriptInputMinHeight();
 capturePendingReferralFromUrl();
+void initializeSharedChatFromLocation();
 void loadAccountSession();
 
 chatForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const input = chatForm.elements.prompt;
   const prompt = input.value.trim();
+  if (state.sharedMode) return;
   if (!prompt) return;
   input.value = "";
   updateComposerState();
@@ -496,7 +546,7 @@ updateComposerState();
 function handleChatKeydown(event) {
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
   event.preventDefault();
-  if (state.agentBusy || !chatForm.elements.prompt.value.trim()) return;
+  if (state.sharedMode || state.agentBusy || !chatForm.elements.prompt.value.trim()) return;
   chatForm.requestSubmit();
 }
 
@@ -505,7 +555,26 @@ function updateComposerState() {
   const send = chatForm.querySelector("button[type='submit']");
   input.style.height = "auto";
   input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
-  send.disabled = state.agentBusy || !input.value.trim();
+  input.disabled = state.sharedMode || state.agentBusy;
+  send.disabled = state.sharedMode || state.agentBusy || !input.value.trim();
+  if (chatHistoryToggle) {
+    chatHistoryToggle.hidden = state.sharedMode;
+    chatHistoryToggle.disabled = state.sharedMode || state.agentBusy;
+  }
+  if (chatShareButton) {
+    chatShareButton.disabled = state.sharedMode || state.agentBusy || !state.messages.length;
+  }
+  if (chatSharedNotice) {
+    chatSharedNotice.hidden = !state.sharedMode;
+  }
+  if (chatSharedMessage && state.sharedMode) {
+    chatSharedMessage.textContent = state.sharedChatId
+      ? `You are viewing shared chat ${state.sharedChatId}. Fork this chat to continue privately.`
+      : "You are viewing a shared chat. Fork this chat to continue privately.";
+  }
+  if (chatForkButton) {
+    chatForkButton.hidden = !state.sharedMode;
+  }
 }
 
 function handleDevChatKeydown(event) {
@@ -663,10 +732,18 @@ function applyAccountSession(session) {
     ? normalized.user.id
     : ACCOUNT_ANONYMOUS_STORAGE_ID;
   const changed = nextStorageId !== state.accountStorageId;
+  const preservedSharedState = state.sharedMode
+    ? { id: state.sharedChatId, messages: state.sharedMessages.slice(-CHAT_MESSAGE_LIMIT) }
+    : null;
   if (changed) persistMessages();
 
   state.accountSession = normalized;
-  if (changed) loadChatStorageForAccount(nextStorageId);
+  if (changed) {
+    loadChatStorageForAccount(nextStorageId);
+    if (preservedSharedState) {
+      enterSharedChatMode(preservedSharedState.id, preservedSharedState.messages);
+    }
+  }
   renderAccountButton();
 }
 
@@ -830,7 +907,9 @@ function openChat() {
   void getModelContext().catch(() => null);
   requestAnimationFrame(() => {
     updateComposerState();
-    chatDrawer.querySelector("textarea").focus({ preventScroll: true });
+    if (!state.sharedMode) {
+      chatDrawer.querySelector("textarea").focus({ preventScroll: true });
+    }
     chatLog.scrollTop = chatLog.scrollHeight;
   });
 }
@@ -1848,10 +1927,15 @@ function writeHashNavigation(options = {}) {
   const day = state.activeDay ? `/${state.activeDay}` : "";
   const nextHash = `#${view}${day}`;
   if (globalThis.location.hash === nextHash) return;
+  const preservingSharedChat = globalThis.location.pathname === "/share" &&
+    Boolean(sharedChatQueryId());
+  const target = preservingSharedChat
+    ? `${globalThis.location.pathname}${globalThis.location.search}${nextHash}`
+    : nextHash;
   if (options.replace) {
-    history.replaceState(null, "", nextHash);
+    history.replaceState(null, "", target);
   } else {
-    history.pushState(null, "", nextHash);
+    history.pushState(null, "", target);
   }
 }
 
@@ -2397,6 +2481,48 @@ function renderCRM() {
   renderLeadPriorityPreview();
   renderFollowUpEmailControl();
   renderLeadList(selected?.calendarBlockId || "");
+  syncLeadFieldsPanel();
+  syncTranscriptInputMinHeight();
+}
+
+function syncLeadFieldsPanel() {
+  if (!leadFieldsPanel || !leadFieldsToggle) return;
+  const label = leadFieldsToggle.querySelector("span") || leadFieldsToggle;
+  leadFieldsPanel.hidden = !state.leadFieldsExpanded;
+  leadFieldsToggle.setAttribute("aria-expanded", String(state.leadFieldsExpanded));
+  label.textContent = state.leadFieldsExpanded ? "Hide lead fields" : "Show lead fields";
+}
+
+function syncTranscriptInputMinHeight() {
+  if (!transcriptInput) return;
+  if (!transcriptPlaceholderSizer.isConnected) {
+    document.body.append(transcriptPlaceholderSizer);
+  }
+  const style = getComputedStyle(transcriptInput);
+  const width = Math.max(1, Math.round(transcriptInput.getBoundingClientRect().width));
+  transcriptPlaceholderSizer.value = transcriptInput.getAttribute("placeholder") || "";
+  transcriptPlaceholderSizer.style.width = `${width}px`;
+  transcriptPlaceholderSizer.style.minHeight = "0";
+  transcriptPlaceholderSizer.style.padding = style.padding;
+  transcriptPlaceholderSizer.style.border = style.border;
+  transcriptPlaceholderSizer.style.boxSizing = style.boxSizing;
+  transcriptPlaceholderSizer.style.font = style.font;
+  transcriptPlaceholderSizer.style.lineHeight = style.lineHeight;
+  transcriptPlaceholderSizer.style.letterSpacing = style.letterSpacing;
+  transcriptPlaceholderSizer.style.wordSpacing = style.wordSpacing;
+  transcriptPlaceholderSizer.style.direction = style.direction;
+  transcriptPlaceholderSizer.style.textAlign = style.textAlign;
+  transcriptPlaceholderSizer.style.textIndent = style.textIndent;
+  transcriptPlaceholderSizer.style.textTransform = style.textTransform;
+  transcriptPlaceholderSizer.style.whiteSpace = "pre-wrap";
+  transcriptPlaceholderSizer.style.overflowWrap = "break-word";
+  const minHeight = Math.max(TRANSCRIPT_MIN_HEIGHT_PX, transcriptPlaceholderSizer.scrollHeight);
+  transcriptInput.style.minHeight = `${Math.ceil(minHeight)}px`;
+}
+
+function setLeadFieldsExpanded(expanded) {
+  state.leadFieldsExpanded = Boolean(expanded);
+  syncLeadFieldsPanel();
 }
 
 function renderFollowUpEmailControl() {
@@ -2899,6 +3025,7 @@ async function handleLeadSubmit(event) {
     const selectedId = action.calendarBlockId;
     leadForm.reset();
     leadForm.elements.calendarBlockId.value = selectedId;
+    setLeadFieldsExpanded(false);
     state.followUpEmailTouched = false;
     renderFollowUpEmailControl();
     renderCRM();
@@ -2935,6 +3062,7 @@ async function handleLeadTranscriptParse() {
     const body = await requestLeadTranscriptDraft({ requestId, transcript, eventTitle });
     state.ocrMetadata = null;
     applyLeadDraft(body.draft || {});
+    setLeadFieldsExpanded(true);
     setTranscriptStatus(`Transcript parsed. Review and save. ${requestId}`);
   } catch (error) {
     await logClientEvent("transcript_request_error", {
@@ -3006,6 +3134,7 @@ async function handleCardInput() {
     const body = await requestOcrDraft({ requestId, file, image, eventTitle });
     state.ocrMetadata = body?.ocrMetadata ?? null;
     applyLeadDraft(body.draft || {});
+    setLeadFieldsExpanded(true);
     setCardScanStatus(`Card scanned. Review and save. ${requestId}`);
   } catch (error) {
     await logClientEvent("ocr_client_error", {
@@ -3163,9 +3292,11 @@ async function requestLeadTranscriptDraft({ requestId, transcript, eventTitle })
     }, OCR_REQUEST_TIMEOUT_MS);
   } catch (error) {
     throw new Error(
-      `${error instanceof DOMException && error.name === "AbortError"
-        ? "Transcript parse request timed out."
-        : "Transcript parse request failed."} Debug: ${requestId}`,
+      `${
+        error instanceof DOMException && error.name === "AbortError"
+          ? "Transcript parse request timed out."
+          : "Transcript parse request failed."
+      } Debug: ${requestId}`,
     );
   }
 
@@ -3181,11 +3312,15 @@ async function requestLeadTranscriptDraft({ requestId, transcript, eventTitle })
   });
   if (!response.ok) {
     throw new Error(
-      `${body?.error?.message || "Could not parse transcript."} Debug: ${body?.error?.requestId || requestId}`,
+      `${body?.error?.message || "Could not parse transcript."} Debug: ${
+        body?.error?.requestId || requestId
+      }`,
     );
   }
   if (!leadDraftHasUsableFields(body?.draft)) {
-    throw new Error(`Transcript parse did not find any lead fields. Debug: ${body?.requestId || requestId}`);
+    throw new Error(
+      `Transcript parse did not find any lead fields. Debug: ${body?.requestId || requestId}`,
+    );
   }
   return body;
 }
@@ -3258,17 +3393,19 @@ async function fetchWithTimeout(url, options, timeoutMs) {
 }
 
 function applyLeadDraft(draft) {
-  for (const field of [
-    "name",
-    "company",
-    "role",
-    "email",
-    "phone",
-    "painMentioned",
-    "strongQuote",
-    "followUp",
-    "notes",
-  ]) {
+  for (
+    const field of [
+      "name",
+      "company",
+      "role",
+      "email",
+      "phone",
+      "painMentioned",
+      "strongQuote",
+      "followUp",
+      "notes",
+    ]
+  ) {
     if (typeof draft[field] === "string" && draft[field].trim()) {
       leadForm.elements[field].value = draft[field].trim();
     }
@@ -3276,9 +3413,10 @@ function applyLeadDraft(draft) {
   if (typeof leadForm.elements.nextStepDate?.value === "string") {
     leadForm.elements.nextStepDate.value = normalizeLeadDraftDate(draft?.nextStepDate);
   }
-  const buyerType = typeof draft.buyerType === "string" && draft.buyerType.trim().toLowerCase() !== "unknown"
-    ? draft.buyerType.trim()
-    : "";
+  const buyerType =
+    typeof draft.buyerType === "string" && draft.buyerType.trim().toLowerCase() !== "unknown"
+      ? draft.buyerType.trim()
+      : "";
   if (buyerType && leadForm.elements.buyerType) {
     leadForm.elements.buyerType.value = buyerType;
   }
@@ -3295,7 +3433,9 @@ function leadDraftHasUsableFields(draft) {
     if (field === "buyerType") return value.toLowerCase() !== "unknown";
     return true;
   });
-  const hasSignals = LEAD_SIGNAL_FIELDS.some((field) => normalizeLeadSignalValue(draft[field]) !== "unknown");
+  const hasSignals = LEAD_SIGNAL_FIELDS.some((field) =>
+    normalizeLeadSignalValue(draft[field]) !== "unknown"
+  );
   return hasText || hasSignals;
 }
 
@@ -4438,6 +4578,7 @@ async function stableHash(value) {
 }
 
 async function askAgent(prompt) {
+  if (state.sharedMode) return;
   const history = state.messages.slice(-6);
   if (!history.length) {
     chatLog.replaceChildren();
@@ -5178,6 +5319,7 @@ function normalizeSessions(sessions) {
 function normalizeSessionMeta(meta) {
   if (!meta || typeof meta !== "object") return null;
   return {
+    ...meta,
     kind: String(meta.kind || ""),
     cacheKey: String(meta.cacheKey || ""),
     contextHash: String(meta.contextHash || ""),
@@ -5186,7 +5328,100 @@ function normalizeSessionMeta(meta) {
     techweekId: String(meta.techweekId || ""),
     eventTitle: String(meta.eventTitle || ""),
     prompt: String(meta.prompt || ""),
+    sharedChatIds: normalizeSharedChatIds(meta.sharedChatIds ?? meta.shareIds),
   };
+}
+
+function normalizeSharedChatIds(value) {
+  const ids = new Set();
+  const add = (candidate) => {
+    const id = String(candidate || "").trim();
+    if (id) ids.add(id);
+  };
+  if (Array.isArray(value)) {
+    for (const item of value) add(item);
+  } else if (value != null) {
+    add(value);
+    if (typeof value === "string") {
+      for (const id of value.split(",")) add(id);
+    }
+  }
+  return [...ids];
+}
+
+function recordSharedChatForActiveSession(sharedId) {
+  if (!sharedId) return;
+  const sessionMeta = state.activeSessionMeta && typeof state.activeSessionMeta === "object"
+    ? { ...state.activeSessionMeta }
+    : {};
+  const sharedChatIds = normalizeSharedChatIds(sessionMeta.sharedChatIds);
+  const normalizedSharedId = String(sharedId || "").trim();
+  if (normalizedSharedId && !sharedChatIds.includes(normalizedSharedId)) {
+    sharedChatIds.push(normalizedSharedId);
+  }
+  sessionMeta.sharedChatIds = sharedChatIds;
+  state.activeSessionMeta = sessionMeta;
+  upsertCurrentSession();
+  renderChatHistory();
+}
+
+function deleteSharedChat(shareId) {
+  const id = String(shareId || "").trim();
+  if (!id) return;
+  void fetch(`/api/chat/share/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    credentials: "include",
+  }).then((response) => {
+    if (!response.ok) throw new Error("Shared chat delete failed.");
+  }).catch(() => {
+    // Best-effort deletion: keep local state clean even when remote cleanup fails.
+  });
+}
+
+function deleteSharedChatsFromMetadata(meta) {
+  const shareIds = normalizeSharedChatIds(meta?.sharedChatIds ?? meta?.shareIds);
+  for (const shareId of shareIds) {
+    deleteSharedChat(shareId);
+  }
+}
+
+function clearSharedChatMode() {
+  const wasShared = state.sharedMode;
+  state.sharedMode = false;
+  state.sharedChatId = "";
+  state.sharedMessages = [];
+  state.sharedModeError = "";
+  hideChatSharePanel();
+  if (chatSharedNotice) chatSharedNotice.hidden = true;
+  if (chatForkButton) chatForkButton.hidden = true;
+  if (wasShared) updateComposerState();
+}
+
+function hideChatSharePanel() {
+  if (chatShareResult) {
+    chatShareResult.hidden = true;
+    if (chatShareStatus) chatShareStatus.textContent = "";
+  }
+  if (chatShareLink) {
+    chatShareLink.removeAttribute("href");
+    chatShareLink.textContent = "";
+    chatShareLink.hidden = true;
+  }
+  if (chatShareCopyButton) chatShareCopyButton.hidden = true;
+}
+
+function enterSharedChatMode(chatId, messages) {
+  clearSharedChatMode();
+  state.sharedMode = true;
+  state.sharedModeError = "";
+  state.sharedChatId = String(chatId || "");
+  state.sharedMessages = sanitizeChatMessagesForShare(Array.isArray(messages) ? messages : []);
+  state.messages = state.sharedMessages.slice(-CHAT_MESSAGE_LIMIT);
+  state.activeSessionMeta = null;
+  state.historyOpen = false;
+  if (chatHistoryToggle) chatHistoryToggle.setAttribute("aria-expanded", "false");
+  if (chatHistory) chatHistory.hidden = true;
+  renderChat();
 }
 
 function findCachedChatSession(cacheKey) {
@@ -5197,7 +5432,9 @@ function findCachedChatSession(cacheKey) {
 }
 
 function startNewChat(options = {}) {
-  persistMessages();
+  const wasShared = state.sharedMode;
+  if (!wasShared) persistMessages();
+  clearSharedChatMode();
   state.messages = [];
   state.activeSessionId = options.id || createSessionId();
   state.activeSessionMeta = normalizeSessionMeta(options.meta);
@@ -5253,6 +5490,7 @@ function chatSessionTime(value) {
 }
 
 function loadChatSession(id) {
+  clearSharedChatMode();
   const session = state.sessions.find((item) => item.id === id);
   if (!session) return;
   state.activeSessionId = session.id;
@@ -5267,6 +5505,10 @@ function loadChatSession(id) {
 }
 
 function renderChatHistory() {
+  if (state.sharedMode) {
+    chatHistory.hidden = true;
+    return;
+  }
   chatHistory.hidden = !state.historyOpen;
   if (chatHistory.hidden) return;
 
@@ -5314,11 +5556,13 @@ function renderChatHistory() {
 function deleteChatSession(id) {
   const sessionId = String(id || "");
   if (!sessionId) return;
+  const deletingSession = state.sessions.find((session) => session.id === sessionId);
 
   persistMessages();
   const deletingActive = sessionId === state.activeSessionId;
   state.sessions = normalizeSessions(state.sessions.filter((session) => session.id !== sessionId));
   persistSessions();
+  deleteSharedChatsFromMetadata(deletingSession?.meta);
 
   if (deletingActive) {
     const next = state.sessions[0];
@@ -5334,6 +5578,7 @@ function deleteChatSession(id) {
 }
 
 function resetEmptyChat() {
+  clearSharedChatMode();
   state.messages = [];
   state.activeSessionId = createSessionId();
   state.activeSessionMeta = null;
@@ -5349,18 +5594,215 @@ function renderChat() {
   chatLog.replaceChildren();
   if (!state.messages.length) {
     chatLog.dataset.empty = "true";
-    const empty = appendMessage("assistant", CHAT_EMPTY_GUIDE, false, {
-      suppressTools: true,
-    });
+    const empty = appendMessage(
+      "assistant",
+      state.sharedMode ? state.sharedModeError || CHAT_SHARE_EMPTY_GUIDE : CHAT_EMPTY_GUIDE,
+      false,
+      {
+        suppressTools: true,
+      },
+    );
     empty.dataset.emptyMessage = "";
     state.messages = [];
+    updateComposerState();
     renderChatHistory();
     return;
   }
+  state.sharedModeError = "";
   delete chatLog.dataset.empty;
   for (const message of state.messages.slice(-CHAT_MESSAGE_LIMIT)) {
     appendMessage(message.role, message.content, false);
   }
+  updateComposerState();
+  renderChatHistory();
+}
+
+function sharedChatErrorMessage(status, fallback) {
+  if (status === 413) {
+    return "This chat is too long to share yet. Trim the chat and try again.";
+  }
+  if (status === 404) {
+    return "That shared chat link is no longer available.";
+  }
+  return fallback || "The chat share request could not be completed.";
+}
+
+function sharedChatQueryId() {
+  const params = new URL(globalThis.location.href).searchParams;
+  const direct = params.get("sharedChat");
+  const query = params.get("chat");
+  return String(direct || query || "").trim();
+}
+
+function shareChatUrl(chatId) {
+  const locationUrl = new URL(globalThis.location.href);
+  const url = new URL("/share", locationUrl.origin);
+  url.searchParams.set("chat", chatId);
+  return url.toString();
+}
+
+function normalizeShareableMessage(message) {
+  const role = message?.role === "assistant" ? "assistant" : message?.role === "user" ? "user" : "";
+  if (!role) return null;
+
+  const content = String(message?.content || "").replaceAll("\u0000", "").replace(/\r\n/g, "\n")
+    .trim();
+  if (!content) return null;
+
+  return { role, content };
+}
+
+function sanitizeChatMessagesForShare(messages) {
+  return (Array.isArray(messages) ? messages : [])
+    .map(normalizeShareableMessage)
+    .filter(Boolean)
+    .slice(-CHAT_MESSAGE_LIMIT);
+}
+
+function sharedChatIdFromPayload(payload = {}) {
+  return String(
+    payload?.chatId || payload?.id || payload?.shareId || payload?.slug || "",
+  ).trim();
+}
+
+function renderChatSharePanel({ status = "", url = "" } = {}) {
+  if (!chatShareResult) return;
+  if (!status) {
+    chatShareResult.hidden = true;
+    return;
+  }
+  chatShareResult.hidden = false;
+  if (chatShareStatus) chatShareStatus.textContent = status;
+  if (chatShareLink) {
+    if (!url) {
+      chatShareLink.removeAttribute("href");
+      chatShareLink.textContent = "";
+      chatShareLink.hidden = true;
+    } else {
+      chatShareLink.href = url;
+      chatShareLink.textContent = url;
+      chatShareLink.hidden = false;
+    }
+  }
+  if (chatShareCopyButton) {
+    chatShareCopyButton.hidden = !url;
+    chatShareCopyButton.disabled = !url;
+  }
+}
+
+async function loadSharedChat(chatId) {
+  if (!chatId) return;
+  clearSharedChatMode();
+  state.sharedMode = true;
+  state.sharedChatId = String(chatId || "");
+  state.sharedMessages = [];
+  state.messages = [];
+  state.sharedModeError = "Loading shared chat...";
+  renderChat();
+  try {
+    const response = await fetch(`/api/chat/share/${encodeURIComponent(chatId)}`);
+    const body = await response.json().catch(() => ({}));
+
+    if (response.status === 404) {
+      throw new Error(sharedChatErrorMessage(404, "Shared chat not found."));
+    }
+    if (response.status === 413) {
+      throw new Error(sharedChatErrorMessage(413));
+    }
+    if (response.status !== 200) {
+      const message = body?.error?.message || body?.message ||
+        sharedChatErrorMessage(response.status, `Could not load shared chat (${response.status}).`);
+      throw new Error(message);
+    }
+
+    const messages = sanitizeChatMessagesForShare(
+      body?.messages || body?.chat?.messages || body?.data?.messages || [],
+    );
+    enterSharedChatMode(chatId, messages);
+  } catch (error) {
+    state.sharedMode = true;
+    state.sharedMessages = [];
+    state.sharedChatId = chatId;
+    state.messages = [];
+    state.sharedModeError = error instanceof Error ? error.message : "Could not load shared chat.";
+    renderChat();
+  }
+}
+
+async function initializeSharedChatFromLocation() {
+  const sharedChatId = sharedChatQueryId();
+  if (!sharedChatId) return;
+  await loadSharedChat(sharedChatId);
+  openChat();
+}
+
+async function createSharedChat() {
+  if (state.sharedMode || state.agentBusy) return;
+  const transcript = sanitizeChatMessagesForShare(state.messages);
+  if (!transcript.length) {
+    renderChatSharePanel({ status: "Add a message before sharing this chat." });
+    return;
+  }
+  renderChatSharePanel({ status: "Creating share link..." });
+  if (chatShareButton) chatShareButton.disabled = true;
+  try {
+    const response = await fetch("/api/chat/share", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ title: chatTitle(transcript), messages: transcript }),
+    });
+    const body = await response.json().catch(() => ({}));
+
+    if (response.status === 413) {
+      throw new Error(sharedChatErrorMessage(413));
+    }
+    if (response.status === 404) {
+      throw new Error(sharedChatErrorMessage(404, "Sharing endpoint is unavailable."));
+    }
+    if (response.status !== 200 && response.status !== 201) {
+      throw new Error(
+        body?.error?.message || body?.message ||
+          sharedChatErrorMessage(
+            response.status,
+            `Could not create shared chat (${response.status}).`,
+          ),
+      );
+    }
+
+    const sharedId = sharedChatIdFromPayload(body);
+    if (!sharedId) {
+      throw new Error(body?.error?.message || "Server did not return a share id.");
+    }
+
+    const url = shareChatUrl(sharedId);
+    recordSharedChatForActiveSession(sharedId);
+    renderChatSharePanel({ status: "Share link ready:", url });
+  } catch (error) {
+    renderChatSharePanel({
+      status: error instanceof Error ? error.message : "Could not create share link.",
+    });
+  } finally {
+    if (chatShareButton) {
+      chatShareButton.disabled = state.sharedMode || state.agentBusy || !state.messages.length;
+    }
+  }
+}
+
+function forkSharedChat() {
+  if (!state.sharedMode) return;
+  const messages = sanitizeChatMessagesForShare(state.sharedMessages);
+  clearSharedChatMode();
+  state.messages = [];
+  state.activeSessionId = createSessionId();
+  state.activeSessionMeta = null;
+  state.historyOpen = false;
+  localStorage.setItem(activeChatKey(), state.activeSessionId);
+  localStorage.setItem(chatStorageKey(), "[]");
+  chatHistoryToggle.setAttribute("aria-expanded", "false");
+  state.messages = messages.slice(-CHAT_MESSAGE_LIMIT);
+  persistMessages();
+  renderChat();
   renderChatHistory();
 }
 
@@ -5406,6 +5848,9 @@ async function applyAction(action) {
 }
 
 function persistMessages() {
+  if (state.sharedMode) {
+    return;
+  }
   state.messages = state.messages.slice(-CHAT_MESSAGE_LIMIT);
   localStorage.setItem(chatStorageKey(), JSON.stringify(state.messages));
   localStorage.setItem(activeChatKey(), state.activeSessionId);
@@ -5415,7 +5860,10 @@ function persistMessages() {
 function setBusy(busy) {
   state.agentBusy = busy;
   chatNewButton.disabled = busy;
-  chatHistoryToggle.disabled = busy;
+  if (chatHistoryToggle) chatHistoryToggle.disabled = state.sharedMode || busy;
+  if (chatShareButton) {
+    chatShareButton.disabled = state.sharedMode || busy || !state.messages.length;
+  }
   updateComposerState();
 }
 

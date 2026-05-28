@@ -15,9 +15,13 @@ import {
   visibleAgentGatewayError,
 } from "./server.ts";
 import {
+  deleteSharedChat,
+  purgeSoftDeletedSharedChats,
+  readSharedChat,
   readStateValue,
   setKvPathForTest,
   writeCacheValue,
+  writeSharedChat,
   writeStateValue,
 } from "./lib/kv_store.ts";
 
@@ -410,6 +414,201 @@ kvRouterTest("sensitive API routes reject unauthenticated requests at the router
   } finally {
     setAccountSessionForTest(undefined);
   }
+});
+
+kvRouterTest("chat share creates an authenticated snapshot and reads it publicly", async () => {
+  useAccountSessionForTest({ id: "share_user_1", handle: "sharer" });
+  const create = await router(
+    new Request("http://localhost/api/chat/share", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: "techweek_session=share-session",
+      },
+      body: JSON.stringify({
+        title: "Investor prep",
+        messages: [
+          { role: "user", content: "What should I ask at the event?" },
+          { role: "assistant", content: "Lead with a concise founder question." },
+        ],
+      }),
+    }),
+  );
+  assertEquals(create.status, 200);
+  const createBody = await create.json() as Record<string, unknown>;
+  const shareId = String(createBody.shareId || "");
+  if (!/^[0-9a-f]{32}$/.test(shareId)) {
+    throw new Error(`Expected URL-safe chat share id, got ${shareId}`);
+  }
+
+  setAccountSessionForTest(null);
+  const readback = await router(
+    new Request(`http://localhost/api/chat/share/${shareId}`),
+  );
+  assertEquals(readback.status, 200);
+  const shared = await readback.json() as Record<string, unknown>;
+  assertEquals(shared.shareId, shareId);
+  assertEquals(shared.createdByUserId, "share_user_1");
+  assertEquals(shared.title, "Investor prep");
+  assertEquals(shared.messageCount, 2);
+  assertEquals(shared.messages, [
+    { role: "user", content: "What should I ask at the event?" },
+    { role: "assistant", content: "Lead with a concise founder question." },
+  ]);
+
+  const invalid = await router(new Request("http://localhost/api/chat/share/not-valid"));
+  assertEquals(invalid.status, 404);
+});
+
+kvRouterTest("chat share rejects unauthenticated and oversized creates", async () => {
+  setAccountSessionForTest(null);
+  const unauthenticated = await router(
+    new Request("http://localhost/api/chat/share", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: "Share this" }],
+      }),
+    }),
+  );
+  assertEquals(unauthenticated.status, 401);
+  const unauthenticatedBody = await unauthenticated.json() as Record<string, unknown>;
+  assertEquals(getPath(unauthenticatedBody, ["error", "message"]), "Authentication required.");
+
+  useAccountSessionForTest({ id: "share_user_2", handle: "oversized" });
+  const oversized = await router(
+    new Request("http://localhost/api/chat/share", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: "techweek_session=share-session",
+      },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: "x".repeat(70_000) }],
+      }),
+    }),
+  );
+  assertEquals(oversized.status, 413);
+  const oversizedBody = await oversized.json() as Record<string, unknown>;
+  if (!String(getPath(oversizedBody, ["error", "message"]) || "").includes("too large")) {
+    throw new Error("Expected oversized chat share response to include size guidance.");
+  }
+});
+
+kvRouterTest("chat share owner can soft-delete and hide from public GET", async () => {
+  useAccountSessionForTest({ id: "share_owner_1", handle: "sharer" });
+  const create = await router(
+    new Request("http://localhost/api/chat/share", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: "techweek_session=share-session",
+      },
+      body: JSON.stringify({
+        title: "Investor prep",
+        messages: [
+          { role: "user", content: "What should I ask at the event?" },
+          { role: "assistant", content: "Lead with a concise founder question." },
+        ],
+      }),
+    }),
+  );
+  assertEquals(create.status, 200);
+  const createBody = await create.json() as Record<string, unknown>;
+  const shareId = String(createBody.shareId || "");
+  if (!/^[0-9a-f]{32}$/.test(shareId)) {
+    throw new Error(`Expected URL-safe chat share id, got ${shareId}`);
+  }
+
+  const deleted = await router(
+    new Request(`http://localhost/api/chat/share/${shareId}`, {
+      method: "DELETE",
+      headers: { cookie: "techweek_session=share-session" },
+    }),
+  );
+  assertEquals(deleted.status, 204);
+
+  setAccountSessionForTest(null);
+  const hidden = await router(new Request(`http://localhost/api/chat/share/${shareId}`));
+  assertEquals(hidden.status, 404);
+});
+
+kvRouterTest("chat share delete denies non-owners and missing shares", async () => {
+  useAccountSessionForTest({ id: "share_owner_2", handle: "sharer-two" });
+  const create = await router(
+    new Request("http://localhost/api/chat/share", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: "techweek_session=share-session",
+      },
+      body: JSON.stringify({
+        title: "Investor prep",
+        messages: [
+          { role: "user", content: "What should I ask at the event?" },
+          { role: "assistant", content: "Lead with a concise founder question." },
+        ],
+      }),
+    }),
+  );
+  assertEquals(create.status, 200);
+  const createBody = await create.json() as Record<string, unknown>;
+  const shareId = String(createBody.shareId || "");
+  useAccountSessionForTest({ id: "share_other_2", handle: "not-owner" });
+
+  const forbidden = await router(
+    new Request(`http://localhost/api/chat/share/${shareId}`, {
+      method: "DELETE",
+      headers: { cookie: "techweek_session=share-session" },
+    }),
+  );
+  assertEquals(forbidden.status, 403);
+
+  const missing = await router(
+    new Request(
+      "http://localhost/api/chat/share/00000000000000000000000000000000",
+      {
+        method: "DELETE",
+        headers: { cookie: "techweek_session=share-session" },
+      },
+    ),
+  );
+  assertEquals(missing.status, 404);
+});
+
+kvRouterTest("soft-deleted shared chats are hard-deleted during cleanup", async () => {
+  await writeSharedChat("share_keep", {
+    shareId: "share_keep",
+    createdAt: "2026-05-20T12:00:00.000Z",
+    createdByUserId: "owner_keep",
+    title: "Visible chat",
+    messages: [{ role: "user", content: "Keep this" }],
+    messageCount: 1,
+  });
+  await writeSharedChat("share_delete", {
+    shareId: "share_delete",
+    createdAt: "2026-05-20T12:00:00.000Z",
+    createdByUserId: "owner_delete",
+    title: "Deleted chat",
+    messages: [{ role: "user", content: "Delete this" }],
+    messageCount: 1,
+    deletedAt: "2026-05-21T12:00:00.000Z",
+    deletedByUserId: "owner_delete",
+  });
+
+  const removed = await purgeSoftDeletedSharedChats();
+  assertEquals(removed, 1);
+  assertEquals(await readSharedChat("share_keep"), {
+    shareId: "share_keep",
+    createdAt: "2026-05-20T12:00:00.000Z",
+    createdByUserId: "owner_keep",
+    title: "Visible chat",
+    messages: [{ role: "user", content: "Keep this" }],
+    messageCount: 1,
+  });
+  assertEquals(await readSharedChat("share_delete"), null);
+
+  await deleteSharedChat("share_keep");
 });
 
 kvRouterTest("Google Calendar write sync endpoint is removed", async () => {

@@ -48,9 +48,11 @@ import {
   cacheCounts,
   listCacheValues,
   readCacheValue,
+  readSharedChat,
   readStateEntry,
   storeHealth,
   writeCacheValue,
+  writeSharedChat,
   writeStateValueIfVersion,
 } from "./lib/kv_store.ts";
 import {
@@ -105,8 +107,10 @@ const LOCAL_OCR_HIGH_CONFIDENCE_SCORE = 8;
 const TOKEN_ENCODING_NAME = "o200k_base";
 const CHAT_MESSAGE_OVERHEAD_TOKENS = 4;
 const CHAT_REQUEST_OVERHEAD_TOKENS = 3;
+const CHAT_SHARE_MAX_PAYLOAD_BYTES = 64 * 1024;
 const MODEL_CONTEXT_CACHE_MS = 5 * 60 * 1000;
 const TOKEN_ENCODER = getEncoding(TOKEN_ENCODING_NAME);
+const CHAT_SHARE_TEXT_ENCODER = new TextEncoder();
 const PRODUCT_PLAYBOOK_CONTEXT_CHAR_BUDGET = 120_000;
 const ROUTE_RUNBOOK_CONTEXT_CHAR_BUDGET = 90_000;
 const EVENT_DOSSIER_CONTEXT_CHAR_BUDGET = 150_000;
@@ -408,6 +412,10 @@ let modelContextCache:
   | { model: string; baseUrl: string; fetchedAtMs: number; info: ModelContextInfo }
   | null = null;
 
+export function resetModelContextCacheForTest(): void {
+  modelContextCache = null;
+}
+
 type CsvRow = Record<string, string>;
 
 export type ScheduleEntry = {
@@ -584,6 +592,24 @@ type ChatMessage = {
   content: string;
 };
 
+type SharedChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+type SharedChatPayload = {
+  shareId: string;
+  createdAt: string;
+  createdByUserId: string;
+  title: string;
+  messages: SharedChatMessage[];
+  messageCount: number;
+  deletedAt?: string;
+  deletedByUserId?: string;
+};
+
+const CHAT_SHARE_ID_PATTERN = /^[0-9a-f]{32}$/;
+
 type GatewayConfig = {
   token: string;
   chatUrl: string;
@@ -688,6 +714,12 @@ type LeadDraft = {
   role: string;
   email: string;
   phone: string;
+  buyerType: string;
+  githubHeavy: LeadSignal;
+  aiCodingAdoption: LeadSignal;
+  painMentioned: string;
+  strongQuote: string;
+  nextStepDate: string;
   notes: string;
   followUp: string;
   ocr?: OcrDraftMetadata;
@@ -914,7 +946,146 @@ async function authorizeApiRoute(request: Request, url: URL): Promise<Response |
   if (request.method === "GET" && pathname === "/api/account/invite") return null;
   if (request.method === "POST" && pathname === "/api/account/session/handoff") return null;
   if (request.method === "POST" && pathname === "/api/account/invite") return null;
+  if (request.method === "POST" && pathname === "/api/chat/share") return null;
+  if (request.method === "GET" && pathname.startsWith("/api/chat/share/")) return null;
+  if (request.method === "DELETE" && pathname.startsWith("/api/chat/share/")) return null;
   return await requireAdminAccountSession(request);
+}
+
+function createSharedChatId(): string {
+  return crypto.randomUUID().replace(/-/g, "");
+}
+
+function isValidSharedChatId(shareId: string): boolean {
+  return CHAT_SHARE_ID_PATTERN.test(shareId);
+}
+
+function normalizeSharedChatId(rawShareId: string): string | null {
+  let shareId = "";
+  try {
+    shareId = decodeURIComponent(rawShareId).toLowerCase();
+  } catch {
+    return null;
+  }
+  return isValidSharedChatId(shareId) ? shareId : null;
+}
+
+function isSoftDeletedSharedChat(
+  payload: SharedChatPayload,
+): payload is SharedChatPayload & { deletedAt: string } {
+  return typeof payload.deletedAt === "string" && payload.deletedAt.length > 0;
+}
+
+function parseSharedChatSnapshot(
+  rawBody: unknown,
+): { title: string; messages: SharedChatMessage[] } | Response {
+  if (!rawBody || typeof rawBody !== "object") return badRequest("Expected a JSON body.");
+  const raw = rawBody as Record<string, unknown>;
+  const rawMessages = raw.messages;
+  if (!Array.isArray(rawMessages)) return badRequest("messages is required and must be an array.");
+  if (rawMessages.length === 0) return badRequest("At least one message is required.");
+
+  const messages: SharedChatMessage[] = [];
+  for (const rawMessage of rawMessages) {
+    if (!rawMessage || typeof rawMessage !== "object") {
+      return badRequest("Each message must be an object.");
+    }
+    const role = (rawMessage as { role?: unknown }).role;
+    const normalizedRole = role === "user" || role === "assistant" ? role : null;
+    if (!normalizedRole) {
+      return badRequest("Each message role must be user or assistant.");
+    }
+
+    const content = String((rawMessage as { content?: unknown }).content ?? "").trim();
+    if (!content) {
+      return badRequest("Each message must include non-empty content.");
+    }
+
+    messages.push({ role: normalizedRole, content });
+  }
+
+  if (!messages.length) return badRequest("At least one message is required.");
+  return { title: sharedChatTitle(raw.title, messages), messages };
+}
+
+function sharedChatTitle(rawTitle: unknown, messages: SharedChatMessage[]): string {
+  const title = textField(rawTitle, 240);
+  if (title) return title;
+  const firstUser = messages.find((message) => message.role === "user")?.content;
+  const firstAssistant = messages.find((message) => message.role === "assistant")?.content;
+  return textField(firstUser || firstAssistant || "Shared chat", 240);
+}
+
+async function handleChatShareCreate(request: Request): Promise<Response> {
+  const authError = await requireAuthenticatedAccountSession(request);
+  if (authError) return authError;
+  const session = await readAccountSession(request);
+  const user = session.user;
+  if (!user) return json({ error: { message: "Account user unavailable." } }, { status: 401 });
+
+  const parsedBody = parseSharedChatSnapshot(await request.json().catch(() => null));
+  if (parsedBody instanceof Response) return parsedBody;
+
+  const shareId = createSharedChatId();
+  const payload: SharedChatPayload = {
+    shareId,
+    createdAt: new Date().toISOString(),
+    createdByUserId: user.id,
+    title: parsedBody.title,
+    messages: parsedBody.messages,
+    messageCount: parsedBody.messages.length,
+  };
+
+  const payloadBytes = CHAT_SHARE_TEXT_ENCODER.encode(JSON.stringify(payload)).byteLength;
+  if (payloadBytes > CHAT_SHARE_MAX_PAYLOAD_BYTES) {
+    return json({
+      error: {
+        message:
+          "This chat snapshot is too large to share. Please shorten or trim the chat before sharing.",
+      },
+    }, { status: 413 });
+  }
+
+  await writeSharedChat(shareId, payload);
+  return json({ shareId });
+}
+
+async function handleChatShareGet(rawShareId: string): Promise<Response> {
+  const shareId = normalizeSharedChatId(rawShareId);
+  if (!shareId) return notFound();
+
+  const payload = await readSharedChat<SharedChatPayload>(shareId);
+  if (!payload || isSoftDeletedSharedChat(payload)) return notFound();
+  return json(payload);
+}
+
+async function handleChatShareDelete(request: Request, rawShareId: string): Promise<Response> {
+  const authError = await requireAuthenticatedAccountSession(request);
+  if (authError) return authError;
+  const shareId = normalizeSharedChatId(rawShareId);
+  if (!shareId) return notFound();
+
+  const session = await readAccountSession(request);
+  const user = session.user;
+  if (!user) return json({ error: { message: "Account user unavailable." } }, { status: 401 });
+
+  const payload = await readSharedChat<SharedChatPayload>(shareId);
+  if (!payload || isSoftDeletedSharedChat(payload)) return notFound();
+  if (payload.createdByUserId !== user.id) {
+    return json({ error: { message: "Only the share creator can delete this chat." } }, {
+      status: 403,
+    });
+  }
+
+  const updatedPayload: SharedChatPayload = {
+    ...payload,
+    deletedAt: new Date().toISOString(),
+    deletedByUserId: user.id,
+    title: "",
+    messages: [],
+  };
+  await writeSharedChat(shareId, updatedPayload);
+  return new Response(null, { status: 204 });
 }
 
 async function handleAccountSessionHandoff(request: Request): Promise<Response> {
@@ -4034,6 +4205,34 @@ function cardOcrChatBody(imageDataUrl: string): OcrRequestBody {
   };
 }
 
+function transcriptLeadPrompt(eventTitle = ""): string {
+  const eventContext = eventTitle ? ` Event title: ${eventTitle}.` : "";
+  return `You are extracting CRM lead fields from a spoken transcript. ${eventContext} Return only JSON with:
+name, company, role, email, phone, buyerType, githubHeavy, aiCodingAdoption, painMentioned,
+strongQuote, followUp, nextStepDate, notes.
+Rules:
+- Use empty string when a field is not present.
+- githubHeavy and aiCodingAdoption must be one of: "yes", "no", "unknown".
+- buyerType should be "Unknown" only if genuinely unknown.
+- nextStepDate must be YYYY-MM-DD only, otherwise use empty string.`;
+}
+
+function transcriptLeadChatBody(transcript: string, eventTitle = ""): OcrRequestBody {
+  return {
+    model: AGENT_MODEL,
+    stream: false,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: transcriptLeadPrompt(eventTitle) },
+          { type: "text", text: `Transcript:\n${transcript}` },
+        ],
+      },
+    ],
+  };
+}
+
 function imageDebugSummary(imageDataUrl: string) {
   const match = imageDataUrl.match(/^data:([^;,]+)(?:;[^,]*)?,/);
   return {
@@ -4140,15 +4339,37 @@ function draftDebug(draft: LeadDraft): Record<string, unknown> {
     hasRole: Boolean(draft.role),
     hasEmail: Boolean(draft.email),
     hasPhone: Boolean(draft.phone),
+    hasBuyerType: Boolean(draft.buyerType),
+    hasGithubHeavy: draft.githubHeavy !== "unknown",
+    hasAiCodingAdoption: draft.aiCodingAdoption !== "unknown",
+    hasPainMentioned: Boolean(draft.painMentioned),
+    hasStrongQuote: Boolean(draft.strongQuote),
+    hasFollowUp: Boolean(draft.followUp),
+    hasNextStepDate: Boolean(draft.nextStepDate),
     hasNotes: Boolean(draft.notes),
     followUpLength: draft.followUp.length,
   };
 }
 
 function leadDraftHasUsableFields(draft: LeadDraft): boolean {
-  return Boolean(
-    draft.name.trim() || draft.company.trim() || draft.email.trim() || draft.phone.trim(),
-  );
+  const hasText = [
+    draft.name,
+    draft.company,
+    draft.role,
+    draft.email,
+    draft.phone,
+    draft.buyerType,
+    draft.painMentioned,
+    draft.strongQuote,
+    draft.followUp,
+    draft.nextStepDate,
+    draft.notes,
+  ].some((value) => {
+    const normalized = value.trim();
+    return normalized && normalized.toLowerCase() !== "unknown";
+  });
+  const hasSignals = draft.githubHeavy !== "unknown" || draft.aiCodingAdoption !== "unknown";
+  return hasText || hasSignals;
 }
 
 function clientMetadata(value: unknown): unknown {
@@ -4760,6 +4981,174 @@ async function handleLeadOcr(request: Request): Promise<Response> {
   });
 }
 
+async function handleLeadTranscript(request: Request): Promise<Response> {
+  const body = await request.json().catch(() => null);
+  const rawBody = body && typeof body === "object" ? body as Record<string, unknown> : {};
+  const requestId = textField(rawBody.requestId, 120) || createRequestId("transcript");
+  if (!body || typeof body !== "object") {
+    logJson("transcript_error", {
+      requestId,
+      stage: "parse_request_body",
+      request: requestDebug(request),
+    });
+    return endpointError("Expected a JSON body.", requestId, 400);
+  }
+
+  if (typeof rawBody.transcript !== "string") {
+    logJson("transcript_error", {
+      requestId,
+      stage: "validate_transcript",
+      request: requestDebug(request),
+      clientMetadata: clientMetadata(rawBody.clientMetadata),
+    });
+    return endpointError("transcript must be a non-empty string.", requestId, 400);
+  }
+
+  const transcript = rawBody.transcript.trim();
+  if (!transcript) {
+    logJson("transcript_error", {
+      requestId,
+      stage: "validate_transcript",
+      request: requestDebug(request),
+      clientMetadata: clientMetadata(rawBody.clientMetadata),
+    });
+    return endpointError("transcript must be a non-empty string.", requestId, 400);
+  }
+
+  const eventTitle = textField(rawBody.eventTitle, 240);
+  logJson("transcript_start", {
+    requestId,
+    eventTitle,
+    request: requestDebug(request),
+    clientMetadata: clientMetadata(rawBody.clientMetadata),
+    transcriptPreview: truncateDebug(transcript, 240),
+    transcriptLength: transcript.length,
+  });
+
+  const { token, chatUrl } = gatewayConfig();
+  if (!token) {
+    logJson("transcript_error", {
+      requestId,
+      stage: "gateway_config",
+      message: "UOS_AI_TOKEN is not configured.",
+    });
+    return endpointError("UOS_AI_TOKEN is not configured.", requestId, 503);
+  }
+
+  const transcriptBody = transcriptLeadChatBody(transcript, eventTitle);
+  let result: { upstream: Response; model: string };
+  try {
+    result = await callOcrGateway(chatUrl, token, transcriptBody);
+  } catch (error) {
+    logJson("transcript_error", {
+      requestId,
+      stage: "gateway_fetch",
+      error: safeError(error),
+    });
+    return endpointError("Lead transcript parsing failed.", requestId, 502, safeError(error));
+  }
+
+  const responseBody = await readGatewayBody(result.upstream);
+  const upstreamDebug = {
+    model: result.model,
+    ok: result.upstream.ok,
+    status: result.upstream.status,
+    statusText: result.upstream.statusText,
+    headers: debugHeaders(result.upstream.headers),
+    body: truncateDebug(responseBody),
+  };
+  logJson("transcript_upstream", {
+    requestId,
+    ...upstreamDebug,
+  });
+
+  if (!result.upstream.ok) {
+    const upstreamMessage = gatewayErrorMessage(responseBody);
+    const clientStatus = result.upstream.status === 429 ? 429 : 502;
+    const clientMessage = result.upstream.status === 429
+      ? "AI gateway rate limit exceeded."
+      : "Lead transcript parsing failed.";
+    logJson("transcript_error", {
+      requestId,
+      stage: "gateway_response",
+      message: upstreamMessage,
+      upstream: upstreamDebug,
+    });
+    return endpointError(
+      clientMessage,
+      requestId,
+      clientStatus,
+      {
+        upstreamStatus: result.upstream.status,
+        upstreamMessage,
+        upstreamHeaders: debugHeaders(result.upstream.headers),
+      },
+      responseDebugHeaders(result.upstream.headers, requestId),
+    );
+  }
+
+  const content = responseOutputText(responseBody);
+  if (!content) {
+    logJson("transcript_error", {
+      requestId,
+      stage: "response_shape",
+      upstream: upstreamDebug,
+    });
+    return endpointError(
+      "AI gateway returned an unexpected transcript response shape.",
+      requestId,
+      500,
+      responseBody,
+      responseDebugHeaders(result.upstream.headers, requestId),
+    );
+  }
+
+  let draft: LeadDraft;
+  try {
+    draft = normalizeLeadDraft(extractJsonObject(content));
+  } catch (error) {
+    logJson("transcript_error", {
+      requestId,
+      stage: "parse_gateway_json",
+      error: safeError(error),
+      content: truncateDebug(content),
+    });
+    return endpointError(
+      error instanceof Error ? error.message : "Could not parse transcript response.",
+      requestId,
+      500,
+      { content },
+      responseDebugHeaders(result.upstream.headers, requestId),
+    );
+  }
+  if (!leadDraftHasUsableFields(draft)) {
+    logJson("transcript_error", {
+      requestId,
+      stage: "empty_draft",
+      draft: draftDebug(draft),
+      content: truncateDebug(content),
+    });
+    return endpointError(
+      "Transcript parsing did not find any lead fields.",
+      requestId,
+      422,
+      { content, draft: draftDebug(draft) },
+      responseDebugHeaders(result.upstream.headers, requestId),
+    );
+  }
+
+  logJson("transcript_success", {
+    requestId,
+    model: result.model,
+    draft: draftDebug(draft),
+    rawCharacters: content.length,
+  });
+  return json({
+    requestId,
+    draft,
+  }, { headers: responseDebugHeaders(result.upstream.headers, requestId) });
+}
+
 function extractJsonObject(text: string): unknown {
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   try {
@@ -4779,6 +5168,7 @@ function normalizeLeadDraft(value: unknown): LeadDraft {
     : {};
   const company = textField(raw.company, 180);
   const role = textField(raw.role ?? raw.title, 180);
+  const buyerType = textField(raw.buyerType ?? raw.targetType, 120);
   const notes = leadNotesText([
     raw.notes,
     raw.website,
@@ -4796,8 +5186,14 @@ function normalizeLeadDraft(value: unknown): LeadDraft {
     role,
     email: normalizeOcrEmail(raw.email ?? contact.email),
     phone: normalizeOcrPhone(raw.phone ?? contact.phone),
+    buyerType,
+    githubHeavy: normalizeLeadSignal(raw.githubHeavy ?? contact.githubHeavy),
+    aiCodingAdoption: normalizeLeadSignal(raw.aiCodingAdoption ?? contact.aiCodingAdoption),
+    painMentioned: textField(raw.painMentioned ?? raw.painPoints ?? raw.pain, 1200),
+    strongQuote: textField(raw.strongQuote ?? raw.quote ?? raw.testimonial, 900),
     notes,
     followUp: textField(raw.followUpAsk ?? raw.followUp ?? raw.follow_up, 300),
+    nextStepDate: normalizeLeadNextStepDate(raw.nextStepDate ?? raw.nextStepDateEstimate),
   };
 }
 
@@ -5768,6 +6164,18 @@ export async function router(request: Request): Promise<Response> {
     if (request.method === "POST" && pathname === "/api/account/invite") {
       return await handleAccountInviteClaim(request);
     }
+    if (request.method === "POST" && pathname === "/api/chat/share") {
+      return await handleChatShareCreate(request);
+    }
+    if (request.method === "GET" && pathname.startsWith("/api/chat/share/")) {
+      return await handleChatShareGet(pathname.replace("/api/chat/share/", ""));
+    }
+    if (request.method === "DELETE" && pathname.startsWith("/api/chat/share/")) {
+      return await handleChatShareDelete(
+        request,
+        pathname.replace("/api/chat/share/", ""),
+      );
+    }
     if (request.method === "GET" && url.pathname === "/api/schedule") return await handleSchedule();
     if (request.method === "POST" && url.pathname === "/api/agenda/recalculate") {
       return await handleAgendaRecalculate(request);
@@ -5805,6 +6213,9 @@ export async function router(request: Request): Promise<Response> {
     }
     if (request.method === "POST" && url.pathname === "/api/leads/ocr") {
       return await handleLeadOcr(request);
+    }
+    if (request.method === "POST" && url.pathname === "/api/leads/transcript") {
+      return await handleLeadTranscript(request);
     }
     if (request.method === "POST" && url.pathname === "/api/client-log") {
       return await handleClientLog(request);
