@@ -54,7 +54,7 @@ jobs:
           fi
 
           changed="$(git diff --name-only HEAD^ HEAD)"
-          if printf '%s\n' "$changed" | grep -Eq '^(app/|outputs/signed_up/|data/rankings/techweek_nyc_accolades_full_rerank|docs/agenda/TECHWEEK_AGENDA\.md|docs/handoffs/|deno\.json|deno\.lock|README\.md|scripts/prepare_deno_deploy_root\.sh)'; then
+          if printf '%s\n' "$changed" | grep -Eq '^(\.github/workflows/deno-deploy\.yml|app/|outputs/signed_up/|data/rankings/techweek_nyc_accolades_full_rerank|docs/agenda/TECHWEEK_AGENDA\.md|docs/handoffs/|deno\.json|deno\.lock|README\.md|scripts/prepare_deno_deploy_root\.sh)'; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           else
             echo "deploy=false" >> "$GITHUB_OUTPUT"
