@@ -29,6 +29,7 @@ const LEAD_TEXT_DRAFT_FIELDS = [
   "role",
   "email",
   "phone",
+  "buyerType",
   "painMentioned",
   "strongQuote",
   "followUp",
@@ -44,6 +45,10 @@ const CHAT_EMPTY_GUIDE =
   "Ask me anything about today's Tech Week plan and I'll help you stay aligned.";
 const DEV_AUTH_POPUP_POLL_MS = 500;
 const DEV_AUTH_POPUP_TIMEOUT_MS = 2 * 60_000;
+const TIMELINE_LAYOUT_MODE_KEY = "techweek-timeline-layout-mode";
+const TIMELINE_MOBILE_LAYOUT_BREAKPOINT = "(max-width: 759px)";
+const TIMELINE_COMPACT_LANE_THRESHOLD = 3;
+const TIMELINE_DEFAULT_MOBILE_LAYOUT = "compact";
 const MOTION_REDUCE_OK = !globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 const FORCE_MOTION = false;
 const MOTION_CARD_STAGGER_MS = 28;
@@ -204,6 +209,9 @@ const cardInput = document.querySelector("[data-card-input]");
 const cardScanButton = document.querySelector("[data-card-scan-button]");
 const cardScanStatus = document.querySelector("[data-card-scan-status]");
 const cardPreview = document.querySelector("[data-card-preview]");
+const transcriptInput = document.querySelector("[data-transcript-input]");
+const transcriptButton = document.querySelector("[data-transcript-button]");
+const transcriptStatus = document.querySelector("[data-transcript-status]");
 const followUpEmailStatus = document.querySelector("[data-follow-up-email-status]");
 const followUpEmailSummary = document.querySelector("[data-follow-up-email-summary]");
 const followUpEmailPreview = document.querySelector("[data-follow-up-email-preview]");
@@ -443,6 +451,14 @@ cardScanButton.addEventListener("keydown", (event) => {
   if (cardScanButton.getAttribute("aria-disabled") === "true") return;
   event.preventDefault();
   cardInput.click();
+});
+transcriptButton?.addEventListener("click", () => {
+  void handleLeadTranscriptParse();
+});
+transcriptInput?.addEventListener("keydown", (event) => {
+  if (!(event.ctrlKey || event.metaKey) || event.key !== "Enter" || event.isComposing) return;
+  event.preventDefault();
+  void handleLeadTranscriptParse();
 });
 cardInput.addEventListener("change", handleCardInput);
 document.addEventListener("keydown", (event) => {
@@ -2251,18 +2267,26 @@ function renderRouteList() {
   const optionEntries = sameDayOptionEntries(state.activeDay);
   const lanes = computeCollisionLanes(entries);
   const optionLanes = computeCollisionLanes(optionEntries);
+  const hasReferenceEntries = optionEntries.length > 0;
   const timelineEntries = [...entries, ...optionEntries]
     .sort((a, b) =>
       eventStartEpochMs(a) - eventStartEpochMs(b) || eventEndEpochMs(a) - eventEndEpochMs(b)
     );
+  const timelineLayout = timelineLayoutModeForEntries(timelineEntries, lanes, optionLanes);
   const timeline = document.createElement("section");
   timeline.dataset.timeline = "";
+  timeline.dataset.layout = timelineLayout;
+  timeline.dataset.hasReference = String(hasReferenceEntries);
   timeline.dataset.transition = state.routeTransitionDirection || "none";
   timeline.style.setProperty("--slots", "96");
   timeline.append(
     renderTimeRail(),
     ...timelineEntries.map((entry) =>
-      renderTimelineEntry(entry, entry.calendar === "reference" ? optionLanes : lanes)
+      renderTimelineEntry(
+        entry,
+        entry.calendar === "reference" ? optionLanes : lanes,
+        timelineLayout === "compact",
+      )
     ),
   );
   routeList.replaceChildren(timeline);
@@ -2289,6 +2313,37 @@ function renderReferenceList() {
   const entries = eventEntries()
     .sort((a, b) => eventStartEpochMs(a) - eventStartEpochMs(b));
   referenceList.replaceChildren(...entries.map(renderEntry));
+}
+
+function timelineLayoutModeForEntries(entries, lanes, optionLanes) {
+  const requested = timelineLayoutPreference();
+  if (requested !== "auto") return requested;
+  const hasCompactViewport = globalThis.matchMedia?.(TIMELINE_MOBILE_LAYOUT_BREAKPOINT).matches;
+  if (!hasCompactViewport) return "overlay";
+  const maxLanes = maxLanesForTimeline(entries, lanes, optionLanes);
+  if (maxLanes >= TIMELINE_COMPACT_LANE_THRESHOLD) return TIMELINE_DEFAULT_MOBILE_LAYOUT;
+  return "overlay";
+}
+
+function timelineLayoutPreference() {
+  try {
+    const value = localStorage.getItem(TIMELINE_LAYOUT_MODE_KEY);
+    if (value === "overlay" || value === "compact") return value;
+    if (value === "auto") return "auto";
+  } catch {
+    // ignore storage failures
+  }
+  return "auto";
+}
+
+function maxLanesForTimeline(entries, lanes, optionLanes) {
+  let maxLanes = 1;
+  for (const entry of entries) {
+    const laneMap = entry.calendar === "reference" ? optionLanes : lanes;
+    const lane = laneMap.get(entry.calendarBlockId);
+    if (lane?.count && lane.count > maxLanes) maxLanes = lane.count;
+  }
+  return maxLanes;
 }
 
 function eventEntries() {
@@ -2419,9 +2474,13 @@ function refreshAutomaticLeadEvent() {
 
 function leadFormHasDraft() {
   const hasText = LEAD_TEXT_DRAFT_FIELDS.some((field) =>
-    String(leadForm.elements[field]?.value || "").trim()
+    field === "buyerType"
+      ? String(leadForm.elements[field]?.value || "").trim().toLowerCase() !== "unknown" &&
+        String(leadForm.elements[field]?.value || "").trim()
+      : String(leadForm.elements[field]?.value || "").trim()
   );
-  const hasBuyerType = Boolean(String(leadForm.elements.buyerType?.value || "").trim());
+  const hasBuyerType = Boolean(String(leadForm.elements.buyerType?.value || "").trim()) &&
+    String(leadForm.elements.buyerType?.value || "").trim().toLowerCase() !== "unknown";
   const hasSignals = LEAD_SIGNAL_FIELDS.some((field) =>
     String(leadForm.elements[field]?.value || "unknown") !== "unknown"
   );
@@ -2852,6 +2911,44 @@ async function handleLeadSubmit(event) {
   }
 }
 
+async function handleLeadTranscriptParse() {
+  const transcript = String(transcriptInput?.value || "").trim();
+  if (!transcript) {
+    setTranscriptStatus("Paste a transcript first.");
+    return;
+  }
+  const requestId = createDebugId("transcript");
+  const selected = state.entriesByBlock.get(leadForm.elements.calendarBlockId.value);
+  const eventTitle = selected?.displayTitle || "";
+  setLeadError("");
+  setTranscriptStatus(`Parsing transcript... ${requestId}`);
+  setTranscriptBusy(true);
+
+  await logClientEvent("transcript_request_attempt", {
+    requestId,
+    transcriptLength: transcript.length,
+    eventTitle,
+    browser: browserMetadata(),
+  });
+
+  try {
+    const body = await requestLeadTranscriptDraft({ requestId, transcript, eventTitle });
+    state.ocrMetadata = null;
+    applyLeadDraft(body.draft || {});
+    setTranscriptStatus(`Transcript parsed. Review and save. ${requestId}`);
+  } catch (error) {
+    await logClientEvent("transcript_request_error", {
+      requestId,
+      error: errorDetails(error),
+      browser: browserMetadata(),
+    });
+    setLeadError(error instanceof Error ? error.message : "Could not parse transcript.");
+    setTranscriptStatus(`Transcript parse failed. ${requestId}`);
+  } finally {
+    setTranscriptBusy(false);
+  }
+}
+
 async function handleCardInput() {
   const file = cardInput.files?.[0];
   if (!file) return;
@@ -3048,6 +3145,51 @@ async function requestOcrDraft({ requestId, file, image, eventTitle }) {
   throw new Error(`${lastBody?.error?.message || "Could not scan card."} Debug: ${debugId}`);
 }
 
+async function requestLeadTranscriptDraft({ requestId, transcript, eventTitle }) {
+  let response = null;
+  try {
+    response = await fetchWithTimeout("/api/leads/transcript", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        requestId,
+        transcript,
+        eventTitle,
+        clientMetadata: {
+          baseRequestId: requestId,
+          browser: browserMetadata(),
+        },
+      }),
+    }, OCR_REQUEST_TIMEOUT_MS);
+  } catch (error) {
+    throw new Error(
+      `${error instanceof DOMException && error.name === "AbortError"
+        ? "Transcript parse request timed out."
+        : "Transcript parse request failed."} Debug: ${requestId}`,
+    );
+  }
+
+  const body = await response.json().catch(() => ({
+    error: { message: "Could not parse transcript response.", requestId },
+  }));
+  await logClientEvent("transcript_request_response", {
+    requestId,
+    ok: response.ok,
+    status: response.status,
+    responseRequestId: body?.requestId || body?.error?.requestId || requestId,
+    body: response.ok ? { hasDraft: Boolean(body?.draft) } : body,
+  });
+  if (!response.ok) {
+    throw new Error(
+      `${body?.error?.message || "Could not parse transcript."} Debug: ${body?.error?.requestId || requestId}`,
+    );
+  }
+  if (!leadDraftHasUsableFields(body?.draft)) {
+    throw new Error(`Transcript parse did not find any lead fields. Debug: ${body?.requestId || requestId}`);
+  }
+  return body;
+}
+
 function inferOcrMetadataFromAttempt({ attemptIndex, payload }) {
   const metadata = payload?.metadata && typeof payload.metadata === "object"
     ? payload.metadata
@@ -3116,17 +3258,50 @@ async function fetchWithTimeout(url, options, timeoutMs) {
 }
 
 function applyLeadDraft(draft) {
-  for (const field of ["name", "company", "role", "email", "phone", "followUp", "notes"]) {
+  for (const field of [
+    "name",
+    "company",
+    "role",
+    "email",
+    "phone",
+    "painMentioned",
+    "strongQuote",
+    "followUp",
+    "notes",
+  ]) {
     if (typeof draft[field] === "string" && draft[field].trim()) {
       leadForm.elements[field].value = draft[field].trim();
     }
   }
+  if (typeof leadForm.elements.nextStepDate?.value === "string") {
+    leadForm.elements.nextStepDate.value = normalizeLeadDraftDate(draft?.nextStepDate);
+  }
+  const buyerType = typeof draft.buyerType === "string" && draft.buyerType.trim().toLowerCase() !== "unknown"
+    ? draft.buyerType.trim()
+    : "";
+  if (buyerType && leadForm.elements.buyerType) {
+    leadForm.elements.buyerType.value = buyerType;
+  }
+  leadForm.elements.githubHeavy.value = normalizeLeadSignalValue(draft.githubHeavy);
+  leadForm.elements.aiCodingAdoption.value = normalizeLeadSignalValue(draft.aiCodingAdoption);
   renderLeadPriorityPreview();
 }
 
 function leadDraftHasUsableFields(draft) {
   if (!draft || typeof draft !== "object") return false;
-  return ["name", "company", "email", "phone"].some((field) => String(draft[field] || "").trim());
+  const hasText = LEAD_TEXT_DRAFT_FIELDS.some((field) => {
+    const value = String(draft[field] || "").trim();
+    if (!value) return false;
+    if (field === "buyerType") return value.toLowerCase() !== "unknown";
+    return true;
+  });
+  const hasSignals = LEAD_SIGNAL_FIELDS.some((field) => normalizeLeadSignalValue(draft[field]) !== "unknown");
+  return hasText || hasSignals;
+}
+
+function normalizeLeadDraftDate(value) {
+  const trimmed = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : "";
 }
 
 async function imageFileToDataUrl(file) {
@@ -3782,12 +3957,26 @@ function setCardScanBusy(busy) {
   cardScanButton.setAttribute("aria-disabled", String(busy));
 }
 
+function setTranscriptStatus(message) {
+  if (!transcriptStatus) return;
+  transcriptStatus.textContent = message;
+}
+
+function setTranscriptBusy(busy) {
+  if (!transcriptButton || !transcriptInput) return;
+  transcriptInput.disabled = busy;
+  transcriptButton.disabled = busy;
+}
+
 function renderEntry(entry) {
   return renderEntryCard(entry, false);
 }
 
-function renderTimelineEntry(entry, lanes) {
+function renderTimelineEntry(entry, lanes, isCompact = false) {
   const article = renderEntryCard(entry, true);
+  if (isCompact) {
+    return article;
+  }
   const start = minuteOfDay(entry.start);
   const end = Math.max(minuteOfDay(entry.end), start + 15);
   const lane = lanes.get(entry.calendarBlockId) || { index: 0, count: 1 };
