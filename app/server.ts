@@ -48,9 +48,11 @@ import {
   cacheCounts,
   listCacheValues,
   readCacheValue,
+  readSharedChat,
   readStateEntry,
   storeHealth,
   writeCacheValue,
+  writeSharedChat,
   writeStateValueIfVersion,
 } from "./lib/kv_store.ts";
 import {
@@ -105,8 +107,10 @@ const LOCAL_OCR_HIGH_CONFIDENCE_SCORE = 8;
 const TOKEN_ENCODING_NAME = "o200k_base";
 const CHAT_MESSAGE_OVERHEAD_TOKENS = 4;
 const CHAT_REQUEST_OVERHEAD_TOKENS = 3;
+const CHAT_SHARE_MAX_PAYLOAD_BYTES = 64 * 1024;
 const MODEL_CONTEXT_CACHE_MS = 5 * 60 * 1000;
 const TOKEN_ENCODER = getEncoding(TOKEN_ENCODING_NAME);
+const CHAT_SHARE_TEXT_ENCODER = new TextEncoder();
 const PRODUCT_PLAYBOOK_CONTEXT_CHAR_BUDGET = 120_000;
 const ROUTE_RUNBOOK_CONTEXT_CHAR_BUDGET = 90_000;
 const EVENT_DOSSIER_CONTEXT_CHAR_BUDGET = 150_000;
@@ -584,6 +588,24 @@ type ChatMessage = {
   content: string;
 };
 
+type SharedChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+type SharedChatPayload = {
+  shareId: string;
+  createdAt: string;
+  createdByUserId: string;
+  title: string;
+  messages: SharedChatMessage[];
+  messageCount: number;
+  deletedAt?: string;
+  deletedByUserId?: string;
+};
+
+const CHAT_SHARE_ID_PATTERN = /^[0-9a-f]{32}$/;
+
 type GatewayConfig = {
   token: string;
   chatUrl: string;
@@ -914,7 +936,146 @@ async function authorizeApiRoute(request: Request, url: URL): Promise<Response |
   if (request.method === "GET" && pathname === "/api/account/invite") return null;
   if (request.method === "POST" && pathname === "/api/account/session/handoff") return null;
   if (request.method === "POST" && pathname === "/api/account/invite") return null;
+  if (request.method === "POST" && pathname === "/api/chat/share") return null;
+  if (request.method === "GET" && pathname.startsWith("/api/chat/share/")) return null;
+  if (request.method === "DELETE" && pathname.startsWith("/api/chat/share/")) return null;
   return await requireAdminAccountSession(request);
+}
+
+function createSharedChatId(): string {
+  return crypto.randomUUID().replace(/-/g, "");
+}
+
+function isValidSharedChatId(shareId: string): boolean {
+  return CHAT_SHARE_ID_PATTERN.test(shareId);
+}
+
+function normalizeSharedChatId(rawShareId: string): string | null {
+  let shareId = "";
+  try {
+    shareId = decodeURIComponent(rawShareId).toLowerCase();
+  } catch {
+    return null;
+  }
+  return isValidSharedChatId(shareId) ? shareId : null;
+}
+
+function isSoftDeletedSharedChat(
+  payload: SharedChatPayload,
+): payload is SharedChatPayload & { deletedAt: string } {
+  return typeof payload.deletedAt === "string" && payload.deletedAt.length > 0;
+}
+
+function parseSharedChatSnapshot(
+  rawBody: unknown,
+): { title: string; messages: SharedChatMessage[] } | Response {
+  if (!rawBody || typeof rawBody !== "object") return badRequest("Expected a JSON body.");
+  const raw = rawBody as Record<string, unknown>;
+  const rawMessages = raw.messages;
+  if (!Array.isArray(rawMessages)) return badRequest("messages is required and must be an array.");
+  if (rawMessages.length === 0) return badRequest("At least one message is required.");
+
+  const messages: SharedChatMessage[] = [];
+  for (const rawMessage of rawMessages) {
+    if (!rawMessage || typeof rawMessage !== "object") {
+      return badRequest("Each message must be an object.");
+    }
+    const role = (rawMessage as { role?: unknown }).role;
+    const normalizedRole = role === "user" || role === "assistant" ? role : null;
+    if (!normalizedRole) {
+      return badRequest("Each message role must be user or assistant.");
+    }
+
+    const content = String((rawMessage as { content?: unknown }).content ?? "").trim();
+    if (!content) {
+      return badRequest("Each message must include non-empty content.");
+    }
+
+    messages.push({ role: normalizedRole, content });
+  }
+
+  if (!messages.length) return badRequest("At least one message is required.");
+  return { title: sharedChatTitle(raw.title, messages), messages };
+}
+
+function sharedChatTitle(rawTitle: unknown, messages: SharedChatMessage[]): string {
+  const title = textField(rawTitle, 240);
+  if (title) return title;
+  const firstUser = messages.find((message) => message.role === "user")?.content;
+  const firstAssistant = messages.find((message) => message.role === "assistant")?.content;
+  return textField(firstUser || firstAssistant || "Shared chat", 240);
+}
+
+async function handleChatShareCreate(request: Request): Promise<Response> {
+  const authError = await requireAuthenticatedAccountSession(request);
+  if (authError) return authError;
+  const session = await readAccountSession(request);
+  const user = session.user;
+  if (!user) return json({ error: { message: "Account user unavailable." } }, { status: 401 });
+
+  const parsedBody = parseSharedChatSnapshot(await request.json().catch(() => null));
+  if (parsedBody instanceof Response) return parsedBody;
+
+  const shareId = createSharedChatId();
+  const payload: SharedChatPayload = {
+    shareId,
+    createdAt: new Date().toISOString(),
+    createdByUserId: user.id,
+    title: parsedBody.title,
+    messages: parsedBody.messages,
+    messageCount: parsedBody.messages.length,
+  };
+
+  const payloadBytes = CHAT_SHARE_TEXT_ENCODER.encode(JSON.stringify(payload)).byteLength;
+  if (payloadBytes > CHAT_SHARE_MAX_PAYLOAD_BYTES) {
+    return json({
+      error: {
+        message:
+          "This chat snapshot is too large to share. Please shorten or trim the chat before sharing.",
+      },
+    }, { status: 413 });
+  }
+
+  await writeSharedChat(shareId, payload);
+  return json({ shareId });
+}
+
+async function handleChatShareGet(rawShareId: string): Promise<Response> {
+  const shareId = normalizeSharedChatId(rawShareId);
+  if (!shareId) return notFound();
+
+  const payload = await readSharedChat<SharedChatPayload>(shareId);
+  if (!payload || isSoftDeletedSharedChat(payload)) return notFound();
+  return json(payload);
+}
+
+async function handleChatShareDelete(request: Request, rawShareId: string): Promise<Response> {
+  const authError = await requireAuthenticatedAccountSession(request);
+  if (authError) return authError;
+  const shareId = normalizeSharedChatId(rawShareId);
+  if (!shareId) return notFound();
+
+  const session = await readAccountSession(request);
+  const user = session.user;
+  if (!user) return json({ error: { message: "Account user unavailable." } }, { status: 401 });
+
+  const payload = await readSharedChat<SharedChatPayload>(shareId);
+  if (!payload || isSoftDeletedSharedChat(payload)) return notFound();
+  if (payload.createdByUserId !== user.id) {
+    return json({ error: { message: "Only the share creator can delete this chat." } }, {
+      status: 403,
+    });
+  }
+
+  const updatedPayload: SharedChatPayload = {
+    ...payload,
+    deletedAt: new Date().toISOString(),
+    deletedByUserId: user.id,
+    title: "",
+    messages: [],
+  };
+  await writeSharedChat(shareId, updatedPayload);
+  return new Response(null, { status: 204 });
 }
 
 async function handleAccountSessionHandoff(request: Request): Promise<Response> {
@@ -5767,6 +5928,18 @@ export async function router(request: Request): Promise<Response> {
     }
     if (request.method === "POST" && pathname === "/api/account/invite") {
       return await handleAccountInviteClaim(request);
+    }
+    if (request.method === "POST" && pathname === "/api/chat/share") {
+      return await handleChatShareCreate(request);
+    }
+    if (request.method === "GET" && pathname.startsWith("/api/chat/share/")) {
+      return await handleChatShareGet(pathname.replace("/api/chat/share/", ""));
+    }
+    if (request.method === "DELETE" && pathname.startsWith("/api/chat/share/")) {
+      return await handleChatShareDelete(
+        request,
+        pathname.replace("/api/chat/share/", ""),
+      );
     }
     if (request.method === "GET" && url.pathname === "/api/schedule") return await handleSchedule();
     if (request.method === "POST" && url.pathname === "/api/agenda/recalculate") {

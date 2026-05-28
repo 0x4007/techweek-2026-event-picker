@@ -455,6 +455,16 @@
           </button>
           <button
             type="button"
+            aria-label="Share chat"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-chat-share
+            data-icon-only
+          >
+            <svg><use href="#icon-external"></use></svg>
+          </button>
+          <button
+            type="button"
             aria-label="Chat history"
             aria-expanded="false"
             data-motion="button"
@@ -479,6 +489,24 @@
       <section aria-label="Chat history" data-chat-history hidden></section>
       <section data-chat-log aria-live="polite"></section>
       <section data-agent-composer>
+        <section data-chat-share-result hidden>
+          <p data-chat-share-status></p>
+          <section data-chat-share-actions data-actions>
+            <a data-chat-share-link href="#" target="_blank" rel="noreferrer"></a>
+            <button type="button" data-motion="button" data-chat-share-copy>Copy</button>
+          </section>
+        </section>
+        <section data-chat-shared hidden>
+          <p data-chat-shared-message></p>
+          <button
+            type="button"
+            data-motion="button"
+            data-motion-hidden="true"
+            data-chat-fork
+          >
+            Fork chat
+          </button>
+        </section>
         <p data-agent-agenda-status data-agenda-status></p>
         <form data-chat-form>
           <textarea
