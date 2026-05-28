@@ -191,10 +191,14 @@ function resolvePreferredPort(): number {
   if (Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535) {
     return parsedPort;
   }
-  if (Deno.env.get("DENO_DEPLOY") || Deno.env.get("DENO_DEPLOYMENT_ID")) {
+  if (isDenoDeployRuntime()) {
     return DENO_DEPLOY_DEFAULT_PORT;
   }
   return DEFAULT_PORT;
+}
+
+function isDenoDeployRuntime(): boolean {
+  return Boolean(Deno.env.get("DENO_DEPLOY") || Deno.env.get("DENO_DEPLOYMENT_ID"));
 }
 
 function findFreePort(startPort: number): number {
@@ -6261,12 +6265,17 @@ function redirectDenoDeployToSameSiteDomain(request: Request, url: URL): Respons
 }
 
 if (import.meta.main) {
-  const port = findFreePort(resolvePreferredPort());
-  Deno.serve({
-    port,
-    hostname: "0.0.0.0",
-    onListen({ hostname, port: boundPort }) {
-      console.log(`Tech Week app running on http://${hostname}:${boundPort}`);
-    },
-  }, router);
+  const onListen = ({ hostname, port: boundPort }: { hostname: string; port: number }) => {
+    console.log(`Tech Week app running on http://${hostname}:${boundPort}`);
+  };
+  if (isDenoDeployRuntime()) {
+    Deno.serve({ onListen }, router);
+  } else {
+    const port = findFreePort(resolvePreferredPort());
+    Deno.serve({
+      port,
+      hostname: "0.0.0.0",
+      onListen,
+    }, router);
+  }
 }
