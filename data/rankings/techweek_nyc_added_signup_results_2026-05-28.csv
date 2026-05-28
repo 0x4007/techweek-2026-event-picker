@@ -1,10 +1,8 @@
 action,category,count,currentStatus,eventId,maxCountPerGuest,notes,partifulUrl,rsvpStatus,title
 submitted,latest-added,1,PENDING_APPROVAL,Vkvjr5dBr2FmbI2yK5UB,1,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/Vkvjr5dBr2FmbI2yK5UB,PENDING_APPROVAL,"Data Center, Power & Enterprise Infrastructure Dinner - #NYTechWeek"
-submitted,latest-added,1,PENDING_APPROVAL,p74X9KDrgoLaDtU8BmvS,1,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/p74X9KDrgoLaDtU8BmvS,PENDING_APPROVAL,"SGLang Happy Hour: AI Infra in Finance 
-#NYTechWeek"
+submitted,latest-added,1,PENDING_APPROVAL,p74X9KDrgoLaDtU8BmvS,1,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/p74X9KDrgoLaDtU8BmvS,PENDING_APPROVAL,SGLang Happy Hour: AI Infra in Finance #NYTechWeek
 blocked,latest-added,0,,TjC1eG8CxxAKtYaVxrH2,1,Skipped because RSVPs are disabled.,https://partiful.com/e/TjC1eG8CxxAKtYaVxrH2,,Investing in Agents: The Future of Autonomous AI- #NYTechWeek
-submitted,latest-added,1,PENDING_APPROVAL,tPlMvExfd6gOdgKCW6O7,1,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/tPlMvExfd6gOdgKCW6O7,PENDING_APPROVAL,"Tessera Labs x a16z : The Closing Gap 
-(Private Dinner)"
+submitted,latest-added,1,PENDING_APPROVAL,tPlMvExfd6gOdgKCW6O7,1,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/tPlMvExfd6gOdgKCW6O7,PENDING_APPROVAL,Tessera Labs x a16z : The Closing Gap (Private Dinner)
 submitted,latest-added,1,PENDING_APPROVAL,PhqnW15PCQAdoENB6aNl,1,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/PhqnW15PCQAdoENB6aNl,PENDING_APPROVAL,"Founders, Investors & Builders — An Intimate NYC Cocktail Evening - #NYTechWeek"
 submitted,latest-added,1,PENDING_APPROVAL,Vs2eC7nERtgF0PgNWfUo,1,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/Vs2eC7nERtgF0PgNWfUo,PENDING_APPROVAL,Founders x Investors AI Toolkit & Happy Hour - #NYTechWeek
 blocked,latest-added,0,,u7UgtF8gTKW9BOKuG7k8,1,Skipped because the event is at capacity and waitlist is not enabled.,https://partiful.com/e/u7UgtF8gTKW9BOKuG7k8,,Vesey Ventures & J.P. Morgan dinner: an evening of Agentic Commerce - #NYTechWeek
@@ -13,7 +11,7 @@ submitted,latest-added,1,PENDING_APPROVAL,MQvS9RrcXl6HcAEzfzhg,1,Submitted via P
 submitted,latest-added,2,GOING,hl2AIeWhZ1e2t6LveEGw,,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/hl2AIeWhZ1e2t6LveEGw,GOING,AI on Main Street: How Chinatown's Small Businesses Are Using AI - #NYTechWeek
 already-signed,latest-added-route,1,PENDING_APPROVAL,WJe6XcxPXwbpCiCVLCas,1,Existing Partiful guest record found; left unchanged.,https://partiful.com/e/WJe6XcxPXwbpCiCVLCas,PENDING_APPROVAL,The Semiconductor & AI Supply Chain Lunch: Investors & Operators - #NYTechWeek
 submitted,latest-added,1,PENDING_APPROVAL,pmDosvwgBQPxLVDk8WWb,,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/pmDosvwgBQPxLVDk8WWb,PENDING_APPROVAL,Fintech Engineers Happy Hour - #NYTechWeek
-submitted,latest-added,1,PENDING_APPROVAL,pIS8aostHgPm9GXmaN6X,1,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/pIS8aostHgPm9GXmaN6X,PENDING_APPROVAL,Voice AI Meetup: Build a Voice Agent in 1 hour  - #NYTechWeek
+submitted,latest-added,1,PENDING_APPROVAL,pIS8aostHgPm9GXmaN6X,1,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/pIS8aostHgPm9GXmaN6X,PENDING_APPROVAL,Voice AI Meetup: Build a Voice Agent in 1 hour - #NYTechWeek
 blocked,latest-added,0,,gP80ioDptVy1W5Gx5Lv4,,Skipped because Partiful event status is CANCELED.,https://partiful.com/e/gP80ioDptVy1W5Gx5Lv4,,From Startup to Scale: Using AI to Streamline and Grow - #NYTechWeek
 submitted,latest-added,1,PENDING_APPROVAL,tUV88fW7J763Q0ZLdTBI,1,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/tUV88fW7J763Q0ZLdTBI,PENDING_APPROVAL,The Mooch and IBM’s Gary Cohn on Owning the Future: Digital Sovereignty in the Age of AI - #NYTechWeek
 submitted,latest-added,1,PENDING_APPROVAL,KIimVVdYB8fjaiE1UdZz,1,Submitted via Partiful API; linkedPlusOneFailures=0.,https://partiful.com/e/KIimVVdYB8fjaiE1UdZz,PENDING_APPROVAL,Built in NYC: AI Edition

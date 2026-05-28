@@ -325,5 +325,218 @@
       "N City Hall to 28 St"
     ],
     "totalStops": 7
+  },
+  "229->R18": {
+    "estimatedMinutes": 22,
+    "numTransfers": 0,
+    "totalStops": 11,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Fulton St to 28 St"
+    ],
+    "raw": {
+      "segments": [
+        {
+          "fromStationId": "229",
+          "fromStationName": "Fulton St",
+          "toStationId": "R18",
+          "toStationName": "28 St",
+          "line": "2",
+          "direction": "N",
+          "directionLabel": "Bronx-bound to Wakefield",
+          "headsign": "Wakefield-241 St",
+          "numStops": 11
+        }
+      ],
+      "totalStops": 11,
+      "numTransfers": 0,
+      "estimatedMinutes": 22,
+      "alerts": [
+        {
+          "id": "lmm:planned_work:31506",
+          "headerText": "In Manhattan, downtown [2] local skips 66 St-Lincoln Center, 59 St-Columbus Circle and 50 St",
+          "descriptionText": "For service to these stations, take the [2] to Times Sq-42 St and transfer to an uptown [1] or [2] local.\n\nFor service from these stations, take the [1] or [2] to 72 St and transfer to a downtown [2].\n\nSchedule reminder: [2] skips these stations days and evenings.\n\nWhat's happening?\nStructural maintenance",
+          "affectedLines": [
+            "2"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-28T04:15:00.000Z",
+              "end": "2026-05-28T09:00:00.000Z"
+            },
+            {
+              "start": "2026-05-29T04:15:00.000Z",
+              "end": "2026-05-29T09:00:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        },
+        {
+          "id": "lmm:planned_work:32068",
+          "headerText": "Eastbound trains skip Hollis and Queens Village",
+          "descriptionText": "MTA buses will accept LIRR tickets for travel from Jamaica to Hollis and Queens Village. View a map of your route options.\n\nFollow this link for information about transferring at the Jamaica Bus Terminal.\n\nWhat's happening?\nAccessibility improvements",
+          "affectedLines": [
+            "2"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-27T02:30:00.000Z",
+              "end": "2026-05-27T08:00:00.000Z"
+            },
+            {
+              "start": "2026-05-28T02:30:00.000Z",
+              "end": "2026-05-28T08:00:00.000Z"
+            },
+            {
+              "start": "2026-05-29T02:30:00.000Z",
+              "end": "2026-05-29T08:00:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        },
+        {
+          "id": "lmm:planned_work:31150",
+          "headerText": "Temporary platforms are in place at Botanical Garden, Williams Bridge, and Woodlawn for northbound travel. Build in extra travel time to reach the platform.",
+          "descriptionText": "What's Happening?\n\nWe are renovating some Harlem Line stations in the Bronx. Learn more about the project here.",
+          "affectedLines": [
+            "2"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-04-16T04:00:00.000Z",
+              "end": "2026-12-01T04:45:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        }
+      ],
+      "disruptionAnalysis": {
+        "riskLevel": "low",
+        "riskLabel": "Minor delays possible",
+        "affectedSegments": [
+          {
+            "segmentIndex": 0,
+            "line": "2",
+            "alertId": "lmm:planned_work:31506",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "In Manhattan, downtown [2] local skips 66 St-Lincoln Center, 59 St-Columbus Circle and 50 St"
+          },
+          {
+            "segmentIndex": 0,
+            "line": "2",
+            "alertId": "lmm:planned_work:32068",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "Eastbound trains skip Hollis and Queens Village"
+          },
+          {
+            "segmentIndex": 0,
+            "line": "2",
+            "alertId": "lmm:planned_work:31150",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "Temporary platforms are in place at Botanical Garden, Williams Bridge, and Woodlawn for northbound travel. Build in extra travel time to reach the platform."
+          }
+        ],
+        "timeBufferMinutes": 5
+      }
+    }
+  },
+  "R18->R22": {
+    "estimatedMinutes": 8,
+    "numTransfers": 0,
+    "totalStops": 4,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "N 28 St to Prince St"
+    ],
+    "raw": {
+      "segments": [
+        {
+          "fromStationId": "R18",
+          "fromStationName": "28 St",
+          "toStationId": "R22",
+          "toStationName": "Prince St",
+          "line": "N",
+          "direction": "S",
+          "directionLabel": "Brooklyn-bound to Coney Island",
+          "headsign": "Coney Island-Stillwell Av",
+          "numStops": 4
+        }
+      ],
+      "totalStops": 4,
+      "numTransfers": 0,
+      "estimatedMinutes": 8,
+      "alerts": [
+        {
+          "id": "lmm:planned_work:31417",
+          "headerText": "No [N] between Queensboro Plaza, Queens and Times Sq-42 St, Manhattan",
+          "descriptionText": "[N] service runs in two sections:\n1. Between Astoria-Ditmars Blvd and Queensboro Plaza\n2. Between Coney Island-Stillwell Av and Times Sq-42 St\n\nTravel alternatives:\nFor service between Manhattan and Queens, take the [7] via transfer at Queensboro Plaza [accessibility icon] and/or Times Sq-42 St [accessibility icon].\n\nFor 57 St-7 Av and 49 St, take the [Q] via transfer at Times Sq-42 St [accessibility icon] | [7][N].\n\nFor Lexington Av/59 St and 5 Av/59 St, use the nearby 59 St [4][6] station via the [7] at Grand Central-42 St or the [N] at 14 St-Union Sq.\n\nNote: At Queensboro Plaza - board/exit all [N] trains from the Manhattan-bound platform.\n\nWhat's happening?\nTrack maintenance",
+          "affectedLines": [
+            "N"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-28T03:45:00.000Z",
+              "end": "2026-05-28T09:00:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        },
+        {
+          "id": "lmm:planned_work:31415",
+          "headerText": "In Brooklyn, Manhattan-bound [N] local skips 53 St, 45 St, 25 St, Prospect Av, 4 Av-9 St and Union St",
+          "descriptionText": "For service to 53 St and 45 St, take the [N] to 36 St and transfer to a Coney Island-bound [N].\n\nFor service from these stations, take the [N] to 59 St and transfer to a Manhattan-bound [N].\n\nFor 25 St , Prospect Av, 4 Av-9 St and Union St, take the [D] instead. Transfer at 36 St.\n\nWhat's happening?\nStructural maintenance",
+          "affectedLines": [
+            "N"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-28T03:45:00.000Z",
+              "end": "2026-05-28T09:00:00.000Z"
+            },
+            {
+              "start": "2026-05-29T03:45:00.000Z",
+              "end": "2026-05-29T09:00:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        }
+      ],
+      "disruptionAnalysis": {
+        "riskLevel": "low",
+        "riskLabel": "Minor delays possible",
+        "affectedSegments": [
+          {
+            "segmentIndex": 0,
+            "line": "N",
+            "alertId": "lmm:planned_work:31417",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "No [N] between Queensboro Plaza, Queens and Times Sq-42 St, Manhattan"
+          },
+          {
+            "segmentIndex": 0,
+            "line": "N",
+            "alertId": "lmm:planned_work:31415",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "In Brooklyn, Manhattan-bound [N] local skips 53 St, 45 St, 25 St, Prospect Av, 4 Av-9 St and Union St"
+          }
+        ],
+        "timeBufferMinutes": 5
+      }
+    }
   }
 }
