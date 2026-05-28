@@ -105,56 +105,45 @@ jobs:
             --no-wait \
             "$DEPLOY_ROOT"
 
-      - name: Deploy
+      - name: Ensure Deno KV database is assigned
         if: steps.deploy_changes.outputs.deploy == 'true'
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
           set -euo pipefail
-          attempt=1
-          max_attempts=5
-          while true; do
-            set +e
-            output="$(deno deploy --token "$DENO_DEPLOY_TOKEN" --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" --prod "$DEPLOY_ROOT" 2>&1)"
-            status=$?
-            set -e
+          database_name="${DENO_DEPLOY_APP}-kv"
 
-            if [ "$status" -eq 0 ]; then
-              echo "$output"
-              break
-            fi
+          set +e
+          provision_output="$(deno deploy database provision "$database_name" --kind denokv --token "$DENO_DEPLOY_TOKEN" --org "$DENO_DEPLOY_ORG" 2>&1)"
+          provision_status=$?
+          set -e
+          if [ "$provision_status" -ne 0 ] && ! printf '%s\n' "$provision_output" | grep -Eqi 'already|exist'; then
+            echo "$provision_output"
+            exit "$provision_status"
+          fi
+          echo "$provision_output"
 
-            if [ "$attempt" -lt "$max_attempts" ] && printf '%s\n' "$output" | grep -Eqi '(unexpected internal error|revision failed|temporar|timeout|timed out|connection reset|connection closed|network error|rate limit|throttl|503|502|504)'; then
-              sleep_for=$((attempt * 10))
-              echo "::warning::Deno Deploy transient failure on attempt $attempt; retrying in ${sleep_for}s"
-              echo "$output"
-              sleep "$sleep_for"
-              attempt=$((attempt + 1))
-              continue
-            fi
-
-            echo "$output"
-            exit "$status"
-          done
-
-      - name: Dump recent Deno Deploy logs on failure
-        if: failure()
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-        run: |
-          set -euo pipefail
-          start="$(date -u -d '15 minutes ago' '+%Y-%m-%dT%H:%M:%SZ')"
-          end="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-          deno deploy logs \
-            --token "$DENO_DEPLOY_TOKEN" \
-            --org "$DENO_DEPLOY_ORG" \
-            --app "$DENO_DEPLOY_APP" \
-            --start "$start" \
-            --end "$end" || true
+          set +e
+          assign_output="$(deno deploy database assign "$database_name" --token "$DENO_DEPLOY_TOKEN" --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" 2>&1)"
+          assign_status=$?
+          set -e
+          if [ "$assign_status" -ne 0 ] && ! printf '%s\n' "$assign_output" | grep -Eqi 'already|assigned|exist'; then
+            echo "$assign_output"
+            exit "$assign_status"
+          fi
+          echo "$assign_output"
 
       - name: Verify deployment
         run: |
           set -euo pipefail
           base_url="https://${DENO_DEPLOY_APP}.${DENO_DEPLOY_ORG}.deno.net"
-          curl -fsSL "$base_url/" | grep -q 'data-chat-share'
-          curl -fsSL "$base_url/api/health" | grep -q '"status": "ready"'
+          for attempt in $(seq 1 60); do
+            if curl -fsSL "$base_url/" | grep -q 'data-chat-share' &&
+              curl -fsSL "$base_url/api/health" | grep -q '"status": "ready"'; then
+              exit 0
+            fi
+            sleep 5
+          done
+          curl -fsSL "$base_url/" | grep -n 'data-chat-share' || true
+          curl -fsSL "$base_url/api/health" || true
+          exit 1
