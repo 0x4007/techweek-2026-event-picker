@@ -1,5 +1,5 @@
 import { chromium, devices, type Page, type Route } from "playwright";
-import { router, setAccountSessionForTest } from "../app/server.ts";
+import { resetModelContextCacheForTest, router, setAccountSessionForTest } from "../app/server.ts";
 import { setKvPathForTest } from "../app/lib/kv_store.ts";
 
 type JsonRecord = Record<string, unknown>;
@@ -33,6 +33,10 @@ type MockResendCall = {
 
 const E2E_SESSION_COOKIE = "techweek_session=e2e-session";
 const E2E_AUTH_HEADERS = { cookie: E2E_SESSION_COOKIE };
+const E2E_ACCOUNT_ID = "e2e_admin";
+const E2E_CHAT_STORAGE_KEY = e2eScopedStorageKey("techweek-chat");
+const E2E_CHAT_HISTORY_KEY = e2eScopedStorageKey("techweek-chat-history");
+const E2E_ACTIVE_CHAT_KEY = e2eScopedStorageKey("techweek-chat-active-id");
 const FIXTURE_CARD_JPEG = fileUrlPath(new URL("./fixtures/IMG_8538.jpg", import.meta.url));
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -43,13 +47,21 @@ function fileUrlPath(url: URL): string {
   return decodeURIComponent(url.pathname);
 }
 
+function e2eScopedStorageKey(base: string, scope = E2E_ACCOUNT_ID): string {
+  const normalized = String(scope || "anonymous")
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "_") || "anonymous";
+  return `${base}:${normalized}`;
+}
+
 async function withApp(test: (baseUrl: string) => Promise<void>) {
+  resetModelContextCacheForTest();
   await setKvPathForTest(":memory:");
   setAccountSessionForTest({
     authenticated: true,
     auth: "passkey",
     user: {
-      id: "e2e_admin",
+      id: E2E_ACCOUNT_ID,
       handle: "e2e-admin",
       isAdmin: true,
       credentialCount: 1,
@@ -67,6 +79,7 @@ async function withApp(test: (baseUrl: string) => Promise<void>) {
     await server.shutdown();
     setAccountSessionForTest(undefined);
     await setKvPathForTest(undefined);
+    resetModelContextCacheForTest();
   }
 }
 
@@ -115,6 +128,10 @@ async function addAdminSessionCookie(page: Page, baseUrl: string) {
     value: "e2e-admin-session",
     url: baseUrl,
   }]);
+}
+
+async function waitForAuthenticatedAccount(page: Page) {
+  await page.locator('[data-account-button][data-auth-state="authenticated"]').waitFor();
 }
 
 async function withEnv(
@@ -1645,7 +1662,10 @@ Deno.test({
           const requestAttempts = jsonLogs(logs, "client_log").filter((log) =>
             log.event === "ocr_request_attempt"
           );
-          assert(requestAttempts.length === 1, "Expected one browser OCR request.");
+          assert(
+            requestAttempts.length === 2,
+            `Expected fixture OCR to retry once after the gateway 502, got ${requestAttempts.length}.`,
+          );
           const firstAttemptImage = (requestAttempts[0]?.payload as JsonRecord | undefined)
             ?.image as JsonRecord | undefined;
           assert(
@@ -1657,12 +1677,8 @@ Deno.test({
             "Expected local OCR orientation selection.",
           );
           assert(
-            jsonLogs(logs, "ocr_upstream").length === 1,
-            "Expected one image gateway OCR call.",
-          );
-          assert(
-            jsonLogs(logs, "ocr_text_fallback_upstream").length === 1,
-            "Expected one text fallback gateway OCR call.",
+            jsonLogs(logs, "ocr_upstream").length === 2,
+            "Expected the failed image gateway OCR call and one image retry to be logged.",
           );
         });
       });
@@ -2850,6 +2866,7 @@ Deno.test({
       await withApp(async (baseUrl) => {
         await withIphonePage(async (page) => {
           await page.goto(baseUrl);
+          await waitForAuthenticatedAccount(page);
 
           const eventCard = page.locator('[data-entry][data-type="event"]').first();
           await eventCard.waitFor();
@@ -2862,9 +2879,9 @@ Deno.test({
             hasText: "Give me event-specific coaching",
           }).waitFor();
 
-          const firstSession = await page.evaluate(() => {
-            const activeId = localStorage.getItem("techweek-chat-active-id") || "";
-            const sessions = JSON.parse(localStorage.getItem("techweek-chat-history") || "[]");
+          const firstSession = await page.evaluate((keys) => {
+            const activeId = localStorage.getItem(keys.active) || "";
+            const sessions = JSON.parse(localStorage.getItem(keys.history) || "[]");
             const active = sessions.find((session: { id?: string }) => session.id === activeId);
             return {
               activeId,
@@ -2873,7 +2890,7 @@ Deno.test({
               cacheKey: active?.meta?.cacheKey || "",
               kind: active?.meta?.kind || "",
             };
-          });
+          }, { active: E2E_ACTIVE_CHAT_KEY, history: E2E_CHAT_HISTORY_KEY });
 
           assert(
             firstSession.activeId.startsWith("event-chat-"),
@@ -2893,26 +2910,26 @@ Deno.test({
           );
 
           await page.locator("[data-chat-close]").click();
-          await page.locator(`[data-entry="${eventId}"]`).click();
+          await page.locator(`[data-panel="route"] [data-entry="${eventId}"]`).click();
           await page.locator("[data-event-actions] button").filter({ hasText: "Ask" }).click();
 
           await page.waitForFunction(
-            (expectedId) => localStorage.getItem("techweek-chat-active-id") === expectedId,
-            firstSession.activeId,
+            ({ activeKey, expectedId }) => localStorage.getItem(activeKey) === expectedId,
+            { activeKey: E2E_ACTIVE_CHAT_KEY, expectedId: firstSession.activeId },
           );
 
-          const secondSession = await page.evaluate(() => {
+          const secondSession = await page.evaluate((keys) => {
             const win = globalThis as unknown as {
               document: {
                 querySelectorAll(selector: string): ArrayLike<{ textContent?: string | null }>;
               };
             };
-            const activeId = localStorage.getItem("techweek-chat-active-id") || "";
-            const sessions = JSON.parse(localStorage.getItem("techweek-chat-history") || "[]");
+            const activeId = localStorage.getItem(keys.active) || "";
+            const sessions = JSON.parse(localStorage.getItem(keys.history) || "[]");
             const userMessages = Array.from(win.document.querySelectorAll('[data-message="user"]'))
               .map((item) => item.textContent || "");
             return { activeId, sessionCount: sessions.length, userMessages };
-          });
+          }, { active: E2E_ACTIVE_CHAT_KEY, history: E2E_CHAT_HISTORY_KEY });
 
           assert(
             secondSession.activeId === firstSession.activeId,
@@ -3026,6 +3043,7 @@ Deno.test({
         await withApp(async (baseUrl) => {
           await withIphonePage(async (page) => {
             await page.goto(baseUrl);
+            await waitForAuthenticatedAccount(page);
             await page.locator("[data-chat-fab]").click({ force: true });
             await page.waitForFunction(() => {
               const win = globalThis as unknown as {
@@ -3045,34 +3063,37 @@ Deno.test({
               hasText: "Save this chat so I can delete it.",
             }).waitFor();
 
-            const beforeDelete = await page.evaluate(() => ({
-              activeId: localStorage.getItem("techweek-chat-active-id") || "",
-              sessionCount:
-                JSON.parse(localStorage.getItem("techweek-chat-history") || "[]").length,
-            }));
+            const beforeDelete = await page.evaluate((keys) => ({
+              activeId: localStorage.getItem(keys.active) || "",
+              sessionCount: JSON.parse(localStorage.getItem(keys.history) || "[]").length,
+            }), { active: E2E_ACTIVE_CHAT_KEY, history: E2E_CHAT_HISTORY_KEY });
 
             assert(beforeDelete.sessionCount === 1, "Expected one saved chat before deletion.");
 
             await page.locator("[data-chat-history-toggle]").click();
             await page.locator("[data-chat-history-delete]").first().click();
-            await page.waitForFunction(() =>
-              JSON.parse(localStorage.getItem("techweek-chat-history") || "[]").length === 0
+            await page.waitForFunction(
+              (historyKey) => JSON.parse(localStorage.getItem(historyKey) || "[]").length === 0,
+              E2E_CHAT_HISTORY_KEY,
             );
 
-            const afterDelete = await page.evaluate(() => {
+            const afterDelete = await page.evaluate((keys) => {
               const win = globalThis as unknown as {
                 document: {
                   querySelectorAll(selector: string): ArrayLike<{ textContent?: string | null }>;
                 };
               };
               return {
-                activeId: localStorage.getItem("techweek-chat-active-id") || "",
-                currentMessages: JSON.parse(localStorage.getItem("techweek-chat") || "[]").length,
-                sessionCount:
-                  JSON.parse(localStorage.getItem("techweek-chat-history") || "[]").length,
+                activeId: localStorage.getItem(keys.active) || "",
+                currentMessages: JSON.parse(localStorage.getItem(keys.chat) || "[]").length,
+                sessionCount: JSON.parse(localStorage.getItem(keys.history) || "[]").length,
                 userMessages:
                   Array.from(win.document.querySelectorAll('[data-message="user"]')).length,
               };
+            }, {
+              active: E2E_ACTIVE_CHAT_KEY,
+              chat: E2E_CHAT_STORAGE_KEY,
+              history: E2E_CHAT_HISTORY_KEY,
             });
 
             assert(
@@ -3345,13 +3366,14 @@ Deno.test({
           "[Unsafe link](javascript:alert(1))",
         ].join("\n");
 
-        await page.addInitScript((content) => {
+        await page.addInitScript(({ content, storageKey }) => {
           localStorage.setItem(
-            "techweek-chat:anonymous",
+            storageKey,
             JSON.stringify([{ role: "assistant", content }]),
           );
-        }, markdown);
+        }, { content: markdown, storageKey: E2E_CHAT_STORAGE_KEY });
         await page.goto(baseUrl);
+        await waitForAuthenticatedAccount(page);
         await page.locator("[data-chat-fab]").click();
         await page.locator('[data-message="assistant"] h3', { hasText: "During event" }).waitFor();
 

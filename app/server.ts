@@ -412,6 +412,10 @@ let modelContextCache:
   | { model: string; baseUrl: string; fetchedAtMs: number; info: ModelContextInfo }
   | null = null;
 
+export function resetModelContextCacheForTest(): void {
+  modelContextCache = null;
+}
+
 type CsvRow = Record<string, string>;
 
 export type ScheduleEntry = {
