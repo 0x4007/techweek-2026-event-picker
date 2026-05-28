@@ -20,6 +20,10 @@ import {
 const ROOT = new URL("../", import.meta.url);
 const STATUS_CSV = new URL(".codex/techweek_signup_status.csv", ROOT);
 const RERANK_CSV = new URL("data/rankings/techweek_nyc_accolades_full_rerank.csv", ROOT);
+const ADDED_RANKING_CSV = new URL(
+  "data/rankings/techweek_nyc_added_events_ranked_2026-05-28.csv",
+  ROOT,
+);
 const EVENT_PAGES_DIR = new URL("data/source/event_pages/", ROOT);
 const GEOCODE_CACHE = new URL("data/cache/techweek_location_geocode_cache.json", ROOT);
 const STATION_CACHE = new URL("data/cache/nyc_subway_stations_cache.json", ROOT);
@@ -131,6 +135,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   primary: "PRIMARY",
   apply: "CURATED",
   backup: "BACKUP",
+  "latest-added": "ADDED",
+  "latest-added-route": "ADDED ROUTE",
 };
 
 const LOCATION_MAP_QUERIES: Record<string, string> = {
@@ -161,6 +167,7 @@ const MANUAL_DURATIONS: Record<string, number> = {
   "5529": 75,
   "4664": 150,
   "5693": 120,
+  "6642": 90,
   "5372": 180,
   "4191": 120,
   "5722": 180,
@@ -236,6 +243,8 @@ const EVENT_NOTES: Record<string, string> = {
   "5372": "Leave early if needed so you can make the registered 19:00 Stop Making AI Guess event.",
   "5114":
     "Registered direct. This is the Thursday anchor unless a substantially better curated dinner approves.",
+  "6642":
+    "Latest-feed add with no direct conflict; keep on the route if approved, otherwise use as a reference-only lunch option.",
   "5962": "Partiful registered only. Secondary Luma checkout is $20 and was explicitly skipped.",
   "4200":
     "Registered backup near FiDi. Use if Open Source Must Win is not approved or is too low signal in practice.",
@@ -578,7 +587,7 @@ export async function buildSignedUpArtifacts(): Promise<BuildArtifacts> {
 }
 
 async function loadSignedEvents(): Promise<SignedEvent[]> {
-  const rerankRows = await readCsv(RERANK_CSV);
+  const rerankRows = await readRankingRows();
   const statusRows = (await readCsv(STATUS_CSV)).filter((row) => row.category !== "test");
   const rerankByKey = new Map(rerankRows.map((row) => [eventKeyFromUrl(row.event_url), row]));
   const geocodeCache = await readJson<Record<string, LegacyGeocodeCacheRow>>(GEOCODE_CACHE, {});
@@ -666,6 +675,39 @@ async function loadSignedEvents(): Promise<SignedEvent[]> {
     a.category.localeCompare(b.category) ||
     a.name.localeCompare(b.name)
   );
+}
+
+async function readRankingRows(): Promise<CsvRow[]> {
+  const rows = await readCsv(RERANK_CSV);
+  const seen = new Set(rows.map((row) => eventKeyFromUrl(row.event_url)));
+  try {
+    const addedRows = await readCsv(ADDED_RANKING_CSV);
+    for (const [index, row] of addedRows.entries()) {
+      const key = eventKeyFromUrl(row.event_url);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      rows.push(normalizeAddedRankingRow(row, index));
+    }
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
+  return rows;
+}
+
+function normalizeAddedRankingRow(row: CsvRow, index: number): CsvRow {
+  return {
+    ...row,
+    description_excerpt: row.rationale ?? "",
+    event_description: row.rationale ?? "",
+    fetch_error: "",
+    fetch_status: row.fetch_status || "latest_feed",
+    final_url: row.event_url,
+    fit_summary: row.rationale ?? "",
+    local_html_path: "",
+    page_title: row.name,
+    rank: row.rank || `added-${index + 1}`,
+    recommended_action: row.tier === "A" ? "Apply first" : "Apply if useful",
+  };
 }
 
 async function venueForEvent(

@@ -1927,10 +1927,15 @@ function writeHashNavigation(options = {}) {
   const day = state.activeDay ? `/${state.activeDay}` : "";
   const nextHash = `#${view}${day}`;
   if (globalThis.location.hash === nextHash) return;
+  const preservingSharedChat = globalThis.location.pathname === "/share" &&
+    Boolean(sharedChatQueryId());
+  const target = preservingSharedChat
+    ? `${globalThis.location.pathname}${globalThis.location.search}${nextHash}`
+    : nextHash;
   if (options.replace) {
-    history.replaceState(null, "", nextHash);
+    history.replaceState(null, "", target);
   } else {
-    history.pushState(null, "", nextHash);
+    history.pushState(null, "", target);
   }
 }
 
