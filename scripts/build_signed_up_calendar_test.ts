@@ -1,9 +1,11 @@
 import {
   type CalendarRow,
+  displayLocationForVenue,
   eventKeyFromUrl,
   foldIcsLine,
   formatCsvRows,
   parseCsvRecords,
+  statusLocationIsExact,
   writeOutputs,
 } from "./build_signed_up_calendar.ts";
 
@@ -24,6 +26,31 @@ Deno.test("eventKeyFromUrl extracts Partiful event ids", () => {
   const key = eventKeyFromUrl("https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds");
   if (key !== "OF1vP5L8dtXKRtInyWKs") {
     throw new Error(`Unexpected key: ${key}`);
+  }
+});
+
+Deno.test("statusLocationIsExact recognizes exact freeform Partiful addresses", () => {
+  if (
+    !statusLocationIsExact(
+      "Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003",
+    )
+  ) {
+    throw new Error("Expected exact Materialize address to be treated as exact.");
+  }
+  if (statusLocationIsExact("New York, NY")) {
+    throw new Error("Expected generic city venue to stay non-exact.");
+  }
+});
+
+Deno.test("displayLocationForVenue does not let generic revealed venues hide exact queries", () => {
+  const display = displayLocationForVenue(
+    "New York, NY",
+    "SoHo",
+    "Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003",
+    "exact_from_partiful_freeform",
+  );
+  if (display !== "Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003") {
+    throw new Error(`Unexpected display location: ${display}`);
   }
 });
 

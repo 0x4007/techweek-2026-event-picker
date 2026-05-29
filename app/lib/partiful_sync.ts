@@ -917,11 +917,18 @@ function normalizeVenue(
   const mapsInfo = firstRecord(getPath(locationInfo, ["mapsInfo"]));
   const displayAddress = stringArray(getPath(locationInfo, ["displayAddressLines"])).join(", ");
   const mapsAddress = stringArray(getPath(mapsInfo, ["addressLines"])).join(", ");
+  const freeformLocation = firstString(
+    getPath(locationInfo, ["value"]),
+    getPath(locationInfo, ["freeformValue"]),
+    getPath(locationInfo, ["text"]),
+    getPath(locationInfo, ["description"]),
+  );
   const approximateLocation = firstString(
     getPath(locationInfo, ["approximateLocation"]),
     getPath(mapsInfo, ["approximateLocation"]),
   );
   const venueText = firstString(
+    freeformLocation,
     getPath(root, ["venue"]),
     getPath(root, ["location"]),
     getPath(eventRecord, ["location"]),
@@ -943,11 +950,18 @@ function normalizeVenue(
     getPath(root, ["appleMapsUrl"]),
     getPath(root, ["apple_maps_url"]),
   );
-  const precision = venuePrecision(root, locationInfo, mapsAddress, approximateLocation);
+  const precision = venuePrecision(
+    root,
+    locationInfo,
+    mapsAddress,
+    displayAddress,
+    approximateLocation,
+    freeformLocation,
+  );
 
   return {
     label: venueText,
-    address: mapsAddress || displayAddress || venueText,
+    address: bestVenueAddress(mapsAddress, displayAddress, freeformLocation, venueText),
     googleMapsUrl,
     appleMapsUrl,
     precision,
@@ -958,22 +972,75 @@ function venuePrecision(
   root: Record<string, unknown> | null,
   locationInfo: Record<string, unknown> | null,
   mapsAddress: string,
+  displayAddress: string,
   approximateLocation: string,
+  freeformLocation: string,
 ): PartifulVenuePrecision {
   const rawPrecision = statusKey(firstString(
     getPath(root, ["venuePrecision"]),
     getPath(root, ["venue_precision"]),
     getPath(locationInfo, ["type"]),
   ));
-  if (rawPrecision.includes("EXACT") || rawPrecision === "STRUCTURED") return "exact";
-  if (rawPrecision.includes("APPROX")) return "approximate";
   if (rawPrecision.includes("HIDDEN") || rawPrecision.includes("PRIVATE")) return "hidden";
   if (getPath(root, ["venue_revealed"]) === false || getPath(root, ["venueRevealed"]) === false) {
     return "hidden";
   }
-  if (mapsAddress) return "exact";
-  if (approximateLocation) return "approximate";
+  if (
+    looksLikeExactVenueText(mapsAddress) ||
+    looksLikeExactVenueText(displayAddress) ||
+    looksLikeExactVenueText(freeformLocation)
+  ) {
+    return "exact";
+  }
+  if (rawPrecision.includes("EXACT")) return "exact";
+  if (
+    rawPrecision.includes("APPROX") ||
+    rawPrecision === "STRUCTURED" ||
+    isUsefulVenueText(mapsAddress) ||
+    isUsefulVenueText(displayAddress) ||
+    isUsefulVenueText(freeformLocation) ||
+    isUsefulVenueText(approximateLocation)
+  ) {
+    return "approximate";
+  }
   return "unknown";
+}
+
+function bestVenueAddress(...values: string[]): string {
+  return values.find(looksLikeExactVenueText) ||
+    values.find(isUsefulVenueText) ||
+    values.find((value) => value.trim()) ||
+    "";
+}
+
+function looksLikeExactVenueText(value: string): boolean {
+  const text = value.trim();
+  if (!text) return false;
+  if (!isUsefulVenueText(text)) return false;
+  return /\d/.test(text) &&
+    /\b(new york|ny|ave|avenue|st|street|road|rd|blvd|boulevard|broadway|floor|fl|suite|ste)\b/i
+      .test(text);
+}
+
+function isUsefulVenueText(value: string): boolean {
+  const text = value.trim();
+  if (!text) return false;
+  const lower = text.toLowerCase().replace(/\s+/g, " ");
+  if (
+    [
+      "new york",
+      "new york, ny",
+      "new york city",
+      "new york, new york",
+      "new york, new york, ny",
+      "nyc",
+      "manhattan",
+      "brooklyn",
+    ].includes(lower)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 function normalizePlusOneState(

@@ -46,13 +46,20 @@ import {
 } from "./lib/routing.ts";
 import {
   cacheCounts,
+  deleteLatestResourceForUser,
   listCacheValues,
   readCacheValue,
-  readSharedChat,
+  readLatestResourceForUser,
+  readLatestResourceIdForUser,
+  readResource,
+  readResourceByHash,
   readStateEntry,
+  type ResourceIndex,
+  type ResourceType,
   storeHealth,
   writeCacheValue,
-  writeSharedChat,
+  writeLatestResourceForUser,
+  writeResourceIndex,
   writeStateValueIfVersion,
 } from "./lib/kv_store.ts";
 import {
@@ -67,9 +74,11 @@ import {
   createAccountSessionHandoff,
   finishAccountLogin,
   finishAccountRegistration,
+  getAccountUserByHandle,
   listAccountAgentTokens,
   loginWithAccountAgentToken,
   logoutAccountSession,
+  normalizeAccountHandle,
   requireAccountSession as requireStoredAccountSession,
   requireAdminAccountSession as requireStoredAdminAccountSession,
   revokeAccountAgentToken,
@@ -609,17 +618,46 @@ type SharedChatMessage = {
 };
 
 type SharedChatPayload = {
-  shareId: string;
-  createdAt: string;
-  createdByUserId: string;
   title: string;
   messages: SharedChatMessage[];
   messageCount: number;
-  deletedAt?: string;
-  deletedByUserId?: string;
 };
 
-const CHAT_SHARE_ID_PATTERN = /^[0-9a-f]{32}$/;
+type SharedAgendaPayload = {
+  timeZone: string;
+  activeAgenda: { summary: AgendaRecalculateResult["summary"] } | null;
+  next: ScheduleEntry | null;
+  counts: {
+    scheduleBlocks: number;
+    scheduleEvents: number;
+    referenceEvents: number;
+    eventBlocks: number;
+    travelBlocks: number;
+    eatingBlocks: number;
+    sleepingBlocks: number;
+    mealBlocks: number;
+  };
+  days: ReturnType<typeof groupByDay>;
+  referenceDays: ReturnType<typeof groupByDay>;
+};
+
+type SharedResourceResponse<T = unknown> = {
+  handle: string;
+  resourceType: ResourceType;
+  resourceId: string;
+  contentHash: string;
+  latest: boolean;
+  createdAt: string;
+  updatedAt: string;
+  latestUrl: string;
+  immutableUrl: string;
+  payload: T;
+};
+
+const RESOURCE_TYPES = new Set<ResourceType>(["chat", "agenda"]);
+const RESOURCE_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const RESOURCE_HASH_PATTERN = /^[0-9a-f]{64}$/i;
 
 type GatewayConfig = {
   token: string;
@@ -909,6 +947,28 @@ function json(data: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(data, null, 2), { ...init, headers });
 }
 
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(canonicalValue(value));
+}
+
+function canonicalValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  if (!value || typeof value !== "object") return value;
+  const output: Record<string, unknown> = {};
+  for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+    const item = (value as Record<string, unknown>)[key];
+    if (item === undefined) continue;
+    output[key] = canonicalValue(item);
+  }
+  return output;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function normalizeApiPath(pathname: string): string {
   return pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
 }
@@ -957,34 +1017,45 @@ async function authorizeApiRoute(request: Request, url: URL): Promise<Response |
   if (request.method === "GET" && pathname === "/api/account/invite") return null;
   if (request.method === "POST" && pathname === "/api/account/session/handoff") return null;
   if (request.method === "POST" && pathname === "/api/account/invite") return null;
-  if (request.method === "POST" && pathname === "/api/chat/share") return null;
-  if (request.method === "GET" && pathname.startsWith("/api/chat/share/")) return null;
-  if (request.method === "DELETE" && pathname.startsWith("/api/chat/share/")) return null;
+  if (request.method === "GET" && pathname.startsWith("/api/share/")) return null;
+  if (request.method === "POST" && pathname.startsWith("/api/resources/")) return null;
+  if (request.method === "DELETE" && pathname.startsWith("/api/resources/")) return null;
   return await requireAdminAccountSession(request);
 }
 
-function createSharedChatId(): string {
-  return crypto.randomUUID().replace(/-/g, "");
-}
-
-function isValidSharedChatId(shareId: string): boolean {
-  return CHAT_SHARE_ID_PATTERN.test(shareId);
-}
-
-function normalizeSharedChatId(rawShareId: string): string | null {
-  let shareId = "";
+function decodePathSegment(rawValue: string): string {
   try {
-    shareId = decodeURIComponent(rawShareId).toLowerCase();
+    return decodeURIComponent(rawValue);
   } catch {
-    return null;
+    return "";
   }
-  return isValidSharedChatId(shareId) ? shareId : null;
 }
 
-function isSoftDeletedSharedChat(
-  payload: SharedChatPayload,
-): payload is SharedChatPayload & { deletedAt: string } {
-  return typeof payload.deletedAt === "string" && payload.deletedAt.length > 0;
+function parseResourceType(value: string): ResourceType | null {
+  const resourceType = value.toLowerCase() as ResourceType;
+  return RESOURCE_TYPES.has(resourceType) ? resourceType : null;
+}
+
+function isResourceUuid(value: string): boolean {
+  return RESOURCE_UUID_PATTERN.test(value);
+}
+
+function isResourceHash(value: string): boolean {
+  return RESOURCE_HASH_PATTERN.test(value);
+}
+
+function parseSharePath(
+  pathname: string,
+  prefix: "/api/share/" | "/api/resources/",
+): { handle: string; resourceType: ResourceType; id: string; action?: string } | null {
+  const suffix = pathname.slice(prefix.length);
+  const parts = suffix.split("/").map(decodePathSegment).filter(Boolean);
+  if (parts.length < 3 || parts.length > 4) return null;
+  const handle = normalizeAccountHandle(parts[0] || "");
+  const resourceType = parseResourceType(parts[1] || "");
+  const id = parts[2] || "";
+  if (!handle || !resourceType || !id) return null;
+  return { handle, resourceType, id, action: parts[3] || "" };
 }
 
 function parseSharedChatSnapshot(
@@ -1027,76 +1098,193 @@ function sharedChatTitle(rawTitle: unknown, messages: SharedChatMessage[]): stri
   return textField(firstUser || firstAssistant || "Shared chat", 240);
 }
 
-async function handleChatShareCreate(request: Request): Promise<Response> {
+async function handleResourceShareCreate(
+  request: Request,
+  handle: string,
+  resourceType: ResourceType,
+): Promise<Response> {
   const authError = await requireAuthenticatedAccountSession(request);
   if (authError) return authError;
   const session = await readAccountSession(request);
   const user = session.user;
   if (!user) return json({ error: { message: "Account user unavailable." } }, { status: 401 });
-
-  const parsedBody = parseSharedChatSnapshot(await request.json().catch(() => null));
-  if (parsedBody instanceof Response) return parsedBody;
-
-  const shareId = createSharedChatId();
-  const payload: SharedChatPayload = {
-    shareId,
-    createdAt: new Date().toISOString(),
-    createdByUserId: user.id,
-    title: parsedBody.title,
-    messages: parsedBody.messages,
-    messageCount: parsedBody.messages.length,
-  };
-
-  const payloadBytes = CHAT_SHARE_TEXT_ENCODER.encode(JSON.stringify(payload)).byteLength;
-  if (payloadBytes > CHAT_SHARE_MAX_PAYLOAD_BYTES) {
-    return json({
-      error: {
-        message:
-          "This chat snapshot is too large to share. Please shorten or trim the chat before sharing.",
-      },
-    }, { status: 413 });
-  }
-
-  await writeSharedChat(shareId, payload);
-  return json({ shareId });
-}
-
-async function handleChatShareGet(rawShareId: string): Promise<Response> {
-  const shareId = normalizeSharedChatId(rawShareId);
-  if (!shareId) return notFound();
-
-  const payload = await readSharedChat<SharedChatPayload>(shareId);
-  if (!payload || isSoftDeletedSharedChat(payload)) return notFound();
-  return json(payload);
-}
-
-async function handleChatShareDelete(request: Request, rawShareId: string): Promise<Response> {
-  const authError = await requireAuthenticatedAccountSession(request);
-  if (authError) return authError;
-  const shareId = normalizeSharedChatId(rawShareId);
-  if (!shareId) return notFound();
-
-  const session = await readAccountSession(request);
-  const user = session.user;
-  if (!user) return json({ error: { message: "Account user unavailable." } }, { status: 401 });
-
-  const payload = await readSharedChat<SharedChatPayload>(shareId);
-  if (!payload || isSoftDeletedSharedChat(payload)) return notFound();
-  if (payload.createdByUserId !== user.id) {
-    return json({ error: { message: "Only the share creator can delete this chat." } }, {
+  if (normalizeAccountHandle(user.handle) !== handle) {
+    return json({ error: { message: "Only the resource owner can share this handle." } }, {
       status: 403,
     });
   }
 
-  const updatedPayload: SharedChatPayload = {
-    ...payload,
-    deletedAt: new Date().toISOString(),
-    deletedByUserId: user.id,
-    title: "",
-    messages: [],
-  };
-  await writeSharedChat(shareId, updatedPayload);
+  if (resourceType === "chat") {
+    const parsedBody = parseSharedChatSnapshot(await request.json().catch(() => null));
+    if (parsedBody instanceof Response) return parsedBody;
+    const payload: SharedChatPayload = {
+      title: parsedBody.title,
+      messages: parsedBody.messages,
+      messageCount: parsedBody.messages.length,
+    };
+    const payloadBytes = CHAT_SHARE_TEXT_ENCODER.encode(JSON.stringify(payload)).byteLength;
+    if (payloadBytes > CHAT_SHARE_MAX_PAYLOAD_BYTES) {
+      return json({
+        error: {
+          message:
+            "This chat snapshot is too large to share. Please shorten or trim the chat before sharing.",
+        },
+      }, { status: 413 });
+    }
+    const record = await upsertPublicResource(user, "chat", payload);
+    return json(publicResourceResponse(request, record, true), { status: 201 });
+  }
+
+  const payload = await currentAgendaSharePayload();
+  const record = await upsertPublicResource(user, "agenda", payload);
+  return json(publicResourceResponse(request, record, true), { status: 201 });
+}
+
+async function handleResourceShareGet(
+  request: Request,
+  handle: string,
+  resourceType: ResourceType,
+  id: string,
+): Promise<Response> {
+  const owner = await getAccountUserByHandle(handle);
+  if (!owner) return notFound();
+  const record = await resolvePublicResource(owner.id, resourceType, id);
+  if (!record || !record.isPublic || record.userId !== owner.id) return notFound();
+  return json(publicResourceResponse(request, record, id === "latest"));
+}
+
+async function handleResourceShareDelete(
+  request: Request,
+  handle: string,
+  resourceType: ResourceType,
+  id: string,
+): Promise<Response> {
+  const authError = await requireAuthenticatedAccountSession(request);
+  if (authError) return authError;
+  const session = await readAccountSession(request);
+  const user = session.user;
+  if (!user) return json({ error: { message: "Account user unavailable." } }, { status: 401 });
+  if (normalizeAccountHandle(user.handle) !== handle) {
+    return json({ error: { message: "Only the resource owner can update this handle." } }, {
+      status: 403,
+    });
+  }
+
+  if (id === "latest") {
+    await deleteLatestResourceForUser(user.id, resourceType);
+    return new Response(null, { status: 204 });
+  }
+
+  const record = await resolveOwnedResource(user.id, resourceType, id);
+  if (!record) return notFound();
+  await revokePublicResource(record);
   return new Response(null, { status: 204 });
+}
+
+async function resolvePublicResource<T>(
+  userId: string,
+  resourceType: ResourceType,
+  id: string,
+): Promise<ResourceIndex<T> | null> {
+  if (id === "latest") return await readLatestResourceForUser<T>(userId, resourceType);
+  return await resolveOwnedResource<T>(userId, resourceType, id);
+}
+
+async function resolveOwnedResource<T>(
+  userId: string,
+  resourceType: ResourceType,
+  id: string,
+): Promise<ResourceIndex<T> | null> {
+  const normalizedId = id.toLowerCase();
+  const record = isResourceHash(normalizedId)
+    ? await readResourceByHash<T>(resourceType, normalizedId, userId)
+    : isResourceUuid(normalizedId)
+    ? await readResource<T>(resourceType, normalizedId)
+    : null;
+  if (!record || record.userId !== userId || record.resourceType !== resourceType) return null;
+  return record;
+}
+
+async function upsertPublicResource<T>(
+  user: AccountSessionUser,
+  resourceType: ResourceType,
+  payload: T,
+): Promise<ResourceIndex<T>> {
+  const contentHash = await sha256Hex(canonicalJson(payload));
+  const existing = await readResourceByHash<T>(resourceType, contentHash, user.id);
+  const now = new Date().toISOString();
+  const record: ResourceIndex<T> = existing
+    ? {
+      ...existing,
+      handle: user.handle,
+      isPublic: true,
+      updatedAt: now,
+      payload,
+    }
+    : {
+      userId: user.id,
+      handle: user.handle,
+      resourceType,
+      resourceId: crypto.randomUUID(),
+      contentHash,
+      isPublic: true,
+      createdAt: now,
+      updatedAt: now,
+      payload,
+    };
+  await writeResourceIndex(record);
+  await writeLatestResourceForUser(user.id, resourceType, record.resourceId);
+  return record;
+}
+
+async function revokePublicResource<T>(record: ResourceIndex<T>): Promise<void> {
+  const latestId = await readLatestResourceIdForUser(record.userId, record.resourceType);
+  await writeResourceIndex({
+    ...record,
+    isPublic: false,
+    updatedAt: new Date().toISOString(),
+  });
+  if (latestId === record.resourceId) {
+    await deleteLatestResourceForUser(record.userId, record.resourceType);
+  }
+}
+
+function publicResourceResponse<T>(
+  request: Request,
+  record: ResourceIndex<T>,
+  latest: boolean,
+): SharedResourceResponse<T> {
+  const origin = requestOrigin(request);
+  return {
+    handle: record.handle,
+    resourceType: record.resourceType,
+    resourceId: record.resourceId,
+    contentHash: record.contentHash,
+    latest,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    latestUrl: `${origin}/share/${encodeURIComponent(record.handle)}/${record.resourceType}/latest`,
+    immutableUrl: `${origin}/share/${
+      encodeURIComponent(record.handle)
+    }/${record.resourceType}/${record.contentHash}`,
+    payload: record.payload,
+  };
+}
+
+async function currentAgendaSharePayload(): Promise<SharedAgendaPayload> {
+  const [entries, state] = await Promise.all([readAgendaCandidateEntries(), readState()]);
+  const activeAgenda = state.activeAgendaRunId
+    ? await readAgendaRun(state.activeAgendaRunId)
+    : null;
+  return buildAgendaSharePayload(entries, activeAgenda);
+}
+
+async function writeAgendaShareResourceForUser(
+  user: AccountSessionUser,
+  entries: ScheduleEntry[],
+  agenda: AgendaRecalculateResult,
+): Promise<ResourceIndex<SharedAgendaPayload>> {
+  return await upsertPublicResource(user, "agenda", buildAgendaSharePayload(entries, agenda));
 }
 
 async function handleAccountSessionHandoff(request: Request): Promise<Response> {
@@ -1625,18 +1813,70 @@ async function readAgendaCandidateEntries(): Promise<ScheduleEntry[]> {
   return mergeDiscoveredPartifulEntries(entries, partifulEvents);
 }
 
-function mergeDiscoveredPartifulEntries(
+export function mergeDiscoveredPartifulEntries(
   entries: ScheduleEntry[],
   partifulEvents: StoredPartifulEventRecord[],
 ): ScheduleEntry[] {
-  const existingIds = new Set(entries.map((entry) => entry.partifulId).filter(Boolean));
+  const liveByPartifulId = new Map<string, NormalizedPartifulEvent>();
+  for (const record of partifulEvents) {
+    const event = record.normalizedEvent;
+    if (event.partifulId) liveByPartifulId.set(event.partifulId, event);
+  }
+  const mergedEntries = entries.map((entry) =>
+    clobberEntryWithPartifulSync(entry, liveByPartifulId)
+  );
+  const existingIds = new Set(mergedEntries.map((entry) => entry.partifulId).filter(Boolean));
   const discovered = partifulEvents.flatMap((record) => {
     const event = record.normalizedEvent;
     if (!event.partifulId || existingIds.has(event.partifulId)) return [];
     const entry = scheduleEntryFromDiscoveredPartifulEvent(event);
     return entry ? [entry] : [];
   });
-  return [...entries, ...discovered].sort((a, b) => a.startEpochMs - b.startEpochMs);
+  return [...mergedEntries, ...discovered].sort((a, b) => a.startEpochMs - b.startEpochMs);
+}
+
+function clobberEntryWithPartifulSync(
+  entry: ScheduleEntry,
+  liveByPartifulId: Map<string, NormalizedPartifulEvent>,
+): ScheduleEntry {
+  if (!entry.partifulId) return entry;
+  const event = liveByPartifulId.get(entry.partifulId);
+  if (!event) return entry;
+  const venue = event.venue;
+  const liveVenue = venue ? bestPartifulVenueText(venue) : "";
+  const title = stripHashTechWeek(event.title);
+  const status = event.status === "unknown" ? entry.status : event.status;
+  return {
+    ...entry,
+    ...(status ? { status, statusLabel: statusLabelForScheduleStatus(status) } : {}),
+    ...(title
+      ? { title: statusPrefixedTitle(entry.title, title, status), displayTitle: title }
+      : {}),
+    ...(liveVenue
+      ? {
+        location: liveVenue,
+        venueQuery: liveVenue,
+        venuePrecision: `partiful_${venue?.precision || "unknown"}`,
+        googleMapsUrl: venue?.googleMapsUrl || entry.googleMapsUrl,
+      }
+      : {}),
+  };
+}
+
+function bestPartifulVenueText(venue: NormalizedPartifulEvent["venue"]): string {
+  if (!venue) return "";
+  return venue.address || venue.label || "";
+}
+
+function statusPrefixedTitle(
+  currentTitle: string,
+  liveTitle: string,
+  status: string,
+): string {
+  const prefix = currentTitle.match(/^\[[^\]]+\]\s*/)?.[0] || "";
+  if (prefix) return `${prefix}${liveTitle}`;
+  const label = statusLabelForScheduleStatus(status);
+  return label ? `[${label}] ${liveTitle}` : liveTitle;
 }
 
 function scheduleEntryFromDiscoveredPartifulEvent(
@@ -2499,6 +2739,42 @@ function buildSchedulePayload(
   };
 }
 
+function buildAgendaSharePayload(
+  entries: ScheduleEntry[],
+  activeAgenda: AgendaRecalculateResult | null = null,
+): SharedAgendaPayload {
+  const schedule = activeAgenda
+    ? activeAgenda.selectedBlocks.map((block) => agendaBlockToScheduleEntry(block, entries))
+    : entries.filter((entry) => entry.calendar === "schedule");
+  const reference = activeAgenda
+    ? referenceEntriesForAgenda(entries, activeAgenda)
+    : entries.filter((entry) => entry.calendar === "reference");
+  const scheduleEvents = schedule.filter((entry) => entry.blockType === "event");
+  const referenceEvents = reference.filter((entry) => entry.blockType === "event");
+
+  return {
+    timeZone: TIME_ZONE,
+    activeAgenda: activeAgenda
+      ? {
+        summary: activeAgenda.summary,
+      }
+      : null,
+    next: currentSchedulePointer(schedule),
+    counts: {
+      scheduleBlocks: schedule.length,
+      scheduleEvents: scheduleEvents.length,
+      referenceEvents: referenceEvents.length,
+      eventBlocks: schedule.filter((entry) => entry.blockType === "event").length,
+      travelBlocks: schedule.filter((entry) => entry.blockType === "travel").length,
+      eatingBlocks: schedule.filter((entry) => entry.blockType === "eating").length,
+      sleepingBlocks: schedule.filter((entry) => entry.blockType === "sleeping").length,
+      mealBlocks: schedule.filter((entry) => entry.blockType === "eating").length,
+    },
+    days: groupByDay(schedule),
+    referenceDays: groupByDay(reference),
+  };
+}
+
 type AgendaSelectedBlock = AgendaRecalculateResult["selectedBlocks"][number];
 
 function referenceEntriesForAgenda(
@@ -2866,6 +3142,9 @@ function csvCell(value: string): string {
 async function handleAgendaRecalculate(request: Request): Promise<Response> {
   const authorizationError = await requireAdminAccountSession(request);
   if (authorizationError) return authorizationError;
+  const session = await readAccountSession(request);
+  const user = session.user;
+  if (!user) return json({ error: { message: "Account user unavailable." } }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -2874,15 +3153,15 @@ async function handleAgendaRecalculate(request: Request): Promise<Response> {
   const raw = body as Record<string, unknown>;
   const result = await recalculateAgendaFromBody(raw);
   await storeAgendaRun(result);
+  const entries = await readAgendaCandidateEntries();
+  const resource = await writeAgendaShareResourceForUser(user, entries, result);
   const responseBody: Record<string, unknown> = { agenda: result };
+  responseBody.resource = publicResourceResponse(request, resource, true);
   if (raw.activate === true) {
-    const [entries, updatedState] = await Promise.all([
-      readAgendaCandidateEntries(),
-      mutateState(async (state, commit) => {
-        state.activeAgendaRunId = result.agendaRunId;
-        return await commit(state);
-      }),
-    ]);
+    const updatedState = await mutateState(async (state, commit) => {
+      state.activeAgendaRunId = result.agendaRunId;
+      return await commit(state);
+    });
     responseBody.schedule = buildSchedulePayload(entries, updatedState, result);
   }
   return json(responseBody);
@@ -6175,17 +6454,20 @@ export async function router(request: Request): Promise<Response> {
     if (request.method === "POST" && pathname === "/api/account/invite") {
       return await handleAccountInviteClaim(request);
     }
-    if (request.method === "POST" && pathname === "/api/chat/share") {
-      return await handleChatShareCreate(request);
+    if (request.method === "GET" && pathname.startsWith("/api/share/")) {
+      const route = parseSharePath(pathname, "/api/share/");
+      if (!route || route.action) return notFound();
+      return await handleResourceShareGet(request, route.handle, route.resourceType, route.id);
     }
-    if (request.method === "GET" && pathname.startsWith("/api/chat/share/")) {
-      return await handleChatShareGet(pathname.replace("/api/chat/share/", ""));
+    if (request.method === "POST" && pathname.startsWith("/api/resources/")) {
+      const route = parseSharePath(pathname, "/api/resources/");
+      if (!route || route.id !== "share" || route.action) return notFound();
+      return await handleResourceShareCreate(request, route.handle, route.resourceType);
     }
-    if (request.method === "DELETE" && pathname.startsWith("/api/chat/share/")) {
-      return await handleChatShareDelete(
-        request,
-        pathname.replace("/api/chat/share/", ""),
-      );
+    if (request.method === "DELETE" && pathname.startsWith("/api/resources/")) {
+      const route = parseSharePath(pathname, "/api/resources/");
+      if (!route || route.action) return notFound();
+      return await handleResourceShareDelete(request, route.handle, route.resourceType, route.id);
     }
     if (request.method === "GET" && url.pathname === "/api/schedule") return await handleSchedule();
     if (request.method === "POST" && url.pathname === "/api/agenda/recalculate") {

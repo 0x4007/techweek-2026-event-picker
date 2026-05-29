@@ -328,6 +328,16 @@ body > header > section {
   color: var(--bg);
 }
 
+[data-share-readonly] {
+  justify-self: end;
+  padding: 0 2px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 p,
 h1,
 h2,
@@ -470,6 +480,54 @@ article[data-entry] {
   background: var(--panel);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+}
+
+[data-resource-share] {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  background: var(--panel);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+[data-resource-share] > p {
+  min-height: 14px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+[data-resource-share] [data-actions] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+[data-resource-share-links] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+[data-resource-share-links] a,
+[data-resource-share-links] button {
+  min-height: 30px;
+  background: var(--soft);
+  color: var(--ink);
+  box-shadow: none;
+  font-size: 11px;
+}
+
+[data-resource-share-links] a {
+  justify-content: start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-resource-share-links] a:hover,
+[data-resource-share-links] button:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
 }
 
 [data-next-card] {
@@ -1748,7 +1806,8 @@ article[data-entry] > p {
   line-height: 1.3;
 }
 
-[data-chat-share-link] {
+[data-chat-share-link],
+[data-chat-share-immutable-link] {
   width: 100%;
   min-height: 30px;
   justify-content: start;
@@ -1763,7 +1822,8 @@ article[data-entry] > p {
   backdrop-filter: blur(18px);
 }
 
-[data-chat-share-link]:hover {
+[data-chat-share-link]:hover,
+[data-chat-share-immutable-link]:hover {
   color: var(--accent);
 }
 

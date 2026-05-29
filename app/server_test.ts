@@ -4,6 +4,7 @@ import {
   deriveLeadPriorityFromEvent,
   extractEmailAddress,
   fallbackAgentAnswer,
+  mergeDiscoveredPartifulEntries,
   normalizeLeadEmail,
   normalizeLeadPhone,
   parseCsv,
@@ -15,13 +16,11 @@ import {
   visibleAgentGatewayError,
 } from "./server.ts";
 import {
-  deleteSharedChat,
-  purgeSoftDeletedSharedChats,
-  readSharedChat,
+  readLatestResourceForUser,
+  readResourceByHash,
   readStateValue,
   setKvPathForTest,
   writeCacheValue,
-  writeSharedChat,
   writeStateValue,
 } from "./lib/kv_store.ts";
 
@@ -150,6 +149,59 @@ Deno.test("statusLabelForScheduleStatus follows live Partiful status", () => {
   assertEquals(statusLabelForScheduleStatus("registered", "PENDING"), "REG");
   assertEquals(statusLabelForScheduleStatus("PENDING_APPROVAL", "REG"), "PENDING");
   assertEquals(statusLabelForScheduleStatus("WAITLISTED_FOR_APPROVAL", "PENDING"), "WAITLIST");
+});
+
+Deno.test("mergeDiscoveredPartifulEntries clobbers matching entries with live Partiful venue", () => {
+  const merged = mergeDiscoveredPartifulEntries(
+    [scheduleEntry()],
+    [{
+      cacheId: "partiful:OF1vP5L8dtXKRtInyWKs",
+      syncedAt: "2026-05-29T12:00:00.000Z",
+      updatedAt: "2026-05-29T12:00:00.000Z",
+      normalizedEvent: {
+        partifulId: "OF1vP5L8dtXKRtInyWKs",
+        eventUrl: "https://partiful.com/e/OF1vP5L8dtXKRtInyWKs",
+        title: "Open Source Must Win - #NYTechWeek",
+        status: "registered",
+        rawStatus: "APPROVED",
+        rawEventStatus: "PUBLISHED",
+        description: "",
+        startAt: "2026-06-01T22:00:00.000Z",
+        endAt: "2026-06-02T01:00:00.000Z",
+        updatedAt: "2026-05-29T12:00:00.000Z",
+        approvedAt: "",
+        rsvpCount: 1,
+        guestCount: 20,
+        plusOne: "none",
+        venue: {
+          label: "Exact Venue, 123 Test St, New York, NY",
+          address: "123 Test St, New York, NY 10003",
+          googleMapsUrl: "https://maps.example/test",
+          appleMapsUrl: "",
+          precision: "exact",
+        },
+        source: "test",
+      },
+      mergedEvent: {
+        eventUrl: "https://partiful.com/e/OF1vP5L8dtXKRtInyWKs",
+        partifulEventUrl: "https://partiful.com/e/OF1vP5L8dtXKRtInyWKs",
+        partifulId: "OF1vP5L8dtXKRtInyWKs",
+        partifulRawStatus: "APPROVED",
+        partifulStatus: "APPROVED",
+        partifulSyncedAt: "2026-05-29T12:00:00.000Z",
+        status: "registered",
+        title: "Open Source Must Win",
+      },
+      statusChanged: false,
+      matchedBy: "partiful_id",
+    }],
+  );
+
+  assertEquals(merged[0].location, "123 Test St, New York, NY 10003");
+  assertEquals(merged[0].venueQuery, "123 Test St, New York, NY 10003");
+  assertEquals(merged[0].venuePrecision, "partiful_exact");
+  assertEquals(merged[0].googleMapsUrl, "https://maps.example/test");
+  assertEquals(merged[0].displayTitle, "Open Source Must Win");
 });
 
 Deno.test("buildLeadFollowUpEmailContent escapes HTML and includes event context", () => {
@@ -416,199 +468,233 @@ kvRouterTest("sensitive API routes reject unauthenticated requests at the router
   }
 });
 
-kvRouterTest("chat share creates an authenticated snapshot and reads it publicly", async () => {
-  useAccountSessionForTest({ id: "share_user_1", handle: "sharer" });
-  const create = await router(
-    new Request("http://localhost/api/chat/share", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        cookie: "techweek_session=share-session",
-      },
-      body: JSON.stringify({
-        title: "Investor prep",
-        messages: [
-          { role: "user", content: "What should I ask at the event?" },
-          { role: "assistant", content: "Lead with a concise founder question." },
-        ],
+kvRouterTest(
+  "chat resources create latest and immutable public links with hash dedupe",
+  async () => {
+    await seedAuthUser({ id: "share_user_1", handle: "sharer" });
+    useAccountSessionForTest({ id: "share_user_1", handle: "sharer" });
+    const snapshot = {
+      title: "Investor prep",
+      messages: [
+        { role: "user", content: "What should I ask at the event?" },
+        { role: "assistant", content: "Lead with a concise founder question." },
+      ],
+    };
+    const create = await router(
+      new Request("http://localhost/api/resources/sharer/chat/share", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "techweek_session=share-session",
+        },
+        body: JSON.stringify(snapshot),
       }),
-    }),
-  );
-  assertEquals(create.status, 200);
-  const createBody = await create.json() as Record<string, unknown>;
-  const shareId = String(createBody.shareId || "");
-  if (!/^[0-9a-f]{32}$/.test(shareId)) {
-    throw new Error(`Expected URL-safe chat share id, got ${shareId}`);
-  }
+    );
+    assertEquals(create.status, 201);
+    const createBody = await create.json() as Record<string, unknown>;
+    const hash = String(createBody.contentHash || "");
+    const resourceId = String(createBody.resourceId || "");
+    if (!/^[0-9a-f]{64}$/.test(hash)) throw new Error(`Expected SHA-256 hash, got ${hash}`);
+    if (!resourceId) throw new Error("Expected resourceId.");
+    if (!String(createBody.latestUrl || "").endsWith("/share/sharer/chat/latest")) {
+      throw new Error(`Expected latest URL, got ${String(createBody.latestUrl || "")}`);
+    }
+    if (!String(createBody.immutableUrl || "").endsWith(`/share/sharer/chat/${hash}`)) {
+      throw new Error(`Expected immutable URL, got ${String(createBody.immutableUrl || "")}`);
+    }
 
-  setAccountSessionForTest(null);
-  const readback = await router(
-    new Request(`http://localhost/api/chat/share/${shareId}`),
-  );
-  assertEquals(readback.status, 200);
-  const shared = await readback.json() as Record<string, unknown>;
-  assertEquals(shared.shareId, shareId);
-  assertEquals(shared.createdByUserId, "share_user_1");
-  assertEquals(shared.title, "Investor prep");
-  assertEquals(shared.messageCount, 2);
-  assertEquals(shared.messages, [
-    { role: "user", content: "What should I ask at the event?" },
-    { role: "assistant", content: "Lead with a concise founder question." },
-  ]);
+    const latestRecord = await readLatestResourceForUser("share_user_1", "chat");
+    assertEquals(latestRecord?.resourceId, resourceId);
+    assertEquals((await readResourceByHash("chat", hash, "share_user_1"))?.resourceId, resourceId);
 
-  const invalid = await router(new Request("http://localhost/api/chat/share/not-valid"));
-  assertEquals(invalid.status, 404);
-});
+    setAccountSessionForTest(null);
+    const latest = await router(new Request("http://localhost/api/share/sharer/chat/latest"));
+    assertEquals(latest.status, 200);
+    const latestBody = await latest.json() as Record<string, unknown>;
+    assertEquals(getPath(latestBody, ["payload", "title"]), "Investor prep");
+    assertEquals(getPath(latestBody, ["payload", "messageCount"]), 2);
+    assertEquals(getPath(latestBody, ["payload", "messages"]), snapshot.messages);
+    assertEquals(getPath(latestBody, ["payload", "createdByUserId"]), undefined);
 
-kvRouterTest("chat share rejects unauthenticated and oversized creates", async () => {
-  setAccountSessionForTest(null);
-  const unauthenticated = await router(
-    new Request("http://localhost/api/chat/share", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        messages: [{ role: "user", content: "Share this" }],
+    useAccountSessionForTest({ id: "share_user_1", handle: "sharer" });
+    const duplicate = await router(
+      new Request("http://localhost/api/resources/sharer/chat/share", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "techweek_session=share-session",
+        },
+        body: JSON.stringify(snapshot),
       }),
-    }),
-  );
-  assertEquals(unauthenticated.status, 401);
-  const unauthenticatedBody = await unauthenticated.json() as Record<string, unknown>;
-  assertEquals(getPath(unauthenticatedBody, ["error", "message"]), "Authentication required.");
+    );
+    assertEquals(duplicate.status, 201);
+    const duplicateBody = await duplicate.json() as Record<string, unknown>;
+    assertEquals(duplicateBody.resourceId, resourceId);
+    assertEquals(duplicateBody.contentHash, hash);
 
-  useAccountSessionForTest({ id: "share_user_2", handle: "oversized" });
-  const oversized = await router(
-    new Request("http://localhost/api/chat/share", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        cookie: "techweek_session=share-session",
-      },
-      body: JSON.stringify({
-        messages: [{ role: "user", content: "x".repeat(70_000) }],
+    const changed = await router(
+      new Request("http://localhost/api/resources/sharer/chat/share", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "techweek_session=share-session",
+        },
+        body: JSON.stringify({
+          ...snapshot,
+          messages: [...snapshot.messages, { role: "user", content: "What changed?" }],
+        }),
       }),
-    }),
-  );
-  assertEquals(oversized.status, 413);
-  const oversizedBody = await oversized.json() as Record<string, unknown>;
-  if (!String(getPath(oversizedBody, ["error", "message"]) || "").includes("too large")) {
-    throw new Error("Expected oversized chat share response to include size guidance.");
-  }
-});
+    );
+    assertEquals(changed.status, 201);
+    const changedBody = await changed.json() as Record<string, unknown>;
+    if (changedBody.contentHash === hash || changedBody.resourceId === resourceId) {
+      throw new Error("Expected changed chat payload to create a new immutable resource.");
+    }
 
-kvRouterTest("chat share owner can soft-delete and hide from public GET", async () => {
-  useAccountSessionForTest({ id: "share_owner_1", handle: "sharer" });
-  const create = await router(
-    new Request("http://localhost/api/chat/share", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        cookie: "techweek_session=share-session",
-      },
-      body: JSON.stringify({
-        title: "Investor prep",
-        messages: [
-          { role: "user", content: "What should I ask at the event?" },
-          { role: "assistant", content: "Lead with a concise founder question." },
-        ],
+    setAccountSessionForTest(null);
+    const immutable = await router(new Request(`http://localhost/api/share/sharer/chat/${hash}`));
+    assertEquals(immutable.status, 200);
+    const immutableBody = await immutable.json() as Record<string, unknown>;
+    assertEquals(getPath(immutableBody, ["payload", "messages"]), snapshot.messages);
+  },
+);
+
+kvRouterTest(
+  "resource writes reject unauthenticated users, oversized chats, and non-owner deletes",
+  async () => {
+    await seedAuthUser({ id: "share_owner_2", handle: "sharer-two" });
+    await seedAuthUser({ id: "share_other_2", handle: "not-owner" });
+
+    setAccountSessionForTest(null);
+    const unauthenticated = await router(
+      new Request("http://localhost/api/resources/sharer-two/chat/share", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ messages: [{ role: "user", content: "Share this" }] }),
       }),
-    }),
-  );
-  assertEquals(create.status, 200);
-  const createBody = await create.json() as Record<string, unknown>;
-  const shareId = String(createBody.shareId || "");
-  if (!/^[0-9a-f]{32}$/.test(shareId)) {
-    throw new Error(`Expected URL-safe chat share id, got ${shareId}`);
-  }
+    );
+    assertEquals(unauthenticated.status, 401);
 
-  const deleted = await router(
-    new Request(`http://localhost/api/chat/share/${shareId}`, {
-      method: "DELETE",
-      headers: { cookie: "techweek_session=share-session" },
-    }),
-  );
-  assertEquals(deleted.status, 204);
-
-  setAccountSessionForTest(null);
-  const hidden = await router(new Request(`http://localhost/api/chat/share/${shareId}`));
-  assertEquals(hidden.status, 404);
-});
-
-kvRouterTest("chat share delete denies non-owners and missing shares", async () => {
-  useAccountSessionForTest({ id: "share_owner_2", handle: "sharer-two" });
-  const create = await router(
-    new Request("http://localhost/api/chat/share", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        cookie: "techweek_session=share-session",
-      },
-      body: JSON.stringify({
-        title: "Investor prep",
-        messages: [
-          { role: "user", content: "What should I ask at the event?" },
-          { role: "assistant", content: "Lead with a concise founder question." },
-        ],
+    useAccountSessionForTest({ id: "share_owner_2", handle: "sharer-two" });
+    const oversized = await router(
+      new Request("http://localhost/api/resources/sharer-two/chat/share", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "techweek_session=share-session",
+        },
+        body: JSON.stringify({ messages: [{ role: "user", content: "x".repeat(70_000) }] }),
       }),
-    }),
-  );
-  assertEquals(create.status, 200);
-  const createBody = await create.json() as Record<string, unknown>;
-  const shareId = String(createBody.shareId || "");
-  useAccountSessionForTest({ id: "share_other_2", handle: "not-owner" });
+    );
+    assertEquals(oversized.status, 413);
 
-  const forbidden = await router(
-    new Request(`http://localhost/api/chat/share/${shareId}`, {
-      method: "DELETE",
-      headers: { cookie: "techweek_session=share-session" },
-    }),
-  );
-  assertEquals(forbidden.status, 403);
+    const create = await router(
+      new Request("http://localhost/api/resources/sharer-two/chat/share", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "techweek_session=share-session",
+        },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: "Owner only" }],
+        }),
+      }),
+    );
+    assertEquals(create.status, 201);
+    const createBody = await create.json() as Record<string, unknown>;
+    const hash = String(createBody.contentHash || "");
 
-  const missing = await router(
-    new Request(
-      "http://localhost/api/chat/share/00000000000000000000000000000000",
-      {
+    useAccountSessionForTest({ id: "share_other_2", handle: "not-owner" });
+    const forbidden = await router(
+      new Request(`http://localhost/api/resources/sharer-two/chat/${hash}`, {
         method: "DELETE",
         headers: { cookie: "techweek_session=share-session" },
-      },
-    ),
+      }),
+    );
+    assertEquals(forbidden.status, 403);
+
+    useAccountSessionForTest({ id: "share_owner_2", handle: "sharer-two" });
+    const revokeLatest = await router(
+      new Request("http://localhost/api/resources/sharer-two/chat/latest", {
+        method: "DELETE",
+        headers: { cookie: "techweek_session=share-session" },
+      }),
+    );
+    assertEquals(revokeLatest.status, 204);
+    setAccountSessionForTest(null);
+    assertEquals(
+      (await router(new Request("http://localhost/api/share/sharer-two/chat/latest"))).status,
+      404,
+    );
+
+    useAccountSessionForTest({ id: "share_owner_2", handle: "sharer-two" });
+    const revokeHash = await router(
+      new Request(`http://localhost/api/resources/sharer-two/chat/${hash}`, {
+        method: "DELETE",
+        headers: { cookie: "techweek_session=share-session" },
+      }),
+    );
+    assertEquals(revokeHash.status, 204);
+    setAccountSessionForTest(null);
+    assertEquals(
+      (await router(new Request(`http://localhost/api/share/sharer-two/chat/${hash}`))).status,
+      404,
+    );
+  },
+);
+
+kvRouterTest("agenda recalculation creates a share-safe latest resource", async () => {
+  await seedAuthUser({ id: "admin_123", handle: "admin", isAdmin: true });
+  useAdminSessionForTest();
+  const response = await router(
+    new Request("http://localhost/api/agenda/recalculate", {
+      method: "POST",
+      headers: ADMIN_STATE_HEADERS,
+      body: JSON.stringify({
+        activate: true,
+        liveRouting: false,
+        overrides: { excludedEventIds: ["TW-6408"] },
+      }),
+    }),
   );
-  assertEquals(missing.status, 404);
-});
+  assertEquals(response.status, 200);
+  const body = await response.json() as Record<string, unknown>;
+  const hash = String(getPath(body, ["resource", "contentHash"]) || "");
+  const resourceId = String(getPath(body, ["resource", "resourceId"]) || "");
+  if (!/^[0-9a-f]{64}$/.test(hash)) throw new Error(`Expected agenda hash, got ${hash}`);
+  if (!resourceId) throw new Error("Expected agenda resource id.");
 
-kvRouterTest("soft-deleted shared chats are hard-deleted during cleanup", async () => {
-  await writeSharedChat("share_keep", {
-    shareId: "share_keep",
-    createdAt: "2026-05-20T12:00:00.000Z",
-    createdByUserId: "owner_keep",
-    title: "Visible chat",
-    messages: [{ role: "user", content: "Keep this" }],
-    messageCount: 1,
-  });
-  await writeSharedChat("share_delete", {
-    shareId: "share_delete",
-    createdAt: "2026-05-20T12:00:00.000Z",
-    createdByUserId: "owner_delete",
-    title: "Deleted chat",
-    messages: [{ role: "user", content: "Delete this" }],
-    messageCount: 1,
-    deletedAt: "2026-05-21T12:00:00.000Z",
-    deletedByUserId: "owner_delete",
-  });
+  setAccountSessionForTest(null);
+  const latest = await router(new Request("http://localhost/api/share/admin/agenda/latest"));
+  assertEquals(latest.status, 200);
+  const latestBody = await latest.json() as Record<string, unknown>;
+  assertEquals(getPath(latestBody, ["contentHash"]), hash);
+  if (!Array.isArray(getPath(latestBody, ["payload", "days"]))) {
+    throw new Error("Expected shared agenda days.");
+  }
+  assertEquals(getPath(latestBody, ["payload", "state"]), undefined);
+  assertEquals(getPath(latestBody, ["payload", "sync"]), undefined);
+  assertEquals(getPath(latestBody, ["payload", "email"]), undefined);
 
-  const removed = await purgeSoftDeletedSharedChats();
-  assertEquals(removed, 1);
-  assertEquals(await readSharedChat("share_keep"), {
-    shareId: "share_keep",
-    createdAt: "2026-05-20T12:00:00.000Z",
-    createdByUserId: "owner_keep",
-    title: "Visible chat",
-    messages: [{ role: "user", content: "Keep this" }],
-    messageCount: 1,
-  });
-  assertEquals(await readSharedChat("share_delete"), null);
+  const immutable = await router(new Request(`http://localhost/api/share/admin/agenda/${hash}`));
+  assertEquals(immutable.status, 200);
+  const immutableBody = await immutable.json() as Record<string, unknown>;
+  assertEquals(
+    getPath(immutableBody, ["payload", "days"]),
+    getPath(latestBody, ["payload", "days"]),
+  );
 
-  await deleteSharedChat("share_keep");
+  useAdminSessionForTest();
+  const duplicate = await router(
+    new Request("http://localhost/api/resources/admin/agenda/share", {
+      method: "POST",
+      headers: { cookie: "techweek_session=test-session" },
+    }),
+  );
+  assertEquals(duplicate.status, 201);
+  const duplicateBody = await duplicate.json() as Record<string, unknown>;
+  assertEquals(duplicateBody.contentHash, hash);
+  assertEquals(duplicateBody.resourceId, resourceId);
 });
 
 kvRouterTest("Google Calendar write sync endpoint is removed", async () => {

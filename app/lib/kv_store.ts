@@ -11,6 +11,27 @@ export type StateValueSnapshot<T> = {
   versionstamp: string | null;
 };
 
+export type ResourceType = "chat" | "agenda";
+
+export type ResourceIndex<T = unknown> = {
+  userId: string;
+  handle: string;
+  resourceType: ResourceType;
+  resourceId: string;
+  contentHash: string;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+  payload: T;
+};
+
+type ResourceHashLookup = {
+  resourceType: ResourceType;
+  contentHash: string;
+  resourceIds: string[];
+  updatedAt: string;
+};
+
 export const PUBLIC_STORE_HEALTH_ERROR = "state store unavailable";
 
 type KvCacheRecord<T = unknown> = {
@@ -84,38 +105,6 @@ export async function readStateEntry<T>(key: string): Promise<StateValueSnapshot
   };
 }
 
-export async function readSharedChat<T>(shareId: string): Promise<T | null> {
-  const kv = await getKv();
-  const result = await kv.get<T>(["shared_chat", shareId]);
-  if (result.value === null) return null;
-  return await readKvJsonValue<T>(kv, ["shared_chat", shareId], result.value);
-}
-
-export async function listSharedChats<T>(limit = 1000): Promise<
-  Array<{ shareId: string; value: T }>
-> {
-  const kv = await getKv();
-  const entries: Array<{ shareId: string; value: T }> = [];
-  const maxEntries = Number.isFinite(limit) && limit > 0 ? Math.trunc(limit) : null;
-  for await (const entry of kv.list<unknown>({ prefix: ["shared_chat"] })) {
-    const shareId = typeof entry.key[1] === "string" ? entry.key[1] : "";
-    if (!shareId) continue;
-    let value: T | null = null;
-    try {
-      value = await readKvJsonValue<T>(kv, entry.key, entry.value);
-    } catch {
-      continue;
-    }
-    if (!value || typeof value !== "object") continue;
-    const record = value as Record<string, unknown>;
-    const recordShareId = typeof record.shareId === "string" ? record.shareId : "";
-    if (recordShareId !== shareId) continue;
-    entries.push({ shareId, value });
-    if (maxEntries !== null && entries.length >= maxEntries) break;
-  }
-  return entries;
-}
-
 export async function writeStateValue<T>(key: string, value: T): Promise<void> {
   const kv = await getKv();
   const logicalKey = stateKey(key);
@@ -140,32 +129,6 @@ export async function writeStateValueIfVersion<T>(
   if (result.ok) return result.versionstamp;
   await cleanupPreparedChunks(kv, logicalKey, prepared);
   return null;
-}
-
-export async function writeSharedChat<T>(shareId: string, value: T): Promise<void> {
-  const kv = await getKv();
-  const key = ["shared_chat", shareId];
-  try {
-    await kv.set(key, value);
-    return;
-  } catch (error) {
-    if (!isQuotaExceededError(error)) throw error;
-    await purgeSoftDeletedSharedChatsInStore(kv, 200);
-    await kv.set(key, value);
-  }
-}
-
-export async function deleteSharedChat(shareId: string): Promise<void> {
-  const kv = await getKv();
-  const key: Deno.KvKey = ["shared_chat", shareId];
-  const current = await kv.get<unknown>(key);
-  if (current.value === null) return;
-  await deleteStoredValue(kv, key, current.value);
-}
-
-export async function purgeSoftDeletedSharedChats(limit = 200): Promise<number> {
-  const kv = await getKv();
-  return await purgeSoftDeletedSharedChatsInStore(kv, limit);
 }
 
 export async function readCacheValue<T>(namespace: string, cacheId: string): Promise<T | null> {
@@ -248,6 +211,110 @@ export async function cacheCounts(namespaces: readonly string[]): Promise<Record
   return counts;
 }
 
+export async function readResource<T>(
+  resourceType: ResourceType,
+  resourceId: string,
+): Promise<ResourceIndex<T> | null> {
+  const kv = await getKv();
+  const key = resourceKey(resourceType, resourceId);
+  const result = await kv.get<unknown>(key);
+  if (result.value === null) return null;
+  return await readKvJsonValue<ResourceIndex<T>>(kv, key, result.value);
+}
+
+export async function readResourceByHash<T>(
+  resourceType: ResourceType,
+  contentHash: string,
+  userId?: string,
+): Promise<ResourceIndex<T> | null> {
+  const kv = await getKv();
+  const lookupKey = resourceHashKey(resourceType, contentHash);
+  const lookupResult = await kv.get<unknown>(lookupKey);
+  const lookup = lookupResult.value === null
+    ? null
+    : await readKvJsonValue<ResourceHashLookup>(kv, lookupKey, lookupResult.value);
+  const ids = Array.isArray(lookup?.resourceIds) ? lookup.resourceIds : [];
+  for (const resourceId of ids) {
+    const resource = await readResource<T>(resourceType, resourceId);
+    if (!resource) continue;
+    if (resource.contentHash !== contentHash) continue;
+    if (userId && resource.userId !== userId) continue;
+    return resource;
+  }
+  return null;
+}
+
+export async function readLatestResourceForUser<T>(
+  userId: string,
+  resourceType: ResourceType,
+): Promise<ResourceIndex<T> | null> {
+  const resourceId = await readLatestResourceIdForUser(userId, resourceType);
+  return resourceId ? await readResource<T>(resourceType, resourceId) : null;
+}
+
+export async function readLatestResourceIdForUser(
+  userId: string,
+  resourceType: ResourceType,
+): Promise<string> {
+  const kv = await getKv();
+  const result = await kv.get<string>(latestResourceKey(userId, resourceType));
+  return typeof result.value === "string" ? result.value : "";
+}
+
+export async function writeResourceIndex<T>(record: ResourceIndex<T>): Promise<void> {
+  const kv = await getKv();
+  const key = resourceKey(record.resourceType, record.resourceId);
+  const previous = await kv.get<unknown>(key);
+  const prepared = await prepareKvJsonValue(kv, key, record);
+  try {
+    await kv.set(key, prepared.value);
+  } catch (error) {
+    await cleanupPreparedChunks(kv, key, prepared);
+    if (!isQuotaExceededError(error)) throw error;
+    await kv.set(key, record);
+  }
+  await cleanupReplacedChunks(kv, key, previous.value, prepared);
+  await appendResourceHashLookup(kv, record.resourceType, record.contentHash, record.resourceId);
+}
+
+export async function writeLatestResourceForUser(
+  userId: string,
+  resourceType: ResourceType,
+  resourceId: string,
+): Promise<void> {
+  const kv = await getKv();
+  await kv.set(latestResourceKey(userId, resourceType), resourceId);
+}
+
+export async function deleteLatestResourceForUser(
+  userId: string,
+  resourceType: ResourceType,
+): Promise<void> {
+  const kv = await getKv();
+  await kv.delete(latestResourceKey(userId, resourceType));
+}
+
+async function appendResourceHashLookup(
+  kv: Deno.Kv,
+  resourceType: ResourceType,
+  contentHash: string,
+  resourceId: string,
+): Promise<void> {
+  const key = resourceHashKey(resourceType, contentHash);
+  const result = await kv.get<unknown>(key);
+  const existing = result.value === null
+    ? null
+    : await readKvJsonValue<ResourceHashLookup>(kv, key, result.value);
+  const ids = Array.isArray(existing?.resourceIds) ? existing.resourceIds : [];
+  const record: ResourceHashLookup = {
+    resourceType,
+    contentHash,
+    resourceIds: ids.includes(resourceId) ? ids : [...ids, resourceId],
+    updatedAt: new Date().toISOString(),
+  };
+  await kv.set(key, record);
+}
+
 function cachePrefix(namespace: string): Deno.KvKey {
   return ["cache", namespace];
 }
@@ -258,42 +325,6 @@ function stateKey(key: string): Deno.KvKey {
 
 function cacheKey(namespace: string, cacheId: string): Deno.KvKey {
   return [...cachePrefix(namespace), cacheId];
-}
-
-async function purgeSoftDeletedSharedChatsInStore(
-  kv: Deno.Kv,
-  limit = 200,
-): Promise<number> {
-  const sharedChats = await listSharedChats<unknown>(0);
-  const softDeleted = sharedChats
-    .map((item) => {
-      const value = item.value as Record<string, unknown>;
-      return {
-        key: ["shared_chat", item.shareId] as Deno.KvKey,
-        deletedAt: typeof value.deletedAt === "string" ? value.deletedAt : "",
-      };
-    })
-    .filter((item) => item.deletedAt);
-
-  softDeleted.sort((left, right) => {
-    const leftAt = Date.parse(left.deletedAt || "");
-    const rightAt = Date.parse(right.deletedAt || "");
-    if (Number.isNaN(leftAt) && Number.isNaN(rightAt)) return 0;
-    if (Number.isNaN(leftAt)) return 1;
-    if (Number.isNaN(rightAt)) return -1;
-    return leftAt - rightAt;
-  });
-
-  const cleanupTargets = limit > 0 ? softDeleted.slice(0, limit) : softDeleted;
-  await Promise.all(
-    cleanupTargets.map(async (entry) => {
-      const current = await kv.get<unknown>(entry.key);
-      if (current.value !== null) {
-        await deleteStoredValue(kv, entry.key, current.value);
-      }
-    }),
-  );
-  return cleanupTargets.length;
 }
 
 function isQuotaExceededError(error: unknown): boolean {
@@ -470,6 +501,18 @@ async function cleanupStoredChunks(
 function chunkKey(logicalKey: Deno.KvKey, chunkId: string, index: number): Deno.KvKey {
   const prefix: Deno.KvKey = ["chunk", ...logicalKey];
   return chunkId ? [...prefix, chunkId, index] : [...prefix, index];
+}
+
+function resourceKey(resourceType: ResourceType, resourceId: string): Deno.KvKey {
+  return ["resource", resourceType, resourceId];
+}
+
+function latestResourceKey(userId: string, resourceType: ResourceType): Deno.KvKey {
+  return ["latestResourceByUser", userId, resourceType];
+}
+
+function resourceHashKey(resourceType: ResourceType, contentHash: string): Deno.KvKey {
+  return ["resourceByHash", resourceType, contentHash];
 }
 
 function bytesValue(value: unknown): Uint8Array | null {

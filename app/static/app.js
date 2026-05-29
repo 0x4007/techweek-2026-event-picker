@@ -160,6 +160,13 @@ const state = {
   sharedChatId: "",
   sharedMessages: [],
   sharedModeError: "",
+  publicShareMode: false,
+  sharedResourceType: "",
+  sharedResourceHandle: "",
+  sharedResourceId: "",
+  sharedResourceHash: "",
+  sharedLatestUrl: "",
+  sharedImmutableUrl: "",
 };
 const initialNavigation = readHashNavigation();
 state.activeView = initialNavigation.view || state.activeView;
@@ -182,11 +189,25 @@ const chatShareResult = document.querySelector("[data-chat-share-result]");
 const chatShareStatus = document.querySelector("[data-chat-share-status]");
 const chatShareLink = document.querySelector("[data-chat-share-link]");
 const chatShareCopyButton = document.querySelector("[data-chat-share-copy]");
+const chatShareImmutableLink = document.querySelector("[data-chat-share-immutable-link]");
+const chatShareImmutableCopyButton = document.querySelector("[data-chat-share-copy-immutable]");
+const chatShareRevokeButton = document.querySelector("[data-chat-share-revoke]");
 const chatHistory = document.querySelector("[data-chat-history]");
 const chatHistoryToggle = document.querySelector("[data-chat-history-toggle]");
 const chatSharedNotice = document.querySelector("[data-chat-shared]");
 const chatSharedMessage = document.querySelector("[data-chat-shared-message]");
 const chatForkButton = document.querySelector("[data-chat-fork]");
+const readOnlyShareIndicator = document.querySelector("[data-share-readonly]");
+const agendaShareControls = document.querySelector("[data-agenda-share-controls]");
+const agendaShareButton = document.querySelector("[data-agenda-share]");
+const agendaShareRevokeButton = document.querySelector("[data-agenda-share-revoke]");
+const agendaShareStatus = document.querySelector("[data-agenda-share-status]");
+const agendaShareLatestLink = document.querySelector("[data-agenda-share-latest-link]");
+const agendaShareLatestCopyButton = document.querySelector("[data-agenda-share-copy-latest]");
+const agendaShareImmutableLink = document.querySelector("[data-agenda-share-immutable-link]");
+const agendaShareImmutableCopyButton = document.querySelector(
+  "[data-agenda-share-copy-immutable]",
+);
 const devChatOpenButton = document.querySelector("[data-dev-chat-open]");
 const devChatDrawer = document.querySelector("[data-dev-agent-drawer]");
 const devChatBackdrop = document.querySelector("[data-dev-agent-backdrop]");
@@ -434,11 +455,36 @@ chatShareCopyButton?.addEventListener("click", () => {
     void copyText(chatShareLink.textContent || chatShareLink.href);
   }
 });
+chatShareImmutableCopyButton?.addEventListener("click", () => {
+  if (chatShareImmutableLink && !chatShareImmutableLink.hidden && chatShareImmutableLink.href) {
+    void copyText(chatShareImmutableLink.href);
+  }
+});
+chatShareRevokeButton?.addEventListener("click", () => {
+  void revokeLatestShare("chat");
+});
+agendaShareButton?.addEventListener("click", () => {
+  void createAgendaShare();
+});
+agendaShareRevokeButton?.addEventListener("click", () => {
+  void revokeLatestShare("agenda");
+});
+agendaShareLatestCopyButton?.addEventListener("click", () => {
+  if (agendaShareLatestLink && !agendaShareLatestLink.hidden && agendaShareLatestLink.href) {
+    void copyText(agendaShareLatestLink.href);
+  }
+});
+agendaShareImmutableCopyButton?.addEventListener("click", () => {
+  if (
+    agendaShareImmutableLink && !agendaShareImmutableLink.hidden && agendaShareImmutableLink.href
+  ) {
+    void copyText(agendaShareImmutableLink.href);
+  }
+});
 chatHistoryToggle.addEventListener("click", toggleChatHistory);
 chatForkButton?.addEventListener("click", forkSharedChat);
 chatBackdrop.addEventListener("click", closeChat);
 if (devAgentEnabled) {
-  devChatOpenButton.hidden = false;
   devChatOpenButton.addEventListener("click", openDevChat);
   devChatCloseButton.addEventListener("click", closeDevChat);
   devChatNewButton.addEventListener("click", startNewDevThread);
@@ -522,16 +568,21 @@ globalThis.addEventListener("hashchange", () => {
 hydrateChatHistory();
 renderChat();
 renderAccountButton();
+updateAuthenticatedCtas();
 syncTranscriptInputMinHeight();
 capturePendingReferralFromUrl();
-void initializeSharedChatFromLocation();
-void loadAccountSession();
+const initialSharePath = sharePathFromLocation();
+if (initialSharePath) {
+  void initializeSharedResourceFromLocation(initialSharePath);
+} else {
+  void loadAccountSession();
+}
 
 chatForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const input = chatForm.elements.prompt;
   const prompt = input.value.trim();
-  if (state.sharedMode) return;
+  if (state.sharedMode || !canUseAiFeatures()) return;
   if (!prompt) return;
   input.value = "";
   updateComposerState();
@@ -546,7 +597,12 @@ updateComposerState();
 function handleChatKeydown(event) {
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
   event.preventDefault();
-  if (state.sharedMode || state.agentBusy || !chatForm.elements.prompt.value.trim()) return;
+  if (
+    state.sharedMode || !canUseAiFeatures() || state.agentBusy ||
+    !chatForm.elements.prompt.value.trim()
+  ) {
+    return;
+  }
   chatForm.requestSubmit();
 }
 
@@ -555,26 +611,30 @@ function updateComposerState() {
   const send = chatForm.querySelector("button[type='submit']");
   input.style.height = "auto";
   input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
-  input.disabled = state.sharedMode || state.agentBusy;
-  send.disabled = state.sharedMode || state.agentBusy || !input.value.trim();
+  const readOnly = state.sharedMode || !canUseAiFeatures();
+  input.disabled = readOnly || state.agentBusy;
+  send.disabled = readOnly || state.agentBusy || !input.value.trim();
   if (chatHistoryToggle) {
-    chatHistoryToggle.hidden = state.sharedMode;
-    chatHistoryToggle.disabled = state.sharedMode || state.agentBusy;
+    chatHistoryToggle.hidden = readOnly;
+    chatHistoryToggle.disabled = readOnly || state.agentBusy;
   }
   if (chatShareButton) {
-    chatShareButton.disabled = state.sharedMode || state.agentBusy || !state.messages.length;
+    chatShareButton.disabled = readOnly || state.agentBusy || !state.messages.length;
   }
   if (chatSharedNotice) {
-    chatSharedNotice.hidden = !state.sharedMode;
+    chatSharedNotice.hidden = !readOnly;
   }
-  if (chatSharedMessage && state.sharedMode) {
-    chatSharedMessage.textContent = state.sharedChatId
+  if (chatSharedMessage && readOnly) {
+    chatSharedMessage.textContent = state.sharedResourceType === "agenda"
+      ? "You are viewing a read-only shared agenda."
+      : state.sharedChatId
       ? `You are viewing shared chat ${state.sharedChatId}. Fork this chat to continue privately.`
       : "You are viewing a shared chat. Fork this chat to continue privately.";
   }
   if (chatForkButton) {
     chatForkButton.hidden = !state.sharedMode;
   }
+  renderReadOnlyShareMode();
 }
 
 function handleDevChatKeydown(event) {
@@ -738,6 +798,10 @@ function applyAccountSession(session) {
   if (changed) persistMessages();
 
   state.accountSession = normalized;
+  if (normalized.authenticated !== true && !state.sharedMode) {
+    closeChat();
+    closeDevChat();
+  }
   if (changed) {
     loadChatStorageForAccount(nextStorageId);
     if (preservedSharedState) {
@@ -806,6 +870,34 @@ function renderAccountButton() {
     : setupRequired
     ? "Set up"
     : "Sign in";
+  updateAuthenticatedCtas();
+}
+
+function updateAuthenticatedCtas() {
+  const authenticated = canUseAiFeatures();
+  document.body.dataset.authenticated = authenticated ? "true" : "false";
+  chatOpenButtons.forEach((button) => {
+    button.hidden = !authenticated;
+    button.disabled = !authenticated;
+  });
+  if (devChatOpenButton) {
+    devChatOpenButton.hidden = !authenticated || !devAgentEnabled;
+    devChatOpenButton.disabled = !authenticated || !devAgentEnabled;
+  }
+  if (cardScanButton) {
+    cardScanButton.hidden = !authenticated;
+    cardScanButton.setAttribute("aria-disabled", String(!authenticated));
+  }
+  if (cardInput) cardInput.disabled = !authenticated;
+  if (transcriptButton) {
+    transcriptButton.hidden = !authenticated;
+    transcriptButton.disabled = !authenticated;
+  }
+  if (transcriptInput) transcriptInput.disabled = !authenticated;
+}
+
+function canUseAiFeatures() {
+  return state.accountSession?.authenticated === true && !state.publicShareMode;
 }
 
 async function signOutAccount() {
@@ -900,11 +992,12 @@ function setView(view, options = {}) {
 }
 
 function openChat() {
+  if (!state.sharedMode && !canUseAiFeatures()) return;
   closeDevChat();
   chatDrawer.hidden = false;
   chatBackdrop.hidden = false;
   document.body.dataset.chatOpen = "true";
-  void getModelContext().catch(() => null);
+  if (!state.publicShareMode) void getModelContext().catch(() => null);
   requestAnimationFrame(() => {
     updateComposerState();
     if (!state.sharedMode) {
@@ -921,6 +1014,7 @@ function closeChat() {
 }
 
 function openDevChat() {
+  if (!canUseAiFeatures()) return;
   closeChat();
   if (redirectDevAgentToSameSite()) return;
   devChatDrawer.hidden = false;
@@ -979,7 +1073,10 @@ function showDevInbox() {
 
 async function handleDevChatSubmit(event) {
   event.preventDefault();
-  if (!devAgent.config.ready || devAgent.authState !== "authenticated" || devAgent.sending) return;
+  if (
+    !canUseAiFeatures() || !devAgent.config.ready || devAgent.authState !== "authenticated" ||
+    devAgent.sending
+  ) return;
   const input = devChatForm.elements.prompt;
   const prompt = input.value.trim();
   if (!prompt) return;
@@ -1927,9 +2024,8 @@ function writeHashNavigation(options = {}) {
   const day = state.activeDay ? `/${state.activeDay}` : "";
   const nextHash = `#${view}${day}`;
   if (globalThis.location.hash === nextHash) return;
-  const preservingSharedChat = globalThis.location.pathname === "/share" &&
-    Boolean(sharedChatQueryId());
-  const target = preservingSharedChat
+  const preservingSharePath = Boolean(sharePathFromLocation());
+  const target = preservingSharePath
     ? `${globalThis.location.pathname}${globalThis.location.search}${nextHash}`
     : nextHash;
   if (options.replace) {
@@ -1985,6 +2081,7 @@ async function loadSchedule() {
 }
 
 async function loadScheduleForApp(options = {}) {
+  if (state.publicShareMode) return;
   if (scheduleLoadPromise) {
     const result = await scheduleLoadPromise;
     if (options.scheduleAutoSync) scheduleServerPartifulAutoSync();
@@ -2020,6 +2117,7 @@ async function loadScheduleAfterAuthentication() {
 }
 
 async function recalculateAgenda({ silent = false } = {}) {
+  if (state.publicShareMode) return false;
   if (state.agendaBusy) return false;
   setAgendaBusy(true, silent ? "" : "Optimizing schedule...");
   try {
@@ -2159,6 +2257,7 @@ async function requestServerPartifulAutoSync() {
 }
 
 function canRunPartifulAutoSync() {
+  if (state.publicShareMode) return false;
   return state.accountSession?.authenticated === true &&
     state.accountSession?.user?.isAdmin === true;
 }
@@ -2232,6 +2331,7 @@ function surfacePartifulAutoSyncStatus() {
 }
 
 function render() {
+  renderReadOnlyShareMode();
   renderNext();
   renderEventsCalendarLink();
   renderDayTabs();
@@ -3039,6 +3139,10 @@ async function handleLeadSubmit(event) {
 }
 
 async function handleLeadTranscriptParse() {
+  if (!canUseAiFeatures()) {
+    setTranscriptStatus("Sign in to parse transcripts.");
+    return;
+  }
   const transcript = String(transcriptInput?.value || "").trim();
   if (!transcript) {
     setTranscriptStatus("Paste a transcript first.");
@@ -3078,6 +3182,11 @@ async function handleLeadTranscriptParse() {
 }
 
 async function handleCardInput() {
+  if (!canUseAiFeatures()) {
+    setCardScanStatus("Sign in to scan cards.");
+    cardInput.value = "";
+    return;
+  }
   const file = cardInput.files?.[0];
   if (!file) return;
   const requestId = createDebugId("ocr");
@@ -3152,6 +3261,7 @@ async function handleCardInput() {
 }
 
 async function requestOcrDraft({ requestId, file, image, eventTitle }) {
+  if (!canUseAiFeatures()) throw new Error("Sign in to scan cards.");
   const payloads = Array.isArray(image.ocrPayloads) && image.ocrPayloads.length
     ? image.ocrPayloads
     : [{ dataUrl: image.dataUrl, metadata: image.metadata }];
@@ -3275,6 +3385,7 @@ async function requestOcrDraft({ requestId, file, image, eventTitle }) {
 }
 
 async function requestLeadTranscriptDraft({ requestId, transcript, eventTitle }) {
+  if (!canUseAiFeatures()) throw new Error("Sign in to parse transcripts.");
   let response = null;
   try {
     response = await fetchWithTimeout("/api/leads/transcript", {
@@ -4093,8 +4204,9 @@ function setCardScanStatus(message) {
 }
 
 function setCardScanBusy(busy) {
-  cardInput.disabled = busy;
-  cardScanButton.setAttribute("aria-disabled", String(busy));
+  const disabled = busy || !canUseAiFeatures();
+  cardInput.disabled = disabled;
+  cardScanButton.setAttribute("aria-disabled", String(disabled));
 }
 
 function setTranscriptStatus(message) {
@@ -4104,8 +4216,9 @@ function setTranscriptStatus(message) {
 
 function setTranscriptBusy(busy) {
   if (!transcriptButton || !transcriptInput) return;
-  transcriptInput.disabled = busy;
-  transcriptButton.disabled = busy;
+  const disabled = busy || !canUseAiFeatures();
+  transcriptInput.disabled = disabled;
+  transcriptButton.disabled = disabled;
 }
 
 function renderEntry(entry) {
@@ -4131,7 +4244,7 @@ function renderTimelineEntry(entry, lanes, isCompact = false) {
 }
 
 function renderEntryCard(entry, compact) {
-  const localNote = state.payload.state.eventNotes[entry.calendarBlockId]?.note?.trim() || "";
+  const localNote = state.payload?.state?.eventNotes?.[entry.calendarBlockId]?.note?.trim() || "";
   const isOption = entry.calendar === "reference";
   const article = document.createElement("article");
   article.dataset.entry = entry.calendarBlockId;
@@ -4319,10 +4432,14 @@ function eventActions(entry) {
     actions.push(link);
   }
 
-  if (entry.blockType === "event") {
+  if (
+    entry.blockType === "event" && !state.publicShareMode &&
+    state.accountSession?.authenticated === true
+  ) {
     const ask = document.createElement("button");
     ask.type = "button";
     ask.dataset.variant = "primary";
+    ask.dataset.requiresAuth = "";
     setButtonContent(ask, "sparkles", "Ask");
     ask.addEventListener("click", () => {
       if (state.agentBusy) return;
@@ -4458,6 +4575,7 @@ function firstCoachingLine(value) {
 }
 
 async function openEventCoachingChat(entry) {
+  if (!canUseAiFeatures()) return;
   const prompt = eventCoachingPrompt(entry);
   const meta = await eventChatMeta(entry, prompt);
   const existing = findCachedChatSession(meta.cacheKey);
@@ -4578,7 +4696,7 @@ async function stableHash(value) {
 }
 
 async function askAgent(prompt) {
-  if (state.sharedMode) return;
+  if (state.sharedMode || !canUseAiFeatures()) return;
   const history = state.messages.slice(-6);
   if (!history.length) {
     chatLog.replaceChildren();
@@ -5260,6 +5378,7 @@ function cacheModelContext(payload, ttlMs = MODEL_CONTEXT_CACHE_TTL_MS) {
 }
 
 async function getModelContext() {
+  if (!canUseAiFeatures()) return null;
   const cached = readCachedModelContext();
   if (cached) {
     state.modelContext = cached;
@@ -5328,6 +5447,7 @@ function normalizeSessionMeta(meta) {
     techweekId: String(meta.techweekId || ""),
     eventTitle: String(meta.eventTitle || ""),
     prompt: String(meta.prompt || ""),
+    sharedResourceHandle: String(meta.sharedResourceHandle || ""),
     sharedChatIds: normalizeSharedChatIds(meta.sharedChatIds ?? meta.shareIds),
   };
 }
@@ -5349,7 +5469,7 @@ function normalizeSharedChatIds(value) {
   return [...ids];
 }
 
-function recordSharedChatForActiveSession(sharedId) {
+function recordSharedChatForActiveSession(sharedId, handle = "") {
   if (!sharedId) return;
   const sessionMeta = state.activeSessionMeta && typeof state.activeSessionMeta === "object"
     ? { ...state.activeSessionMeta }
@@ -5360,15 +5480,17 @@ function recordSharedChatForActiveSession(sharedId) {
     sharedChatIds.push(normalizedSharedId);
   }
   sessionMeta.sharedChatIds = sharedChatIds;
+  sessionMeta.sharedResourceHandle = String(handle || sessionMeta.sharedResourceHandle || "");
   state.activeSessionMeta = sessionMeta;
   upsertCurrentSession();
   renderChatHistory();
 }
 
-function deleteSharedChat(shareId) {
+function deleteSharedChat(shareId, handle = "") {
   const id = String(shareId || "").trim();
-  if (!id) return;
-  void fetch(`/api/chat/share/${encodeURIComponent(id)}`, {
+  const ownerHandle = String(handle || currentAccountHandle() || "").trim();
+  if (!id || !ownerHandle) return;
+  void fetch(`/api/resources/${encodeURIComponent(ownerHandle)}/chat/${encodeURIComponent(id)}`, {
     method: "DELETE",
     credentials: "include",
   }).then((response) => {
@@ -5380,8 +5502,9 @@ function deleteSharedChat(shareId) {
 
 function deleteSharedChatsFromMetadata(meta) {
   const shareIds = normalizeSharedChatIds(meta?.sharedChatIds ?? meta?.shareIds);
+  const handle = String(meta?.sharedResourceHandle || currentAccountHandle() || "").trim();
   for (const shareId of shareIds) {
-    deleteSharedChat(shareId);
+    deleteSharedChat(shareId, handle);
   }
 }
 
@@ -5627,18 +5750,28 @@ function sharedChatErrorMessage(status, fallback) {
   return fallback || "The chat share request could not be completed.";
 }
 
-function sharedChatQueryId() {
-  const params = new URL(globalThis.location.href).searchParams;
-  const direct = params.get("sharedChat");
-  const query = params.get("chat");
-  return String(direct || query || "").trim();
+function sharePathFromLocation() {
+  const parts = globalThis.location.pathname.split("/").filter(Boolean).map((part) => {
+    try {
+      return decodeURIComponent(part);
+    } catch {
+      return "";
+    }
+  });
+  if (parts[0] !== "share" || parts.length !== 4) return null;
+  const type = parts[2] === "agenda" || parts[2] === "chat" ? parts[2] : "";
+  if (!parts[1] || !type || !parts[3]) return null;
+  return { handle: parts[1], type, id: parts[3] };
 }
 
-function shareChatUrl(chatId) {
-  const locationUrl = new URL(globalThis.location.href);
-  const url = new URL("/share", locationUrl.origin);
-  url.searchParams.set("chat", chatId);
-  return url.toString();
+function currentAccountHandle() {
+  return String(state.accountSession?.user?.handle || "").trim();
+}
+
+function ownerResourcePath(type, id) {
+  const handle = currentAccountHandle();
+  if (!handle) return "";
+  return `/api/resources/${encodeURIComponent(handle)}/${type}/${encodeURIComponent(id)}`;
 }
 
 function normalizeShareableMessage(message) {
@@ -5661,11 +5794,28 @@ function sanitizeChatMessagesForShare(messages) {
 
 function sharedChatIdFromPayload(payload = {}) {
   return String(
-    payload?.chatId || payload?.id || payload?.shareId || payload?.slug || "",
+    payload?.contentHash || payload?.resourceId || payload?.chatId || payload?.id ||
+      payload?.shareId || payload?.slug || "",
   ).trim();
 }
 
-function renderChatSharePanel({ status = "", url = "" } = {}) {
+function renderReadOnlyShareMode() {
+  document.body.dataset.shareMode = state.publicShareMode ? "public" : "";
+  if (readOnlyShareIndicator) {
+    readOnlyShareIndicator.hidden = !state.publicShareMode;
+  }
+  if (accountButton) accountButton.hidden = state.publicShareMode;
+  if (agendaShareControls) agendaShareControls.hidden = state.publicShareMode;
+  viewButtons.forEach((button) => {
+    const view = button.dataset.viewButton;
+    const hidden = state.publicShareMode && (view === "crm" || view === "invites");
+    button.hidden = hidden;
+    button.disabled = hidden;
+  });
+  updateAuthenticatedCtas();
+}
+
+function renderChatSharePanel({ status = "", url = "", latestUrl = "", immutableUrl = "" } = {}) {
   if (!chatShareResult) return;
   if (!status) {
     chatShareResult.hidden = true;
@@ -5673,34 +5823,89 @@ function renderChatSharePanel({ status = "", url = "" } = {}) {
   }
   chatShareResult.hidden = false;
   if (chatShareStatus) chatShareStatus.textContent = status;
+  const primaryUrl = latestUrl || url;
   if (chatShareLink) {
-    if (!url) {
+    if (!primaryUrl) {
       chatShareLink.removeAttribute("href");
       chatShareLink.textContent = "";
       chatShareLink.hidden = true;
     } else {
-      chatShareLink.href = url;
-      chatShareLink.textContent = url;
+      chatShareLink.href = primaryUrl;
+      chatShareLink.textContent = primaryUrl;
       chatShareLink.hidden = false;
     }
   }
   if (chatShareCopyButton) {
-    chatShareCopyButton.hidden = !url;
-    chatShareCopyButton.disabled = !url;
+    chatShareCopyButton.hidden = !primaryUrl;
+    chatShareCopyButton.disabled = !primaryUrl;
+  }
+  if (chatShareImmutableLink) {
+    if (!immutableUrl) {
+      chatShareImmutableLink.removeAttribute("href");
+      chatShareImmutableLink.textContent = "";
+      chatShareImmutableLink.hidden = true;
+    } else {
+      chatShareImmutableLink.href = immutableUrl;
+      chatShareImmutableLink.textContent = immutableUrl;
+      chatShareImmutableLink.hidden = false;
+    }
+  }
+  if (chatShareImmutableCopyButton) {
+    chatShareImmutableCopyButton.hidden = !immutableUrl;
+    chatShareImmutableCopyButton.disabled = !immutableUrl;
+  }
+  if (chatShareRevokeButton) {
+    chatShareRevokeButton.hidden = !primaryUrl;
+    chatShareRevokeButton.disabled = !primaryUrl;
   }
 }
 
-async function loadSharedChat(chatId) {
-  if (!chatId) return;
+function renderAgendaSharePanel({ status = "", latestUrl = "", immutableUrl = "" } = {}) {
+  if (!agendaShareControls || state.publicShareMode) return;
+  if (agendaShareStatus) agendaShareStatus.textContent = status;
+  setShareLink(agendaShareLatestLink, agendaShareLatestCopyButton, latestUrl);
+  setShareLink(agendaShareImmutableLink, agendaShareImmutableCopyButton, immutableUrl);
+  if (agendaShareRevokeButton) {
+    agendaShareRevokeButton.disabled = !latestUrl;
+  }
+}
+
+function setShareLink(link, copyButton, url) {
+  if (link) {
+    if (!url) {
+      link.removeAttribute("href");
+      link.textContent = "";
+      link.hidden = true;
+    } else {
+      link.href = url;
+      link.textContent = url;
+      link.hidden = false;
+    }
+  }
+  if (copyButton) {
+    copyButton.hidden = !url;
+    copyButton.disabled = !url;
+  }
+}
+
+async function loadSharedChat(handle, chatId) {
+  if (!handle || !chatId) return;
   clearSharedChatMode();
+  state.publicShareMode = true;
+  state.sharedResourceType = "chat";
+  state.sharedResourceHandle = String(handle || "");
+  state.sharedResourceId = String(chatId || "");
   state.sharedMode = true;
   state.sharedChatId = String(chatId || "");
   state.sharedMessages = [];
   state.messages = [];
   state.sharedModeError = "Loading shared chat...";
+  renderReadOnlyShareMode();
   renderChat();
   try {
-    const response = await fetch(`/api/chat/share/${encodeURIComponent(chatId)}`);
+    const response = await fetch(
+      `/api/share/${encodeURIComponent(handle)}/chat/${encodeURIComponent(chatId)}`,
+    );
     const body = await response.json().catch(() => ({}));
 
     if (response.status === 404) {
@@ -5716,8 +5921,12 @@ async function loadSharedChat(chatId) {
     }
 
     const messages = sanitizeChatMessagesForShare(
-      body?.messages || body?.chat?.messages || body?.data?.messages || [],
+      body?.payload?.messages || body?.messages || body?.chat?.messages || body?.data?.messages ||
+        [],
     );
+    state.sharedResourceHash = String(body?.contentHash || chatId || "");
+    state.sharedLatestUrl = String(body?.latestUrl || "");
+    state.sharedImmutableUrl = String(body?.immutableUrl || "");
     enterSharedChatMode(chatId, messages);
   } catch (error) {
     state.sharedMode = true;
@@ -5729,24 +5938,60 @@ async function loadSharedChat(chatId) {
   }
 }
 
-async function initializeSharedChatFromLocation() {
-  const sharedChatId = sharedChatQueryId();
-  if (!sharedChatId) return;
-  await loadSharedChat(sharedChatId);
-  openChat();
+async function initializeSharedResourceFromLocation(sharePath) {
+  state.publicShareMode = true;
+  state.sharedResourceType = sharePath.type;
+  state.sharedResourceHandle = sharePath.handle;
+  state.sharedResourceId = sharePath.id;
+  renderReadOnlyShareMode();
+  if (sharePath.type === "chat") {
+    await loadSharedChat(sharePath.handle, sharePath.id);
+    openChat();
+    return;
+  }
+
+  setAgendaStatus("Loading shared agenda...");
+  try {
+    const response = await fetch(
+      `/api/share/${encodeURIComponent(sharePath.handle)}/agenda/${
+        encodeURIComponent(sharePath.id)
+      }`,
+      { cache: "no-store" },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body?.error?.message || `Could not load shared agenda (${response.status}).`);
+    }
+    state.sharedResourceHash = String(body?.contentHash || sharePath.id || "");
+    state.sharedLatestUrl = String(body?.latestUrl || "");
+    state.sharedImmutableUrl = String(body?.immutableUrl || "");
+    applySchedulePayload({
+      ...(body?.payload || {}),
+      generatedAt: body?.updatedAt || new Date().toISOString(),
+      source: `share:${sharePath.handle}/agenda/${sharePath.id}`,
+    });
+    setAgendaStatus("Read-only shared agenda.");
+  } catch (error) {
+    setAgendaStatus(error instanceof Error ? error.message : "Could not load shared agenda.");
+  }
 }
 
 async function createSharedChat() {
-  if (state.sharedMode || state.agentBusy) return;
+  if (state.sharedMode || state.publicShareMode || state.agentBusy) return;
   const transcript = sanitizeChatMessagesForShare(state.messages);
   if (!transcript.length) {
     renderChatSharePanel({ status: "Add a message before sharing this chat." });
     return;
   }
+  const handle = currentAccountHandle();
+  if (!handle) {
+    renderChatSharePanel({ status: "Sign in before sharing this chat." });
+    return;
+  }
   renderChatSharePanel({ status: "Creating share link..." });
   if (chatShareButton) chatShareButton.disabled = true;
   try {
-    const response = await fetch("/api/chat/share", {
+    const response = await fetch(`/api/resources/${encodeURIComponent(handle)}/chat/share`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       credentials: "include",
@@ -5775,9 +6020,12 @@ async function createSharedChat() {
       throw new Error(body?.error?.message || "Server did not return a share id.");
     }
 
-    const url = shareChatUrl(sharedId);
-    recordSharedChatForActiveSession(sharedId);
-    renderChatSharePanel({ status: "Share link ready:", url });
+    recordSharedChatForActiveSession(sharedId, handle);
+    renderChatSharePanel({
+      status: "Share links ready:",
+      latestUrl: body.latestUrl || "",
+      immutableUrl: body.immutableUrl || "",
+    });
   } catch (error) {
     renderChatSharePanel({
       status: error instanceof Error ? error.message : "Could not create share link.",
@@ -5789,10 +6037,72 @@ async function createSharedChat() {
   }
 }
 
+async function createAgendaShare() {
+  if (state.publicShareMode) return;
+  const handle = currentAccountHandle();
+  if (!handle) {
+    renderAgendaSharePanel({ status: "Sign in before sharing this agenda." });
+    return;
+  }
+  renderAgendaSharePanel({ status: "Creating agenda share links..." });
+  if (agendaShareButton) agendaShareButton.disabled = true;
+  try {
+    const response = await fetch(`/api/resources/${encodeURIComponent(handle)}/agenda/share`, {
+      method: "POST",
+      credentials: "include",
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body?.error?.message || `Could not share agenda (${response.status}).`);
+    }
+    renderAgendaSharePanel({
+      status: "Agenda share links ready:",
+      latestUrl: body.latestUrl || "",
+      immutableUrl: body.immutableUrl || "",
+    });
+  } catch (error) {
+    renderAgendaSharePanel({
+      status: error instanceof Error ? error.message : "Could not share agenda.",
+    });
+  } finally {
+    if (agendaShareButton) agendaShareButton.disabled = false;
+  }
+}
+
+async function revokeLatestShare(type) {
+  const path = ownerResourcePath(type, "latest");
+  if (!path) {
+    const status = "Sign in before revoking this share.";
+    if (type === "chat") renderChatSharePanel({ status });
+    else renderAgendaSharePanel({ status });
+    return;
+  }
+  try {
+    const response = await fetch(path, { method: "DELETE", credentials: "include" });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body?.error?.message || `Could not revoke ${type} share.`);
+    }
+    if (type === "chat") renderChatSharePanel({ status: "Latest chat link revoked." });
+    else renderAgendaSharePanel({ status: "Latest agenda link revoked." });
+  } catch (error) {
+    const status = error instanceof Error ? error.message : `Could not revoke ${type} share.`;
+    if (type === "chat") renderChatSharePanel({ status });
+    else renderAgendaSharePanel({ status });
+  }
+}
+
 function forkSharedChat() {
   if (!state.sharedMode) return;
   const messages = sanitizeChatMessagesForShare(state.sharedMessages);
   clearSharedChatMode();
+  state.publicShareMode = false;
+  state.sharedResourceType = "";
+  state.sharedResourceHandle = "";
+  state.sharedResourceId = "";
+  state.sharedResourceHash = "";
+  state.sharedLatestUrl = "";
+  state.sharedImmutableUrl = "";
   state.messages = [];
   state.activeSessionId = createSessionId();
   state.activeSessionMeta = null;
@@ -5802,6 +6112,8 @@ function forkSharedChat() {
   chatHistoryToggle.setAttribute("aria-expanded", "false");
   state.messages = messages.slice(-CHAT_MESSAGE_LIMIT);
   persistMessages();
+  history.replaceState(null, "", "/");
+  renderReadOnlyShareMode();
   renderChat();
   renderChatHistory();
 }
@@ -5833,6 +6145,7 @@ function actionIcon(action) {
 }
 
 async function applyAction(action) {
+  if (state.publicShareMode) return;
   const response = await fetch("/api/state", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -5859,17 +6172,21 @@ function persistMessages() {
 
 function setBusy(busy) {
   state.agentBusy = busy;
-  chatNewButton.disabled = busy;
-  if (chatHistoryToggle) chatHistoryToggle.disabled = state.sharedMode || busy;
+  const readOnly = state.sharedMode || !canUseAiFeatures();
+  chatNewButton.disabled = readOnly || busy;
+  if (chatHistoryToggle) chatHistoryToggle.disabled = readOnly || busy;
   if (chatShareButton) {
-    chatShareButton.disabled = state.sharedMode || busy || !state.messages.length;
+    chatShareButton.disabled = readOnly || busy || !state.messages.length;
   }
   updateComposerState();
 }
 
-loadScheduleForApp({ scheduleAutoSync: true }).catch(() => {});
+if (!initialSharePath) {
+  loadScheduleForApp({ scheduleAutoSync: true }).catch(() => {});
+}
 globalThis.setInterval(refreshAutomaticLeadEvent, LEAD_EVENT_REFRESH_MS);
 document.addEventListener("visibilitychange", () => {
+  if (state.publicShareMode) return;
   if (document.hidden) return;
   refreshAutomaticLeadEvent();
   void loadScheduleForApp({ scheduleAutoSync: true }).catch((error) => {

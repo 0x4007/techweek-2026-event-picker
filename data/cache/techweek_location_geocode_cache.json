@@ -184,5 +184,71 @@
     "lon": -73.9962504,
     "display_name": "Chinatown, Lower Manhattan, Manhattan, New York County, New York, 10013, United States",
     "used_query": "Chinatown, Manhattan, NY"
+  },
+  "Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003": {
+    "lat": 40.729391,
+    "lon": -73.9921562,
+    "display_name": "Materialize, Inc., 436, Lafayette Street, NoHo, Manhattan, New York County, New York, 10003, United States",
+    "used_query": "436 Lafayette St, Floor 6, New York, NY 10003"
+  },
+  "Chabad Loft's Kavanah Space in Greenwich Village, 10 E 8th St, New York, NY 10003": {
+    "lat": 40.7317609,
+    "lon": -73.9957287,
+    "display_name": "10, East 8th Street, Greenwich Village, Manhattan, New York County, New York, 10003, United States",
+    "used_query": "10 E 8th St, New York, NY 10003"
+  },
+  "SoHo, Manhattan, New York, NY": {
+    "lat": 40.72288,
+    "lon": -73.9987505,
+    "display_name": "SoHo, Manhattan, New York County, New York, 10012, United States",
+    "used_query": "SoHo, Manhattan, New York, NY"
+  },
+  "368 9th Ave, New York, NY 10001, United States": {
+    "lat": 40.7511486,
+    "lon": -73.9976401,
+    "display_name": "Campana & Schott, 368, 9th Avenue, Chelsea District, Manhattan Community Board 4, Manhattan, New York County, New York, 10001, United States",
+    "used_query": "368 9th Ave, New York, NY 10001, United States"
+  },
+  "South Park Commons, 36 Cooper Square,, New York, NY": {
+    "lat": 40.7283276,
+    "lon": -73.9915654,
+    "display_name": "36, Cooper Square, NoHo, Manhattan, New York County, New York, 10003, United States",
+    "used_query": "36 Cooper Square,, New York, NY"
+  },
+  "419 Lafayette St 6th floor New York, NY 10003, USA": {
+    "lat": 40.750632,
+    "lon": -73.9687884,
+    "display_name": "Permanent Mission of the United States to the United Nations, 799, 1st Avenue, Turtle Bay, Manhattan Community Board 6, Manhattan, New York County, New York, 10017, United States",
+    "used_query": "NY 10003, USA"
+  },
+  "Union Square, 201 Park Ave S, New York, NY": {
+    "lat": 40.7365763,
+    "lon": -73.9885429,
+    "display_name": "W Hotels, 201, Park Avenue South, Union Square, Manhattan Community Board 5, Manhattan, New York County, New York, 10003, United States",
+    "used_query": "201 Park Ave S, New York, NY"
+  },
+  "Midtown, 130 E 57th St, New York, NY": {
+    "lat": 40.7583145,
+    "lon": -73.9625285,
+    "display_name": "Midtown Catch Seafood, 405, East 57th Street, Sutton, Manhattan Community Board 6, Manhattan, New York County, New York, 10155, United States",
+    "used_query": "Midtown, 130 E 57th St, New York, NY"
+  },
+  "Flatiron, Manhattan, New York, NY": {
+    "lat": 40.7410592,
+    "lon": -73.9896416,
+    "display_name": "Flatiron Building, 175, 5th Avenue, Flatiron District, Manhattan Community Board 5, Manhattan, New York County, New York, 10010, United States",
+    "used_query": "Flatiron, Manhattan, New York, NY"
+  },
+  "The Ivory Peacock, 38 W 26th St, New York, NY": {
+    "lat": 40.7442868,
+    "lon": -73.990741,
+    "display_name": "38, West 26th Street, NoMad, Manhattan Community Board 5, Manhattan, New York County, New York, 10010, United States",
+    "used_query": "38 W 26th St, New York, NY"
+  },
+  "159 W 25th St 3rd Floor, New York, NY": {
+    "lat": 40.7127281,
+    "lon": -74.0060152,
+    "display_name": "New York, United States",
+    "used_query": "New York, NY"
   }
 }

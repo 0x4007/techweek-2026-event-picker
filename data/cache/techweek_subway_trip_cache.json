@@ -538,5 +538,1614 @@
         "timeBufferMinutes": 5
       }
     }
+  },
+  "R18->R21": {
+    "estimatedMinutes": 6,
+    "numTransfers": 0,
+    "totalStops": 3,
+    "riskLabel": "Normal service",
+    "segments": [
+      "N 28 St to 8 St-NYU"
+    ],
+    "raw": {
+      "segments": [
+        {
+          "fromStationId": "R18",
+          "fromStationName": "28 St",
+          "toStationId": "R21",
+          "toStationName": "8 St-NYU",
+          "line": "N",
+          "direction": "S",
+          "directionLabel": "Brooklyn-bound to Coney Island",
+          "headsign": "Coney Island-Stillwell Av",
+          "numStops": 3
+        }
+      ],
+      "totalStops": 3,
+      "numTransfers": 0,
+      "estimatedMinutes": 6,
+      "alerts": [],
+      "disruptionAnalysis": {
+        "riskLevel": "none",
+        "riskLabel": "Normal service",
+        "affectedSegments": [],
+        "timeBufferMinutes": 0
+      }
+    }
+  },
+  "D16->R21": {
+    "estimatedMinutes": 19,
+    "numTransfers": 1,
+    "totalStops": 7,
+    "riskLabel": "Normal service",
+    "segments": [
+      "B 42 St-Bryant Pk to DeKalb Av",
+      "Q DeKalb Av to 8 St-NYU"
+    ],
+    "raw": {
+      "segments": [
+        {
+          "fromStationId": "D16",
+          "fromStationName": "42 St-Bryant Pk",
+          "toStationId": "R30",
+          "toStationName": "DeKalb Av",
+          "line": "B",
+          "direction": "S",
+          "directionLabel": "Brooklyn-bound to Brighton Beach",
+          "headsign": "Brighton Beach",
+          "numStops": 5
+        },
+        {
+          "fromStationId": "R30",
+          "fromStationName": "DeKalb Av",
+          "toStationId": "R21",
+          "toStationName": "8 St-NYU",
+          "line": "Q",
+          "direction": "N",
+          "directionLabel": "Manhattan-bound to 96 St",
+          "headsign": "96 St",
+          "numStops": 2
+        }
+      ],
+      "totalStops": 7,
+      "numTransfers": 1,
+      "estimatedMinutes": 19,
+      "alerts": [],
+      "disruptionAnalysis": {
+        "riskLevel": "none",
+        "riskLabel": "Normal service",
+        "affectedSegments": [],
+        "timeBufferMinutes": 0
+      }
+    }
+  },
+  "638->229": {
+    "estimatedMinutes": 8,
+    "numTransfers": 0,
+    "totalStops": 4,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "4 Spring St to Fulton St"
+    ],
+    "raw": {
+      "segments": [
+        {
+          "fromStationId": "638",
+          "fromStationName": "Spring St",
+          "toStationId": "229",
+          "toStationName": "Fulton St",
+          "line": "4",
+          "direction": "S",
+          "directionLabel": "Brooklyn-bound to Crown Heights",
+          "headsign": "Crown Hts-Utica Av",
+          "numStops": 4
+        }
+      ],
+      "totalStops": 4,
+      "numTransfers": 0,
+      "estimatedMinutes": 8,
+      "alerts": [
+        {
+          "id": "lmm:planned_work:29949",
+          "headerText": "In the Bronx, Woodlawn-bound [4] skips Burnside Av",
+          "descriptionText": "Use nearby 176 St or 183 St stations.\n\nAdditional travel alternatives:\nFor service to this station, take the [4] to 183 St and transfer to a Manhattan-bound train.\n\nFor service from this station, take the [4] to 176 St and transfer to a Woodlawn-bound train.\n\nWhat's happening?\nWe're making station improvements",
+          "affectedLines": [
+            "4"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-04-27T09:00:00.000Z",
+              "end": "2026-09-21T03:59:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        }
+      ],
+      "disruptionAnalysis": {
+        "riskLevel": "low",
+        "riskLabel": "Minor delays possible",
+        "affectedSegments": [
+          {
+            "segmentIndex": 0,
+            "line": "4",
+            "alertId": "lmm:planned_work:29949",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "In the Bronx, Woodlawn-bound [4] skips Burnside Av"
+          }
+        ],
+        "timeBufferMinutes": 5
+      }
+    }
+  },
+  "229->A28": {
+    "estimatedMinutes": 24,
+    "numTransfers": 0,
+    "totalStops": 12,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Fulton St to 34 St-Penn Station"
+    ],
+    "raw": {
+      "segments": [
+        {
+          "fromStationId": "229",
+          "fromStationName": "Fulton St",
+          "toStationId": "A28",
+          "toStationName": "34 St-Penn Station",
+          "line": "2",
+          "direction": "N",
+          "directionLabel": "Bronx-bound to Wakefield",
+          "headsign": "Wakefield-241 St",
+          "numStops": 12
+        }
+      ],
+      "totalStops": 12,
+      "numTransfers": 0,
+      "estimatedMinutes": 24,
+      "alerts": [
+        {
+          "id": "lmm:planned_work:31150",
+          "headerText": "Temporary platforms are in place at Botanical Garden, Williams Bridge, and Woodlawn for northbound travel. Build in extra travel time to reach the platform.",
+          "descriptionText": "What's Happening?\n\nWe are renovating some Harlem Line stations in the Bronx. Learn more about the project here.",
+          "affectedLines": [
+            "2"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-04-16T04:00:00.000Z",
+              "end": "2026-12-01T04:45:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        }
+      ],
+      "disruptionAnalysis": {
+        "riskLevel": "low",
+        "riskLabel": "Minor delays possible",
+        "affectedSegments": [
+          {
+            "segmentIndex": 0,
+            "line": "2",
+            "alertId": "lmm:planned_work:31150",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "Temporary platforms are in place at Botanical Garden, Williams Bridge, and Woodlawn for northbound travel. Build in extra travel time to reach the platform."
+          }
+        ],
+        "timeBufferMinutes": 5
+      }
+    }
+  },
+  "902->636": {
+    "estimatedMinutes": 16,
+    "numTransfers": 2,
+    "totalStops": 3,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "GS Times Sq-42 St to Grand Central-42 St",
+      "5 Grand Central-42 St to 14 St-Union Sq",
+      "4 14 St-Union Sq to Astor Pl"
+    ],
+    "raw": {
+      "segments": [
+        {
+          "fromStationId": "902",
+          "fromStationName": "Times Sq-42 St",
+          "toStationId": "631",
+          "toStationName": "Grand Central-42 St",
+          "line": "GS",
+          "direction": "S",
+          "directionLabel": "to Times Sq",
+          "headsign": "Times Sq-42 St",
+          "numStops": 2
+        },
+        {
+          "fromStationId": "631",
+          "fromStationName": "Grand Central-42 St",
+          "toStationId": "635",
+          "toStationName": "14 St-Union Sq",
+          "line": "5",
+          "direction": "S",
+          "directionLabel": "Brooklyn-bound to Flatbush Av",
+          "headsign": "Flatbush Av-Brooklyn College",
+          "numStops": 0
+        },
+        {
+          "fromStationId": "635",
+          "fromStationName": "14 St-Union Sq",
+          "toStationId": "636",
+          "toStationName": "Astor Pl",
+          "line": "4",
+          "direction": "S",
+          "directionLabel": "Brooklyn-bound to Crown Heights",
+          "headsign": "Crown Hts-Utica Av",
+          "numStops": 1
+        }
+      ],
+      "totalStops": 3,
+      "numTransfers": 2,
+      "estimatedMinutes": 16,
+      "alerts": [
+        {
+          "id": "lmm:planned_work:29949",
+          "headerText": "In the Bronx, Woodlawn-bound [4] skips Burnside Av",
+          "descriptionText": "Use nearby 176 St or 183 St stations.\n\nAdditional travel alternatives:\nFor service to this station, take the [4] to 183 St and transfer to a Manhattan-bound train.\n\nFor service from this station, take the [4] to 176 St and transfer to a Woodlawn-bound train.\n\nWhat's happening?\nWe're making station improvements",
+          "affectedLines": [
+            "4"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-04-27T09:00:00.000Z",
+              "end": "2026-09-21T03:59:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        },
+        {
+          "id": "lmm:alert:540200",
+          "headerText": "The 6:17pm train from Grand Central to Danbury is operating 10-15 minutes late because of congestion resulting from a switch issue near Pelham.",
+          "descriptionText": "",
+          "affectedLines": [
+            "5"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-28T23:31:36.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        },
+        {
+          "id": "lmm:alert:540217",
+          "headerText": "The 6:45pm train from Danbury to Stamford is operating 10-15 minutes late because of congestion on the branch.",
+          "descriptionText": "",
+          "affectedLines": [
+            "5"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-29T00:00:07.000Z",
+              "end": "2026-05-29T00:30:07.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        }
+      ],
+      "disruptionAnalysis": {
+        "riskLevel": "low",
+        "riskLabel": "Minor delays possible",
+        "affectedSegments": [
+          {
+            "segmentIndex": 1,
+            "line": "5",
+            "alertId": "lmm:alert:540200",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "The 6:17pm train from Grand Central to Danbury is operating 10-15 minutes late because of congestion resulting from a switch issue near Pelham."
+          },
+          {
+            "segmentIndex": 1,
+            "line": "5",
+            "alertId": "lmm:alert:540217",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "The 6:45pm train from Danbury to Stamford is operating 10-15 minutes late because of congestion on the branch."
+          },
+          {
+            "segmentIndex": 2,
+            "line": "4",
+            "alertId": "lmm:planned_work:29949",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "In the Bronx, Woodlawn-bound [4] skips Burnside Av"
+          }
+        ],
+        "timeBufferMinutes": 5
+      }
+    }
+  },
+  "636->723": {
+    "estimatedMinutes": 12,
+    "numTransfers": 0,
+    "totalStops": 6,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "4 Astor Pl to Grand Central-42 St"
+    ],
+    "raw": {
+      "segments": [
+        {
+          "fromStationId": "636",
+          "fromStationName": "Astor Pl",
+          "toStationId": "723",
+          "toStationName": "Grand Central-42 St",
+          "line": "4",
+          "direction": "N",
+          "directionLabel": "Bronx-bound to Woodlawn",
+          "headsign": "Woodlawn",
+          "numStops": 6
+        }
+      ],
+      "totalStops": 6,
+      "numTransfers": 0,
+      "estimatedMinutes": 12,
+      "alerts": [
+        {
+          "id": "lmm:planned_work:29949",
+          "headerText": "In the Bronx, Woodlawn-bound [4] skips Burnside Av",
+          "descriptionText": "Use nearby 176 St or 183 St stations.\n\nAdditional travel alternatives:\nFor service to this station, take the [4] to 183 St and transfer to a Manhattan-bound train.\n\nFor service from this station, take the [4] to 176 St and transfer to a Woodlawn-bound train.\n\nWhat's happening?\nWe're making station improvements",
+          "affectedLines": [
+            "4"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-04-27T09:00:00.000Z",
+              "end": "2026-09-21T03:59:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        }
+      ],
+      "disruptionAnalysis": {
+        "riskLevel": "low",
+        "riskLabel": "Minor delays possible",
+        "affectedSegments": [
+          {
+            "segmentIndex": 0,
+            "line": "4",
+            "alertId": "lmm:planned_work:29949",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "In the Bronx, Woodlawn-bound [4] skips Burnside Av"
+          }
+        ],
+        "timeBufferMinutes": 5
+      }
+    }
+  },
+  "723->229": {
+    "estimatedMinutes": 13,
+    "numTransfers": 1,
+    "totalStops": 4,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "7 Grand Central-42 St to Grand Central-42 St",
+      "5 Grand Central-42 St to Fulton St"
+    ],
+    "raw": {
+      "segments": [
+        {
+          "fromStationId": "723",
+          "fromStationName": "Grand Central-42 St",
+          "toStationId": "631",
+          "toStationName": "Grand Central-42 St",
+          "line": "7",
+          "direction": "N",
+          "directionLabel": "Queens-bound to Flushing",
+          "headsign": "Flushing-Main St",
+          "numStops": 1
+        },
+        {
+          "fromStationId": "631",
+          "fromStationName": "Grand Central-42 St",
+          "toStationId": "229",
+          "toStationName": "Fulton St",
+          "line": "5",
+          "direction": "S",
+          "directionLabel": "Brooklyn-bound to Flatbush Av",
+          "headsign": "Flatbush Av-Brooklyn College",
+          "numStops": 3
+        }
+      ],
+      "totalStops": 4,
+      "numTransfers": 1,
+      "estimatedMinutes": 13,
+      "alerts": [
+        {
+          "id": "lmm:planned_work:31871",
+          "headerText": "In Queens, all Manhattan-bound [7][7X] local/express trains stop at 74 St-Broadway",
+          "descriptionText": "Flushing-bound [7X] express trains skip 74 St-Broadway.\nFlushing-bound [7] local trains will continue to stop at 74 St-Broadway.\n\nFor service to 74 St-Broadway and/or transfer to Jackson Hts-Roosevelt Av [E][F][M][R], transfer at Woodside-61 St to a Flushing-bound [7] local.\n\nAdditional travel alternatives:\nFor service to this station, take the [7X] to Junction Blvd and transfer to a Manhattan-bound [7][7X].\n\nWhat's happening?\nWe're making structural improvements",
+          "affectedLines": [
+            "7"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-26T10:15:00.000Z",
+              "end": "2026-05-26T14:00:00.000Z"
+            },
+            {
+              "start": "2026-05-26T19:00:00.000Z",
+              "end": "2026-05-27T02:00:00.000Z"
+            },
+            {
+              "start": "2026-05-27T10:15:00.000Z",
+              "end": "2026-05-27T14:00:00.000Z"
+            },
+            {
+              "start": "2026-05-27T19:00:00.000Z",
+              "end": "2026-05-28T02:00:00.000Z"
+            },
+            {
+              "start": "2026-05-28T10:15:00.000Z",
+              "end": "2026-05-28T14:00:00.000Z"
+            },
+            {
+              "start": "2026-05-28T19:00:00.000Z",
+              "end": "2026-05-29T02:00:00.000Z"
+            },
+            {
+              "start": "2026-05-29T10:15:00.000Z",
+              "end": "2026-05-29T14:00:00.000Z"
+            },
+            {
+              "start": "2026-05-29T19:00:00.000Z",
+              "end": "2026-05-30T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-01T10:15:00.000Z",
+              "end": "2026-06-01T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-01T19:00:00.000Z",
+              "end": "2026-06-02T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-02T10:15:00.000Z",
+              "end": "2026-06-02T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-02T19:00:00.000Z",
+              "end": "2026-06-03T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-03T10:15:00.000Z",
+              "end": "2026-06-03T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-03T19:00:00.000Z",
+              "end": "2026-06-04T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-04T10:15:00.000Z",
+              "end": "2026-06-04T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-04T19:00:00.000Z",
+              "end": "2026-06-05T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-05T10:15:00.000Z",
+              "end": "2026-06-05T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-05T19:00:00.000Z",
+              "end": "2026-06-06T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-08T10:15:00.000Z",
+              "end": "2026-06-08T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-08T19:00:00.000Z",
+              "end": "2026-06-09T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-09T10:15:00.000Z",
+              "end": "2026-06-09T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-09T19:00:00.000Z",
+              "end": "2026-06-10T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-10T10:15:00.000Z",
+              "end": "2026-06-10T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-10T19:00:00.000Z",
+              "end": "2026-06-11T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-11T10:15:00.000Z",
+              "end": "2026-06-11T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-11T19:00:00.000Z",
+              "end": "2026-06-12T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-12T10:15:00.000Z",
+              "end": "2026-06-12T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-12T19:00:00.000Z",
+              "end": "2026-06-13T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-15T10:15:00.000Z",
+              "end": "2026-06-15T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-15T19:00:00.000Z",
+              "end": "2026-06-16T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-16T10:15:00.000Z",
+              "end": "2026-06-16T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-16T19:00:00.000Z",
+              "end": "2026-06-17T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-17T10:15:00.000Z",
+              "end": "2026-06-17T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-17T19:00:00.000Z",
+              "end": "2026-06-18T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-18T10:15:00.000Z",
+              "end": "2026-06-18T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-18T19:00:00.000Z",
+              "end": "2026-06-19T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-19T10:15:00.000Z",
+              "end": "2026-06-19T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-19T19:00:00.000Z",
+              "end": "2026-06-20T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-22T10:15:00.000Z",
+              "end": "2026-06-22T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-22T19:00:00.000Z",
+              "end": "2026-06-23T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-23T10:15:00.000Z",
+              "end": "2026-06-23T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-23T19:00:00.000Z",
+              "end": "2026-06-24T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-24T10:15:00.000Z",
+              "end": "2026-06-24T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-24T19:00:00.000Z",
+              "end": "2026-06-25T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-25T10:15:00.000Z",
+              "end": "2026-06-25T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-25T19:00:00.000Z",
+              "end": "2026-06-26T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-26T10:15:00.000Z",
+              "end": "2026-06-26T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-26T19:00:00.000Z",
+              "end": "2026-06-27T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-29T10:15:00.000Z",
+              "end": "2026-06-29T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-29T19:00:00.000Z",
+              "end": "2026-06-30T02:00:00.000Z"
+            },
+            {
+              "start": "2026-06-30T10:15:00.000Z",
+              "end": "2026-06-30T14:00:00.000Z"
+            },
+            {
+              "start": "2026-06-30T19:00:00.000Z",
+              "end": "2026-07-01T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-01T10:15:00.000Z",
+              "end": "2026-07-01T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-01T19:00:00.000Z",
+              "end": "2026-07-02T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-02T10:15:00.000Z",
+              "end": "2026-07-02T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-02T19:00:00.000Z",
+              "end": "2026-07-03T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-03T10:15:00.000Z",
+              "end": "2026-07-03T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-03T19:00:00.000Z",
+              "end": "2026-07-04T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-06T10:15:00.000Z",
+              "end": "2026-07-06T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-06T19:00:00.000Z",
+              "end": "2026-07-07T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-07T10:15:00.000Z",
+              "end": "2026-07-07T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-07T19:00:00.000Z",
+              "end": "2026-07-08T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-08T10:15:00.000Z",
+              "end": "2026-07-08T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-08T19:00:00.000Z",
+              "end": "2026-07-09T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-09T10:15:00.000Z",
+              "end": "2026-07-09T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-09T19:00:00.000Z",
+              "end": "2026-07-10T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-10T10:15:00.000Z",
+              "end": "2026-07-10T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-10T19:00:00.000Z",
+              "end": "2026-07-11T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-13T10:15:00.000Z",
+              "end": "2026-07-13T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-13T19:00:00.000Z",
+              "end": "2026-07-14T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-14T10:15:00.000Z",
+              "end": "2026-07-14T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-14T19:00:00.000Z",
+              "end": "2026-07-15T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-15T10:15:00.000Z",
+              "end": "2026-07-15T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-15T19:00:00.000Z",
+              "end": "2026-07-16T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-16T10:15:00.000Z",
+              "end": "2026-07-16T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-16T19:00:00.000Z",
+              "end": "2026-07-17T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-17T10:15:00.000Z",
+              "end": "2026-07-17T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-17T19:00:00.000Z",
+              "end": "2026-07-18T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-20T10:15:00.000Z",
+              "end": "2026-07-20T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-20T19:00:00.000Z",
+              "end": "2026-07-21T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-21T10:15:00.000Z",
+              "end": "2026-07-21T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-21T19:00:00.000Z",
+              "end": "2026-07-22T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-22T10:15:00.000Z",
+              "end": "2026-07-22T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-22T19:00:00.000Z",
+              "end": "2026-07-23T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-23T10:15:00.000Z",
+              "end": "2026-07-23T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-23T19:00:00.000Z",
+              "end": "2026-07-24T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-24T10:15:00.000Z",
+              "end": "2026-07-24T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-24T19:00:00.000Z",
+              "end": "2026-07-25T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-27T10:15:00.000Z",
+              "end": "2026-07-27T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-27T19:00:00.000Z",
+              "end": "2026-07-28T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-28T10:15:00.000Z",
+              "end": "2026-07-28T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-28T19:00:00.000Z",
+              "end": "2026-07-29T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-29T10:15:00.000Z",
+              "end": "2026-07-29T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-29T19:00:00.000Z",
+              "end": "2026-07-30T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-30T10:15:00.000Z",
+              "end": "2026-07-30T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-30T19:00:00.000Z",
+              "end": "2026-07-31T02:00:00.000Z"
+            },
+            {
+              "start": "2026-07-31T10:15:00.000Z",
+              "end": "2026-07-31T14:00:00.000Z"
+            },
+            {
+              "start": "2026-07-31T19:00:00.000Z",
+              "end": "2026-08-01T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-03T10:15:00.000Z",
+              "end": "2026-08-03T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-03T19:00:00.000Z",
+              "end": "2026-08-04T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-04T10:15:00.000Z",
+              "end": "2026-08-04T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-04T19:00:00.000Z",
+              "end": "2026-08-05T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-05T10:15:00.000Z",
+              "end": "2026-08-05T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-05T19:00:00.000Z",
+              "end": "2026-08-06T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-06T10:15:00.000Z",
+              "end": "2026-08-06T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-06T19:00:00.000Z",
+              "end": "2026-08-07T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-07T10:15:00.000Z",
+              "end": "2026-08-07T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-07T19:00:00.000Z",
+              "end": "2026-08-08T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-10T10:15:00.000Z",
+              "end": "2026-08-10T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-10T19:00:00.000Z",
+              "end": "2026-08-11T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-11T10:15:00.000Z",
+              "end": "2026-08-11T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-11T19:00:00.000Z",
+              "end": "2026-08-12T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-12T10:15:00.000Z",
+              "end": "2026-08-12T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-12T19:00:00.000Z",
+              "end": "2026-08-13T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-13T10:15:00.000Z",
+              "end": "2026-08-13T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-13T19:00:00.000Z",
+              "end": "2026-08-14T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-14T10:15:00.000Z",
+              "end": "2026-08-14T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-14T19:00:00.000Z",
+              "end": "2026-08-15T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-17T10:15:00.000Z",
+              "end": "2026-08-17T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-17T19:00:00.000Z",
+              "end": "2026-08-18T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-18T10:15:00.000Z",
+              "end": "2026-08-18T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-18T19:00:00.000Z",
+              "end": "2026-08-19T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-19T10:15:00.000Z",
+              "end": "2026-08-19T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-19T19:00:00.000Z",
+              "end": "2026-08-20T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-20T10:15:00.000Z",
+              "end": "2026-08-20T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-20T19:00:00.000Z",
+              "end": "2026-08-21T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-21T10:15:00.000Z",
+              "end": "2026-08-21T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-21T19:00:00.000Z",
+              "end": "2026-08-22T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-24T10:15:00.000Z",
+              "end": "2026-08-24T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-24T19:00:00.000Z",
+              "end": "2026-08-25T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-25T10:15:00.000Z",
+              "end": "2026-08-25T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-25T19:00:00.000Z",
+              "end": "2026-08-26T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-26T10:15:00.000Z",
+              "end": "2026-08-26T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-26T19:00:00.000Z",
+              "end": "2026-08-27T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-27T10:15:00.000Z",
+              "end": "2026-08-27T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-27T19:00:00.000Z",
+              "end": "2026-08-28T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-28T10:15:00.000Z",
+              "end": "2026-08-28T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-28T19:00:00.000Z",
+              "end": "2026-08-29T02:00:00.000Z"
+            },
+            {
+              "start": "2026-08-31T10:15:00.000Z",
+              "end": "2026-08-31T14:00:00.000Z"
+            },
+            {
+              "start": "2026-08-31T19:00:00.000Z",
+              "end": "2026-09-01T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-01T10:15:00.000Z",
+              "end": "2026-09-01T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-01T19:00:00.000Z",
+              "end": "2026-09-02T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-02T10:15:00.000Z",
+              "end": "2026-09-02T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-02T19:00:00.000Z",
+              "end": "2026-09-03T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-03T10:15:00.000Z",
+              "end": "2026-09-03T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-03T19:00:00.000Z",
+              "end": "2026-09-04T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-04T10:15:00.000Z",
+              "end": "2026-09-04T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-04T19:00:00.000Z",
+              "end": "2026-09-05T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-07T10:15:00.000Z",
+              "end": "2026-09-07T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-07T19:00:00.000Z",
+              "end": "2026-09-08T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-08T10:15:00.000Z",
+              "end": "2026-09-08T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-08T19:00:00.000Z",
+              "end": "2026-09-09T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-09T10:15:00.000Z",
+              "end": "2026-09-09T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-09T19:00:00.000Z",
+              "end": "2026-09-10T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-10T10:15:00.000Z",
+              "end": "2026-09-10T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-10T19:00:00.000Z",
+              "end": "2026-09-11T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-11T10:15:00.000Z",
+              "end": "2026-09-11T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-11T19:00:00.000Z",
+              "end": "2026-09-12T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-14T10:15:00.000Z",
+              "end": "2026-09-14T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-14T19:00:00.000Z",
+              "end": "2026-09-15T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-15T10:15:00.000Z",
+              "end": "2026-09-15T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-15T19:00:00.000Z",
+              "end": "2026-09-16T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-16T10:15:00.000Z",
+              "end": "2026-09-16T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-16T19:00:00.000Z",
+              "end": "2026-09-17T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-17T10:15:00.000Z",
+              "end": "2026-09-17T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-17T19:00:00.000Z",
+              "end": "2026-09-18T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-18T10:15:00.000Z",
+              "end": "2026-09-18T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-18T19:00:00.000Z",
+              "end": "2026-09-19T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-21T10:15:00.000Z",
+              "end": "2026-09-21T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-21T19:00:00.000Z",
+              "end": "2026-09-22T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-22T10:15:00.000Z",
+              "end": "2026-09-22T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-22T19:00:00.000Z",
+              "end": "2026-09-23T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-23T10:15:00.000Z",
+              "end": "2026-09-23T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-23T19:00:00.000Z",
+              "end": "2026-09-24T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-24T10:15:00.000Z",
+              "end": "2026-09-24T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-24T19:00:00.000Z",
+              "end": "2026-09-25T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-25T10:15:00.000Z",
+              "end": "2026-09-25T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-25T19:00:00.000Z",
+              "end": "2026-09-26T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-28T10:15:00.000Z",
+              "end": "2026-09-28T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-28T19:00:00.000Z",
+              "end": "2026-09-29T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-29T10:15:00.000Z",
+              "end": "2026-09-29T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-29T19:00:00.000Z",
+              "end": "2026-09-30T02:00:00.000Z"
+            },
+            {
+              "start": "2026-09-30T10:15:00.000Z",
+              "end": "2026-09-30T14:00:00.000Z"
+            },
+            {
+              "start": "2026-09-30T19:00:00.000Z",
+              "end": "2026-10-01T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-01T10:15:00.000Z",
+              "end": "2026-10-01T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-01T19:00:00.000Z",
+              "end": "2026-10-02T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-02T10:15:00.000Z",
+              "end": "2026-10-02T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-02T19:00:00.000Z",
+              "end": "2026-10-03T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-05T10:15:00.000Z",
+              "end": "2026-10-05T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-05T19:00:00.000Z",
+              "end": "2026-10-06T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-06T10:15:00.000Z",
+              "end": "2026-10-06T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-06T19:00:00.000Z",
+              "end": "2026-10-07T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-07T10:15:00.000Z",
+              "end": "2026-10-07T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-07T19:00:00.000Z",
+              "end": "2026-10-08T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-08T10:15:00.000Z",
+              "end": "2026-10-08T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-08T19:00:00.000Z",
+              "end": "2026-10-09T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-09T10:15:00.000Z",
+              "end": "2026-10-09T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-09T19:00:00.000Z",
+              "end": "2026-10-10T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-12T10:15:00.000Z",
+              "end": "2026-10-12T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-12T19:00:00.000Z",
+              "end": "2026-10-13T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-13T10:15:00.000Z",
+              "end": "2026-10-13T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-13T19:00:00.000Z",
+              "end": "2026-10-14T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-14T10:15:00.000Z",
+              "end": "2026-10-14T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-14T19:00:00.000Z",
+              "end": "2026-10-15T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-15T10:15:00.000Z",
+              "end": "2026-10-15T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-15T19:00:00.000Z",
+              "end": "2026-10-16T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-16T10:15:00.000Z",
+              "end": "2026-10-16T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-16T19:00:00.000Z",
+              "end": "2026-10-17T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-19T10:15:00.000Z",
+              "end": "2026-10-19T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-19T19:00:00.000Z",
+              "end": "2026-10-20T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-20T10:15:00.000Z",
+              "end": "2026-10-20T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-20T19:00:00.000Z",
+              "end": "2026-10-21T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-21T10:15:00.000Z",
+              "end": "2026-10-21T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-21T19:00:00.000Z",
+              "end": "2026-10-22T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-22T10:15:00.000Z",
+              "end": "2026-10-22T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-22T19:00:00.000Z",
+              "end": "2026-10-23T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-23T10:15:00.000Z",
+              "end": "2026-10-23T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-23T19:00:00.000Z",
+              "end": "2026-10-24T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-26T10:15:00.000Z",
+              "end": "2026-10-26T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-26T19:00:00.000Z",
+              "end": "2026-10-27T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-27T10:15:00.000Z",
+              "end": "2026-10-27T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-27T19:00:00.000Z",
+              "end": "2026-10-28T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-28T10:15:00.000Z",
+              "end": "2026-10-28T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-28T19:00:00.000Z",
+              "end": "2026-10-29T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-29T10:15:00.000Z",
+              "end": "2026-10-29T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-29T19:00:00.000Z",
+              "end": "2026-10-30T02:00:00.000Z"
+            },
+            {
+              "start": "2026-10-30T10:15:00.000Z",
+              "end": "2026-10-30T14:00:00.000Z"
+            },
+            {
+              "start": "2026-10-30T19:00:00.000Z",
+              "end": "2026-10-31T02:00:00.000Z"
+            },
+            {
+              "start": "2026-11-02T11:15:00.000Z",
+              "end": "2026-11-02T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-02T20:00:00.000Z",
+              "end": "2026-11-03T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-03T11:15:00.000Z",
+              "end": "2026-11-03T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-03T20:00:00.000Z",
+              "end": "2026-11-04T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-04T11:15:00.000Z",
+              "end": "2026-11-04T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-04T20:00:00.000Z",
+              "end": "2026-11-05T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-05T11:15:00.000Z",
+              "end": "2026-11-05T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-05T20:00:00.000Z",
+              "end": "2026-11-06T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-06T11:15:00.000Z",
+              "end": "2026-11-06T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-06T20:00:00.000Z",
+              "end": "2026-11-07T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-09T11:15:00.000Z",
+              "end": "2026-11-09T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-09T20:00:00.000Z",
+              "end": "2026-11-10T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-10T11:15:00.000Z",
+              "end": "2026-11-10T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-10T20:00:00.000Z",
+              "end": "2026-11-11T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-11T11:15:00.000Z",
+              "end": "2026-11-11T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-11T20:00:00.000Z",
+              "end": "2026-11-12T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-12T11:15:00.000Z",
+              "end": "2026-11-12T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-12T20:00:00.000Z",
+              "end": "2026-11-13T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-13T11:15:00.000Z",
+              "end": "2026-11-13T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-13T20:00:00.000Z",
+              "end": "2026-11-14T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-16T11:15:00.000Z",
+              "end": "2026-11-16T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-16T20:00:00.000Z",
+              "end": "2026-11-17T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-17T11:15:00.000Z",
+              "end": "2026-11-17T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-17T20:00:00.000Z",
+              "end": "2026-11-18T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-18T11:15:00.000Z",
+              "end": "2026-11-18T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-18T20:00:00.000Z",
+              "end": "2026-11-19T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-19T11:15:00.000Z",
+              "end": "2026-11-19T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-19T20:00:00.000Z",
+              "end": "2026-11-20T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-20T11:15:00.000Z",
+              "end": "2026-11-20T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-20T20:00:00.000Z",
+              "end": "2026-11-21T03:00:00.000Z"
+            },
+            {
+              "start": "2026-11-23T11:15:00.000Z",
+              "end": "2026-11-23T15:00:00.000Z"
+            },
+            {
+              "start": "2026-11-23T20:00:00.000Z",
+              "end": "2026-11-24T03:00:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        },
+        {
+          "id": "lmm:planned_work:31498",
+          "headerText": "In Queens, Flushing-bound [7] skips 52 St and 69 St\nAll trains at Woodside-61 St board from the Manhattan-bound platform",
+          "descriptionText": "Use nearby 46 St-Bliss St, Woodside-61 St or 74 St-Broadway stations.\n\nAdditional travel alternatives:\nFor service to these stations, take the [7] to Woodside-61 St or 74 St-Broadway and transfer to a Manhattan-bound [7].\n\nFor service from these stations, take the [7] to Woodside-61 St or 46 St-Bliss St and transfer to a Flushing-bound [7].\n\nNote: There will be temporary platforms on the Flushing-bound side at 33 St-Rawson St, 40 St-Lowery St and 46 St-Bliss St\n\nWhat's happening?\nWe're making structural improvements",
+          "affectedLines": [
+            "7"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-25T14:30:00.000Z",
+              "end": "2027-01-01T04:59:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        },
+        {
+          "id": "lmm:planned_work:23514",
+          "headerText": "In Queens, Flushing-bound [7] skips 103 St-Corona Plaza",
+          "descriptionText": "Use nearby Junction Blvd or 111 St stations.\n\nAdditional travel alternatives:\nFor service to this station, take the [7] to 111 St and transfer to a Manhattan-bound train.\n\nFor service from this station, take the [7] to Junction Blvd and transfer to a Flushing-bound train.\n\nWhat's happening?\nWe're making station improvements",
+          "affectedLines": [
+            "7"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-11T07:00:00.000Z",
+              "end": "2026-06-13T07:45:00.000Z"
+            },
+            {
+              "start": "2026-06-13T18:00:00.000Z",
+              "end": "2026-06-26T09:00:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        },
+        {
+          "id": "lmm:alert:540200",
+          "headerText": "The 6:17pm train from Grand Central to Danbury is operating 10-15 minutes late because of congestion resulting from a switch issue near Pelham.",
+          "descriptionText": "",
+          "affectedLines": [
+            "5"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-28T23:31:36.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        },
+        {
+          "id": "lmm:alert:540217",
+          "headerText": "The 6:45pm train from Danbury to Stamford is operating 10-15 minutes late because of congestion on the branch.",
+          "descriptionText": "",
+          "affectedLines": [
+            "5"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-29T00:00:07.000Z",
+              "end": "2026-05-29T00:30:07.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        }
+      ],
+      "disruptionAnalysis": {
+        "riskLevel": "low",
+        "riskLabel": "Minor delays possible",
+        "affectedSegments": [
+          {
+            "segmentIndex": 0,
+            "line": "7",
+            "alertId": "lmm:planned_work:31871",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "In Queens, all Manhattan-bound [7][7X] local/express trains stop at 74 St-Broadway"
+          },
+          {
+            "segmentIndex": 0,
+            "line": "7",
+            "alertId": "lmm:planned_work:31498",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "In Queens, Flushing-bound [7] skips 52 St and 69 St\nAll trains at Woodside-61 St board from the Manhattan-bound platform"
+          },
+          {
+            "segmentIndex": 0,
+            "line": "7",
+            "alertId": "lmm:planned_work:23514",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "In Queens, Flushing-bound [7] skips 103 St-Corona Plaza"
+          },
+          {
+            "segmentIndex": 1,
+            "line": "5",
+            "alertId": "lmm:alert:540200",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "The 6:17pm train from Grand Central to Danbury is operating 10-15 minutes late because of congestion resulting from a switch issue near Pelham."
+          },
+          {
+            "segmentIndex": 1,
+            "line": "5",
+            "alertId": "lmm:alert:540217",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "The 6:45pm train from Danbury to Stamford is operating 10-15 minutes late because of congestion on the branch."
+          }
+        ],
+        "timeBufferMinutes": 5
+      }
+    }
   }
 }

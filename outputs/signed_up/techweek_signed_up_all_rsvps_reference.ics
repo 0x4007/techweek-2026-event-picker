@@ -24,12 +24,12 @@ END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
 UID:2e465e1c-74b2-5b7b-9eaa-4bd001ad1c6e@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260601T143000
 DTEND;TZID=America/New_York:20260601T160000
 SUMMARY:[PENDING ADDED] The builder’s table: AI finance leaders lunch wit
  h Vayu\, Base44 & PwC
-LOCATION:Midtown
+LOCATION:Boucherie\, 145 W 53rd St\, New York\, NY
 DESCRIPTION:TechWeekID: TW-6493\nCalendarBlockID: TW-6493-REFERENCE\nRerank
  ID: 6493\nPartifulID: MQvS9RrcXl6HcAEzfzhg\nWait for host approval Submitt
  ed via Partiful API\; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL
@@ -44,11 +44,11 @@ URL:https://partiful.com/e/MQvS9RrcXl6HcAEzfzhg
 END:VEVENT
 BEGIN:VEVENT
 UID:450a9a68-2f43-58a5-a0ce-fdfc6b0b267c@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260601T170000
 DTEND;TZID=America/New_York:20260601T183000
 SUMMARY:[PENDING BACKUP] Slack x Amplitude: AI at work
-LOCATION:Tribeca
+LOCATION:Fabrik\, 16 Vestry St\, New York\, NY 10013
 DESCRIPTION:TechWeekID: TW-5110\nCalendarBlockID: TW-5110-REFERENCE\nRerank
  ID: 5110\nPartifulID: dmFBKIxzn2LdFmktqas8\nWait for host approval Submitt
  ed via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none
@@ -70,7 +70,7 @@ URL:https://partiful.com/e/dmFBKIxzn2LdFmktqas8
 END:VEVENT
 BEGIN:VEVENT
 UID:bf603bf0-d50f-559a-aa9c-9060c5ab7b22@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260601T180000
 DTEND;TZID=America/New_York:20260601T193000
 SUMMARY:[PENDING ADDED] Fintech Engineers Happy Hour
@@ -89,7 +89,7 @@ URL:https://partiful.com/e/pmDosvwgBQPxLVDk8WWb
 END:VEVENT
 BEGIN:VEVENT
 UID:baf1574b-00e3-5ba7-95ba-a040718eb1f2@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260601T180000
 DTEND;TZID=America/New_York:20260601T210000
 SUMMARY:[REG BACKUP] Software for Hardware: The Tools Powering Robotics & E
@@ -119,7 +119,7 @@ URL:https://partiful.com/e/09a0qPKv0cSOIOSGxjTQ
 END:VEVENT
 BEGIN:VEVENT
 UID:dcfb2ef9-586d-5372-866c-9acfb5a8c8aa@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260601T183000
 DTEND;TZID=America/New_York:20260601T200000
 SUMMARY:[REG BACKUP] NYC B2B: AI Founders & Investors Mixer
@@ -146,11 +146,11 @@ URL:https://partiful.com/e/oQvmxTsHOVayx47ok3li?c=0hT1WkMm
 END:VEVENT
 BEGIN:VEVENT
 UID:4a4e5de7-5612-5014-90fa-988f1dc7b8bd@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260602T160000
 DTEND;TZID=America/New_York:20260602T190000
 SUMMARY:[WAITLIST BACKUP] Operating MCP
-LOCATION:TBC
+LOCATION:159 W 25th St 3rd Floor\, New York\, NY
 DESCRIPTION:TechWeekID: TW-4522\nCalendarBlockID: TW-4522-REFERENCE\nRerank
  ID: 4522\nPartifulID: 5vHvRPI0VlMQwOmQadCN\nMonitor waitlist / host approv
  al Submitted via Partiful API\; rsvpStatus=WAITLIST\; count=2\; plusOne=TB
@@ -171,7 +171,7 @@ URL:https://partiful.com/e/5vHvRPI0VlMQwOmQadCN
 END:VEVENT
 BEGIN:VEVENT
 UID:7a1a43d4-90ba-5305-b826-2ecc1c9c173f@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260602T173000
 DTEND;TZID=America/New_York:20260602T193000
 SUMMARY:[PENDING BACKUP] WorkOS + Postman Agents & APIs Demo Night
@@ -186,23 +186,23 @@ DESCRIPTION:TechWeekID: TW-4224\nCalendarBlockID: TW-4224-REFERENCE\nRerank
   and approved the work?\nListen for: API governance\, permissions\, review
   evidence\, enterprise buyers\, workflow logs.\nFollow-up: Ask for intros 
  to teams responsible for developer platform or internal API governance.\nR
- SVP status: applied\nCategory: backup\nVenue basis: Spring St and Broadway
- \, New York\, NY (approx_freeform_hidden)\nGoogle Maps: https://www.google
- .com/maps/search/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY\nRa
- nk/tier/score: 217 / B / 51\nURL: https://partiful.com/e/XqIBMZmB4oubCZWFP
- 2Sl
+ SVP status: applied\nCategory: backup\nVenue basis: 56 Greene Street\, 4th
+  Floor New York\, NY 10012 (exact_from_partiful_freeform)\nGoogle Maps: ht
+ tps://www.google.com/maps/search/?api=1&query=56+Greene+Street%2C+4th+Floo
+ r+New+York%2C+NY+10012\nRank/tier/score: 217 / B / 51\nURL: https://partif
+ ul.com/e/XqIBMZmB4oubCZWFP2Sl
 STATUS:TENTATIVE
 TRANSP:TRANSPARENT
 URL:https://partiful.com/e/XqIBMZmB4oubCZWFP2Sl
 END:VEVENT
 BEGIN:VEVENT
 UID:9b6bad93-ebab-54e4-bfb3-e51a28818961@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260602T173000
 DTEND;TZID=America/New_York:20260602T190000
 SUMMARY:[REG ADDED] AI on Main Street: How Chinatown's Small Businesses Are
   Using AI
-LOCATION:Chinatown
+LOCATION:115 Bowery Ground Floor\, New York\, NY
 DESCRIPTION:TechWeekID: TW-6393\nCalendarBlockID: TW-6393-REFERENCE\nRerank
  ID: 6393\nPartifulID: hl2AIeWhZ1e2t6LveEGw\nRegistered\; monitor for updat
  es Submitted via Partiful API\; linkedPlusOneFailures=0. rsvpStatus=GOING\
@@ -217,7 +217,7 @@ URL:https://partiful.com/e/hl2AIeWhZ1e2t6LveEGw
 END:VEVENT
 BEGIN:VEVENT
 UID:bf66590b-8de0-5030-8e24-8003fde94491@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260602T173000
 DTEND;TZID=America/New_York:20260602T193000
 SUMMARY:[REG BACKUP] AI\, Algorithms & Liability: What Tech Leaders & Creat
@@ -234,21 +234,22 @@ DESCRIPTION:TechWeekID: TW-5415\nCalendarBlockID: TW-5415-REFERENCE\nRerank
   responsibility?\nListen for: Audit trails\, legal/compliance sensitivity\
  , review records\, decision provenance.\nFollow-up: Ask if source-linked e
  ngineering evidence would be useful for compliance conversations.\nRSVP st
- atus: registered\nCategory: backup\nVenue basis: Wall St\, New York\, NY (
- approx_freeform_hidden)\nGoogle Maps: https://www.google.com/maps/search/?
- api=1&query=Wall+St%2C+New+York%2C+NY\nRank/tier/score: 72 / B / 58\nURL: 
- https://partiful.com/e/UBrZopzqpRwbn6Qk0npO?c=4IfpVNvT
+ atus: registered\nCategory: backup\nVenue basis: One Battery Park Plaza\, 
+ 7th Floor New York\, NY 10004 (exact_from_partiful_freeform)\nGoogle Maps:
+  https://www.google.com/maps/search/?api=1&query=One+Battery+Park+Plaza%2C
+ +7th+Floor+New+York%2C+NY+10004\nRank/tier/score: 72 / B / 58\nURL: https:
+ //partiful.com/e/UBrZopzqpRwbn6Qk0npO?c=4IfpVNvT
 STATUS:CONFIRMED
 TRANSP:TRANSPARENT
 URL:https://partiful.com/e/UBrZopzqpRwbn6Qk0npO?c=4IfpVNvT
 END:VEVENT
 BEGIN:VEVENT
 UID:8db3430f-db1b-57cf-b714-b440147392af@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260602T180000
 DTEND;TZID=America/New_York:20260602T193000
 SUMMARY:[PENDING ADDED] Founders x Investors AI Toolkit & Happy Hour
-LOCATION:Midtown
+LOCATION:City Hall Area\, New York\, NY
 DESCRIPTION:TechWeekID: TW-6629\nCalendarBlockID: TW-6629-REFERENCE\nRerank
  ID: 6629\nPartifulID: Vs2eC7nERtgF0PgNWfUo\nWait for host approval Submitt
  ed via Partiful API\; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL
@@ -263,7 +264,7 @@ URL:https://partiful.com/e/Vs2eC7nERtgF0PgNWfUo
 END:VEVENT
 BEGIN:VEVENT
 UID:e04b8faa-ca16-56d3-87c2-4c6190ae2a4d@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260602T180000
 DTEND;TZID=America/New_York:20260602T193000
 SUMMARY:[PENDING CURATED] Enterprise AI Happy Hour
@@ -278,17 +279,16 @@ DESCRIPTION:TechWeekID: TW-5437\nCalendarBlockID: TW-5437-REFERENCE\nRerank
  Listen for: Governance\, internal platforms\, production agents\, executiv
  e reporting\, risk controls.\nFollow-up: Ask for a specific post-event cal
  l with the platform\, DevEx\, or AI governance owner.\nRSVP status: applie
- d\nCategory: apply\nVenue basis: Spring St and Broadway\, New York\, NY (a
- pprox_freeform_hidden)\nGoogle Maps: https://www.google.com/maps/search/?a
- pi=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY\nRank/tier/score: 2 / 
- S / 100\nURL: https://partiful.com/e/FSzOO6xPn11iqxVdtQ9j?
+ d\nCategory: apply\nVenue basis: Soho (approx_freeform)\nGoogle Maps: http
+ s://www.google.com/maps/search/?api=1&query=Soho\nRank/tier/score: 2 / S /
+  100\nURL: https://partiful.com/e/FSzOO6xPn11iqxVdtQ9j?
 STATUS:TENTATIVE
 TRANSP:TRANSPARENT
 URL:https://partiful.com/e/FSzOO6xPn11iqxVdtQ9j?
 END:VEVENT
 BEGIN:VEVENT
 UID:3add161e-c5c9-5122-aa29-07501be9949b@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260602T180000
 DTEND;TZID=America/New_York:20260602T200000
 SUMMARY:[REG BACKUP] Cloudflare + Shopify: Build for the Agent Era
@@ -315,7 +315,7 @@ URL:https://partiful.com/e/jytNb4IdG0HxwJnqDSgf
 END:VEVENT
 BEGIN:VEVENT
 UID:cc2a01e4-dfa3-53e9-8aa9-fea1b191aef3@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260603T133000
 DTEND;TZID=America/New_York:20260603T170000
 SUMMARY:[PENDING CURATED] Anthropic Founder Salon: Inside the AI-Native Era
@@ -331,23 +331,23 @@ DESCRIPTION:TechWeekID: TW-5820\nCalendarBlockID: TW-5820-REFERENCE\nRerank
  ble output?\nListen for: Small teams scaling fast\, agent-heavy workflows\
  , contribution rewards\, manager memory breaking down.\nFollow-up: Ask for
   a founder-to-founder product critique and one relevant buyer intro.\nRSVP
-  status: applied\nCategory: apply\nVenue basis: 23rd Street and 8th Avenue
- \, New York\, NY (approx_freeform_hidden)\nGoogle Maps: https://www.google
- .com/maps/search/?api=1&query=23rd+Street+and+8th+Avenue%2C+New+York%2C+NY
- \nRank/tier/score: 9 / S / 94\nURL: https://partiful.com/e/titPml1Nw0DKwGl
- 9B6CF
+  status: applied\nCategory: apply\nVenue basis: New York\, NY – Chelsea 
+ neighborhood (venue details upon confirmation) (approx_freeform)\nGoogle M
+ aps: https://www.google.com/maps/search/?api=1&query=New+York%2C+NY+%E2%80
+ %93+Chelsea+neighborhood+%28venue+details+upon+confirmation%29\nRank/tier/
+ score: 9 / S / 94\nURL: https://partiful.com/e/titPml1Nw0DKwGl9B6CF
 STATUS:TENTATIVE
 TRANSP:TRANSPARENT
 URL:https://partiful.com/e/titPml1Nw0DKwGl9B6CF
 END:VEVENT
 BEGIN:VEVENT
 UID:ec763751-97e3-5539-a25a-6d14a6023210@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260603T160000
 DTEND;TZID=America/New_York:20260603T210000
 SUMMARY:[PENDING CURATED] Agent Harnesses: What It Takes to Make AI Agents 
  Work in the Enterprise
-LOCATION:Union Square
+LOCATION:Union Square W\, New York\, NY 10003
 DESCRIPTION:TechWeekID: TW-4719\nCalendarBlockID: TW-4719-REFERENCE\nRerank
  ID: 4719\nPartifulID: 2NP0rZW8BmdGAGUOEhGP\nWait for host approval Submitt
  ed via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none
@@ -369,11 +369,11 @@ URL:https://partiful.com/e/2NP0rZW8BmdGAGUOEhGP?f=1
 END:VEVENT
 BEGIN:VEVENT
 UID:24128674-1b02-5b2f-95fd-6315012fac07@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260603T170000
 DTEND;TZID=America/New_York:20260603T183000
 SUMMARY:[PENDING ADDED] Voice AI Meetup: Build a Voice Agent in 1 hour
-LOCATION:SoHo
+LOCATION:Rockefeller Center\, New York\, NY
 DESCRIPTION:TechWeekID: TW-4882\nCalendarBlockID: TW-4882-REFERENCE\nRerank
  ID: 4882\nPartifulID: pIS8aostHgPm9GXmaN6X\nWait for host approval Submitt
  ed via Partiful API\; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL
@@ -388,12 +388,12 @@ URL:https://partiful.com/e/pIS8aostHgPm9GXmaN6X
 END:VEVENT
 BEGIN:VEVENT
 UID:23d86dad-28ac-50ce-80d0-eb797265fc62@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260603T173000
 DTEND;TZID=America/New_York:20260603T190000
 SUMMARY:[PENDING ADDED] Tessera Labs x a16z : The Closing Gap (Private Dinn
  er)
-LOCATION:Flatiron
+LOCATION:ilili\, 236 5th Ave\, New York\, NY
 DESCRIPTION:TechWeekID: TW-4931\nCalendarBlockID: TW-4931-REFERENCE\nRerank
  ID: 4931\nPartifulID: tPlMvExfd6gOdgKCW6O7\nWait for host approval Submitt
  ed via Partiful API\; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL
@@ -408,7 +408,7 @@ URL:https://partiful.com/e/tPlMvExfd6gOdgKCW6O7
 END:VEVENT
 BEGIN:VEVENT
 UID:9348cba8-d9f6-5e57-8a45-6ba53f3f6eef@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260603T173000
 DTEND;TZID=America/New_York:20260603T203000
 SUMMARY:[PENDING BACKUP] Camp AI: Agents at Work
@@ -434,11 +434,11 @@ URL:https://partiful.com/e/Fp5STyPH0McEt0awlWFD
 END:VEVENT
 BEGIN:VEVENT
 UID:40d259fd-ead1-5f84-8414-f8e678034a6c@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260603T173000
 DTEND;TZID=America/New_York:20260603T193000
 SUMMARY:[REG CURATED] The CTO Mixer: Humanizing Tech | Happy Hour
-LOCATION:Midtown\, Manhattan\, New York\, NY
+LOCATION:Midtown\, 130 E 57th St\, New York\, NY
 DESCRIPTION:TechWeekID: TW-4778\nCalendarBlockID: TW-4778-REFERENCE\nRerank
  ID: 4778\nPartifulID: h1hGv0PkskcagJOv5M9K\nOn the list\; monitor for upda
  tes Partiful page shows ON THE LIST as of 2026-05-10. Previously submitted
@@ -450,22 +450,23 @@ DESCRIPTION:TechWeekID: TW-4778\nCalendarBlockID: TW-4778-REFERENCE\nRerank
  ring work?\nListen for: Performance reviews\, planning evidence\, PR quali
  ty\, distributed-team context\, DevEx ownership.\nFollow-up: If pain is cl
  ear\, ask for a 20-minute CTO follow-up and permission to send a one-pager
- .\nRSVP status: registered\nCategory: apply\nVenue basis: Astor Place\, Ne
- w York\, NY (approx_neighborhood_hidden)\nGoogle Maps: https://www.google.
- com/maps/search/?api=1&query=Astor+Place%2C+New+York%2C+NY\nRank/tier/scor
- e: 6 / S / 100\nURL: https://partiful.com/e/h1hGv0PkskcagJOv5M9K
+ .\nRSVP status: registered\nCategory: apply\nVenue basis: Midtown\, 130 E 
+ 57th St\, New York\, NY (exact_from_signup_status)\nGoogle Maps: https://w
+ ww.google.com/maps/search/?api=1&query=Midtown%2C+130+E+57th+St%2C+New+Yor
+ k%2C+NY\nRank/tier/score: 6 / S / 100\nURL: https://partiful.com/e/h1hGv0P
+ kskcagJOv5M9K
 STATUS:CONFIRMED
 TRANSP:TRANSPARENT
 URL:https://partiful.com/e/h1hGv0PkskcagJOv5M9K
 END:VEVENT
 BEGIN:VEVENT
 UID:b24d5490-d984-50cc-93b5-07740978de45@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260603T180000
 DTEND;TZID=America/New_York:20260603T193000
 SUMMARY:[PENDING ADDED] Data Center\, Power & Enterprise Infrastructure Din
  ner
-LOCATION:Central Park
+LOCATION:Central Park\, Manhattan\, New York\, NY
 DESCRIPTION:TechWeekID: TW-5720\nCalendarBlockID: TW-5720-REFERENCE\nRerank
  ID: 5720\nPartifulID: Vkvjr5dBr2FmbI2yK5UB\nWait for host approval Submitt
  ed via Partiful API\; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL
@@ -480,11 +481,11 @@ URL:https://partiful.com/e/Vkvjr5dBr2FmbI2yK5UB
 END:VEVENT
 BEGIN:VEVENT
 UID:3482da7c-b5c8-523a-83d0-c62c3b1f223d@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260603T180000
 DTEND;TZID=America/New_York:20260603T193000
 SUMMARY:[PENDING ADDED] SGLang Happy Hour: AI Infra in Finance
-LOCATION:SoHo
+LOCATION:1/2 Bond St\, 1 Bond St\, New York\, NY
 DESCRIPTION:TechWeekID: TW-6519\nCalendarBlockID: TW-6519-REFERENCE\nRerank
  ID: 6519\nPartifulID: p74X9KDrgoLaDtU8BmvS\nWait for host approval Submitt
  ed via Partiful API\; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL
@@ -499,11 +500,11 @@ URL:https://partiful.com/e/p74X9KDrgoLaDtU8BmvS
 END:VEVENT
 BEGIN:VEVENT
 UID:722db75d-29c2-5a4c-9d21-38066a5db2dc@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260603T190000
 DTEND;TZID=America/New_York:20260603T210000
 SUMMARY:[PENDING CURATED] The Tech Leaders Suite
-LOCATION:Brooklyn
+LOCATION:Barclays Center\, Brooklyn\, NY
 DESCRIPTION:TechWeekID: TW-4197\nCalendarBlockID: TW-4197-REFERENCE\nRerank
  ID: 4197\nPartifulID: UhyErPPxuo2vELIutdGj\nWait for host approval Submitt
  ed via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none
@@ -515,21 +516,21 @@ DESCRIPTION:TechWeekID: TW-4197\nCalendarBlockID: TW-4197-REFERENCE\nRerank
  ering productivity\, executive visibility.\nFollow-up: Ask for a leadershi
  p-focused follow-up if they manage engineers or internal platforms.\nRSVP 
  status: applied\nCategory: apply\nVenue basis: Barclays Center\, Brooklyn\
- , NY (approx_neighborhood_hidden)\nGoogle Maps: https://www.google.com/map
- s/search/?api=1&query=Barclays+Center%2C+Brooklyn%2C+NY\nRank/tier/score: 
- 5 / S / 100\nURL: https://partiful.com/e/UhyErPPxuo2vELIutdGj?
+ , NY (approx_from_signup_status)\nGoogle Maps: https://www.google.com/maps
+ /search/?api=1&query=Barclays+Center%2C+Brooklyn%2C+NY\nRank/tier/score: 5
+  / S / 100\nURL: https://partiful.com/e/UhyErPPxuo2vELIutdGj?
 STATUS:TENTATIVE
 TRANSP:TRANSPARENT
 URL:https://partiful.com/e/UhyErPPxuo2vELIutdGj?
 END:VEVENT
 BEGIN:VEVENT
 UID:a5eb1ce6-3713-50c9-8a17-c4f7939b9537@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260604T130000
 DTEND;TZID=America/New_York:20260604T143000
 SUMMARY:[PENDING ADDED] The Mooch and IBM’s Gary Cohn on Owning the Futur
  e: Digital Sovereignty in the Age of AI
-LOCATION:Flatiron
+LOCATION:IBM One Madison Avenue\, 1 Madison Ave\, FL 2\, New York\, NY
 DESCRIPTION:TechWeekID: TW-6526\nCalendarBlockID: TW-6526-REFERENCE\nRerank
  ID: 6526\nPartifulID: tUV88fW7J763Q0ZLdTBI\nWait for host approval Submitt
  ed via Partiful API\; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL
@@ -544,7 +545,7 @@ URL:https://partiful.com/e/tUV88fW7J763Q0ZLdTBI
 END:VEVENT
 BEGIN:VEVENT
 UID:ae28b051-39ac-551d-9b05-43f0c789d0ec@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260604T160000
 DTEND;TZID=America/New_York:20260604T173000
 SUMMARY:[PENDING ADDED] Built in NYC: AI Edition
@@ -563,11 +564,11 @@ URL:https://partiful.com/e/KIimVVdYB8fjaiE1UdZz
 END:VEVENT
 BEGIN:VEVENT
 UID:b0595140-8039-584f-af47-c2df590730aa@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260604T180000
 DTEND;TZID=America/New_York:20260604T200000
 SUMMARY:[PENDING BACKUP] Agents at Scale
-LOCATION:SoHo
+LOCATION:SoHo\, Manhattan\, New York\, NY
 DESCRIPTION:TechWeekID: TW-4191\nCalendarBlockID: TW-4191-REFERENCE\nRerank
  ID: 4191\nPartifulID: 6BlGFmwIdpyndqyLYS2v\nWait for host approval Submitt
  ed via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none
@@ -578,23 +579,22 @@ DESCRIPTION:TechWeekID: TW-4191\nCalendarBlockID: TW-4191-REFERENCE\nRerank
  ated output?\nListen for: Evaluation gaps\, agent ops\, review ownership\,
   platform labor\, traceability.\nFollow-up: Ask to learn how they log agen
  t work today and whether source-linked credit would fit.\nRSVP status: app
- lied\nCategory: backup\nVenue basis: Spring St and Broadway\, New York\, N
- Y (approx_neighborhood_hidden)\nGoogle Maps: https://www.google.com/maps/s
- earch/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY\nRank/tier/sco
- re: 10 / S / 93\nURL: https://partiful.com/e/6BlGFmwIdpyndqyLYS2v?c=bv5YqC
- oL
+ lied\nCategory: backup\nVenue basis: SoHo\, Manhattan\, New York\, NY (app
+ rox_from_signup_status)\nGoogle Maps: https://www.google.com/maps/search/?
+ api=1&query=SoHo%2C+Manhattan%2C+New+York%2C+NY\nRank/tier/score: 10 / S /
+  93\nURL: https://partiful.com/e/6BlGFmwIdpyndqyLYS2v?c=bv5YqCoL
 STATUS:TENTATIVE
 TRANSP:TRANSPARENT
 URL:https://partiful.com/e/6BlGFmwIdpyndqyLYS2v?c=bv5YqCoL
 END:VEVENT
 BEGIN:VEVENT
 UID:4d49f59c-3d9e-51ab-8d67-59201d397352@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260604T180000
 DTEND;TZID=America/New_York:20260604T193000
 SUMMARY:[PENDING BACKUP] Steal These AI Workflows: Live Demos from NYC's To
  p AI Builders
-LOCATION:Union Square
+LOCATION:Union Square E\, New York\, NY 10003
 DESCRIPTION:TechWeekID: TW-4826\nCalendarBlockID: TW-4826-REFERENCE\nRerank
  ID: 4826\nPartifulID: sGvp4VIr3KrGqRoWCKhV\nWait for host approval Submitt
  ed via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none
@@ -607,7 +607,7 @@ DESCRIPTION:TechWeekID: TW-4826\nCalendarBlockID: TW-4826-REFERENCE\nRerank
  ns\, demos that could become repeatable workflows.\nFollow-up: Ask demo bu
  ilders to name one evidence source Accolades should integrate first.\nRSVP
   status: applied\nCategory: backup\nVenue basis: Union Square E\, New York
- \, NY 10003 (exact_from_partiful_maps)\nGoogle Maps: https://www.google.co
+ \, NY 10003 (exact_from_signup_status)\nGoogle Maps: https://www.google.co
  m/maps/search/?api=1&query=Union+Square+E%2C+New+York%2C+NY+10003\nRank/ti
  er/score: 34 / A / 66\nURL: https://partiful.com/e/sGvp4VIr3KrGqRoWCKhV
 STATUS:TENTATIVE
@@ -616,7 +616,7 @@ URL:https://partiful.com/e/sGvp4VIr3KrGqRoWCKhV
 END:VEVENT
 BEGIN:VEVENT
 UID:a940c0d3-4413-5a37-bee9-e1d10cc37346@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260604T183000
 DTEND;TZID=America/New_York:20260604T213000
 SUMMARY:[WAITLIST CURATED] Engineering Leaders After Hours: A Build and Shi
@@ -644,7 +644,7 @@ URL:https://partiful.com/e/bETmU06uq4TtORng6I1l
 END:VEVENT
 BEGIN:VEVENT
 UID:278d909b-ae72-5176-bd2f-7d99f70ce24b@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260604T190000
 DTEND;TZID=America/New_York:20260604T203000
 SUMMARY:[PENDING ADDED] Founders\, Investors & Builders — An Intimate NYC
@@ -664,7 +664,7 @@ URL:https://partiful.com/e/PhqnW15PCQAdoENB6aNl
 END:VEVENT
 BEGIN:VEVENT
 UID:6f7e5fa3-1e80-5f70-a076-2c278f5e7900@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260604T190000
 DTEND;TZID=America/New_York:20260604T203000
 SUMMARY:[PENDING BACKUP] From Prediction Markets to Predictive Intelligence
@@ -690,7 +690,7 @@ URL:https://partiful.com/e/eSldi3iNIvAVo9utdd8S
 END:VEVENT
 BEGIN:VEVENT
 UID:fdcc4861-c8a2-5d99-bfa5-e2b2fce4fb37@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260604T190000
 DTEND;TZID=America/New_York:20260604T210000
 SUMMARY:[REG CURATED] AI BUILDERS DINNER
@@ -706,21 +706,21 @@ DESCRIPTION:TechWeekID: TW-5231\nCalendarBlockID: TW-5231-REFERENCE\nRerank
  : AI-native operating models\, fast-growing teams\, founder pain\, enginee
  ring leadership gaps.\nFollow-up: Ask for one sharp product critique and o
  ne relevant engineering-leader intro.\nRSVP status: registered\nCategory: 
- apply\nVenue basis: 23rd Street and Broadway\, New York\, NY (approx_neigh
- borhood_hidden)\nGoogle Maps: https://www.google.com/maps/search/?api=1&qu
- ery=23rd+Street+and+Broadway%2C+New+York%2C+NY\nRank/tier/score: 11 / S / 
- 90\nURL: https://partiful.com/e/idltitmjA4ZzL9IuK0Y6
+ apply\nVenue basis: Flatiron\, Manhattan\, New York\, NY (approx_from_sign
+ up_status)\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=F
+ latiron%2C+Manhattan%2C+New+York%2C+NY\nRank/tier/score: 11 / S / 90\nURL:
+  https://partiful.com/e/idltitmjA4ZzL9IuK0Y6
 STATUS:CONFIRMED
 TRANSP:TRANSPARENT
 URL:https://partiful.com/e/idltitmjA4ZzL9IuK0Y6
 END:VEVENT
 BEGIN:VEVENT
 UID:d22592b1-9cae-5c8d-9f59-7b6e0e60a28f@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260604T200000
 DTEND;TZID=America/New_York:20260604T213000
 SUMMARY:[PENDING BACKUP] Free Phos\, Real Convos. Agents in your DMs
-LOCATION:Flatiron
+LOCATION:City Hall Area\, New York\, NY
 DESCRIPTION:TechWeekID: TW-5207\nCalendarBlockID: TW-5207-REFERENCE\nRerank
  ID: 5207\nPartifulID: ed2EFWip0do9OuYmVPZI\nWait for host approval Submitt
  ed via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none
@@ -743,11 +743,11 @@ URL:https://partiful.com/e/ed2EFWip0do9OuYmVPZI
 END:VEVENT
 BEGIN:VEVENT
 UID:b93fd319-97b9-55d2-ba5b-2681326cab1d@techweek-2026-event-picker
-DTSTAMP:20260528T080659Z
+DTSTAMP:20260529T002513Z
 DTSTART;TZID=America/New_York:20260605T180000
 DTEND;TZID=America/New_York:20260605T210000
 SUMMARY:[PENDING CURATED] YouCode AI Salon
-LOCATION:New York\, NY
+LOCATION:The Ivory Peacock\, 38 W 26th St\, New York\, NY
 DESCRIPTION:TechWeekID: TW-250\nCalendarBlockID: TW-250-REFERENCE\nRerankID
  : 250\nPartifulID: kvGpuFMeACW7ZWPYtxTP\nWait for host approval Submitted 
  via Partiful API\; rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.\n
@@ -758,10 +758,11 @@ DESCRIPTION:TechWeekID: TW-250\nCalendarBlockID: TW-250-REFERENCE\nRerankID
  ent around AI coding?\nListen for: Builder workflows\, early team habits\,
   contribution rewards\, technical-founder pain.\nFollow-up: Ask for feedba
  ck or an intro\; do not over-invest unless they match the ICP.\nRSVP statu
- s: applied\nCategory: apply\nVenue basis: Barclays Center\, Brooklyn\, NY 
- (approx_neighborhood_hidden)\nGoogle Maps: https://www.google.com/maps/sea
- rch/?api=1&query=Barclays+Center%2C+Brooklyn%2C+NY\nRank/tier/score: 26 / 
- A / 73\nURL: https://partiful.com/e/kvGpuFMeACW7ZWPYtxTP
+ s: applied\nCategory: apply\nVenue basis: The Ivory Peacock\, 38 W 26th St
+ \, New York\, NY (exact_from_signup_status)\nGoogle Maps: https://www.goog
+ le.com/maps/search/?api=1&query=The+Ivory+Peacock%2C+38+W+26th+St%2C+New+Y
+ ork%2C+NY\nRank/tier/score: 26 / A / 73\nURL: https://partiful.com/e/kvGpu
+ FMeACW7ZWPYtxTP
 STATUS:TENTATIVE
 TRANSP:TRANSPARENT
 URL:https://partiful.com/e/kvGpuFMeACW7ZWPYtxTP

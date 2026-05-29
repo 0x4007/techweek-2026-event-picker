@@ -724,7 +724,7 @@ async function venueForEvent(
   let point = extracted.point;
   let venueQuery = extracted.venueQuery;
   let venuePrecision = extracted.venuePrecision;
-  let displayLocation = statusRow.venue_revealed || rerankRow.location || venueQuery;
+  const revealed = (statusRow.venue_revealed ?? "").trim();
 
   const manual = manualPointForQuery(rerankRow.name, venueQuery);
   if (manual) {
@@ -733,7 +733,12 @@ async function venueForEvent(
     venuePrecision = manual.venuePrecision;
   }
 
-  const revealed = (statusRow.venue_revealed ?? "").trim();
+  let displayLocation = displayLocationForVenue(
+    revealed,
+    rerankRow.location,
+    venueQuery,
+    venuePrecision,
+  );
   if (statusLocationIsExact(revealed)) {
     const query = cleanAddress(revealed);
     const manualRevealed = manualPointForQuery(rerankRow.name, query);
@@ -746,18 +751,47 @@ async function venueForEvent(
       };
     }
     try {
-      const geo = await geocodeQuery(query, geocodeCache);
-      if (geocodeIsUsable(geo)) {
+      const resolved = await geocodeVenueQuery(query, geocodeCache);
+      if (resolved) {
         point = routePoint(
           rerankRow.name,
-          query,
+          resolved.query,
           "exact_from_signup_status",
-          Number(geo.lat),
-          Number(geo.lon),
+          Number(resolved.geo.lat),
+          Number(resolved.geo.lon),
           rerankRow.location,
         );
-        venueQuery = query;
+        venueQuery = resolved.query;
         venuePrecision = "exact_from_signup_status";
+        displayLocation = query;
+      }
+    } catch {
+      // Keep the event-page location if the RSVP text is not geocodable.
+    }
+  } else if (statusLocationIsUseful(revealed)) {
+    const query = cleanAddress(revealed);
+    const manualRevealed = manualPointForQuery(rerankRow.name, query);
+    if (manualRevealed) {
+      return {
+        point: manualRevealed.point,
+        venueQuery: manualRevealed.venueQuery,
+        venuePrecision: manualRevealed.venuePrecision,
+        displayLocation: manualRevealed.venueQuery,
+      };
+    }
+    try {
+      const resolved = await geocodeVenueQuery(query, geocodeCache);
+      if (resolved) {
+        point = routePoint(
+          rerankRow.name,
+          resolved.query,
+          "approx_from_signup_status",
+          Number(resolved.geo.lat),
+          Number(resolved.geo.lon),
+          rerankRow.location,
+        );
+        venueQuery = resolved.query;
+        venuePrecision = "approx_from_signup_status";
         displayLocation = query;
       }
     } catch {
@@ -766,6 +800,22 @@ async function venueForEvent(
   }
 
   return { point, venueQuery, venuePrecision, displayLocation };
+}
+
+export function displayLocationForVenue(
+  revealed: string,
+  fallbackLocation: string,
+  venueQuery: string,
+  venuePrecision: string,
+): string {
+  const trimmed = revealed.trim();
+  if (statusLocationIsUseful(trimmed)) {
+    return trimmed;
+  }
+  if (venuePrecision.startsWith("exact") && venueQuery) {
+    return venueQuery;
+  }
+  return fallbackLocation || venueQuery;
 }
 
 async function extractVenue(
@@ -821,8 +871,17 @@ async function extractVenue(
         precision = "approx_neighborhood_hidden";
       }
     } else if (locInfo.type === "freeform") {
-      query = neighborhoodQuery(row.location);
-      precision = "approx_freeform_hidden";
+      const freeformLocation = stringValue(locInfo.value);
+      if (statusLocationIsExact(freeformLocation)) {
+        query = cleanAddress(freeformLocation);
+        precision = "exact_from_partiful_freeform";
+      } else if (statusLocationIsUseful(freeformLocation)) {
+        query = freeformLocation;
+        precision = "approx_freeform";
+      } else {
+        query = neighborhoodQuery(row.location);
+        precision = "approx_freeform_hidden";
+      }
     } else {
       query = neighborhoodQuery(row.location);
       precision = "approx_from_calendar_location";
@@ -865,6 +924,41 @@ async function geocodeQuery(
   cache[cleaned] = legacy;
   await writeJson(GEOCODE_CACHE, cache);
   return legacy;
+}
+
+async function geocodeVenueQuery(
+  query: string,
+  cache: Record<string, LegacyGeocodeCacheRow>,
+): Promise<{ geo: LegacyGeocodeCacheRow; query: string } | null> {
+  const attempts = uniqueNonEmpty([
+    cleanAddress(query),
+    addressWithoutVenuePrefix(query),
+  ]);
+  for (const attempt of attempts) {
+    try {
+      const geo = await geocodeQuery(attempt, cache);
+      if (geocodeIsUsable(geo)) {
+        return { geo, query: attempt };
+      }
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  return null;
+}
+
+function addressWithoutVenuePrefix(value: string): string {
+  const parts = cleanAddress(value).split(",").map((part) => part.trim()).filter(Boolean);
+  const index = parts.findIndex((part) =>
+    /\d/.test(part) &&
+    /\b(?:ave|avenue|st|street|road|rd|blvd|boulevard|broadway|square)\b/i.test(part)
+  );
+  if (index <= 0) return "";
+  return parts.slice(index).join(", ");
+}
+
+function uniqueNonEmpty(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
 function manualPointForQuery(
@@ -1665,15 +1759,25 @@ function localDateTimeFromUtc(value: string): Date | null {
   return addHours(parsed, -4);
 }
 
-function statusLocationIsExact(value: string): boolean {
-  if (!value) {
+export function statusLocationIsExact(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) {
     return false;
   }
-  const lower = value.toLowerCase();
-  if (["tbc", "tbd", "new york, ny"].includes(lower)) {
+  const lower = trimmed.toLowerCase();
+  if (["tbc", "tbd", "new york", "new york, ny", "new york city", "nyc"].includes(lower)) {
     return false;
   }
-  return /\d/.test(value) && lower.includes("ny");
+  return /\d/.test(trimmed) && lower.includes("ny");
+}
+
+function statusLocationIsUseful(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return false;
+  }
+  const lower = trimmed.toLowerCase().replace(/\s+/g, " ");
+  return !["tbc", "tbd", "new york", "new york, ny", "new york city", "nyc"].includes(lower);
 }
 
 function geocodeIsUsable(geo: LegacyGeocodeCacheRow): boolean {

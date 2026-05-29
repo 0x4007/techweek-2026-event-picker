@@ -1,5 +1,11 @@
 # Tech Week 2026 Event Picker Agent Notes
 
+## Sub Agents for Coding Work
+
+To increase development speed, prefer to break down the prompt into scopes that minimize overlap. Use gpt-5.3-codex-spark with xhigh reasoning for each subagent. Orchestrate the subagents to do their work concurrently, and then create a final subagent to combine all the work together. To prevent infinite subagent spawning, you must always pass a note to a subagent letting it know that it is a subagent and that it can not spin off another child agent.
+
+At the top level there should be a single orchestrator agent, and then only one layer below of sub agents doing the coding and merging work. The orchestrator should see the user's prompt end-to-end by not directly manipulating code, but instead, spawning sub agents to do the technical work. Orchestrator/top level agent should only focus on management and achieving the user's goal without directly manipulating the code.
+
 ## Project Purpose
 
 This repository is being used to research, rank, schedule, and RSVP to NYC Tech Week 2026 events.

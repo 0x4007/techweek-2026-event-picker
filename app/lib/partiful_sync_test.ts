@@ -140,6 +140,60 @@ Deno.test("normalizePartifulSnapshot does not let true venue reveal flag suppres
   assertEquals(normalized.event?.venue?.address, "1155 6th Ave");
 });
 
+Deno.test("normalizePartifulSnapshot preserves exact Partiful freeform venue values", () => {
+  const normalized = normalizePartifulSnapshot({
+    event: {
+      publicShortUrl: "https://partiful.com/e/5K5c4eODrGPKME7or20H",
+      title: "Shipping Faster with AI Coding Agents: What's Working and What's Not",
+      location: "New York",
+      locationInfo: {
+        type: "freeform",
+        value: "Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003",
+      },
+    },
+    viewerGuest: {
+      status: "PENDING_APPROVAL",
+    },
+  });
+
+  assertEquals(normalized.errors, []);
+  assertEquals(normalized.event?.partifulId, "5K5c4eODrGPKME7or20H");
+  assertEquals(
+    normalized.event?.venue?.label,
+    "Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003",
+  );
+  assertEquals(
+    normalized.event?.venue?.address,
+    "Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003",
+  );
+  assertEquals(normalized.event?.venue?.precision, "exact");
+});
+
+Deno.test("normalizePartifulSnapshot does not mark generic structured city venues exact", () => {
+  const normalized = normalizePartifulSnapshot({
+    event: {
+      publicShortUrl: "https://partiful.com/e/abc123def",
+      title: "Generic Structured Venue Event",
+      location: "New York, NY",
+      locationInfo: {
+        type: "structured",
+        mapsInfo: {
+          addressLines: ["New York, NY"],
+          approximateLocation: "New York, NY",
+        },
+        displayAddressLines: ["New York, NY"],
+      },
+    },
+    viewerGuest: {
+      status: "APPROVED",
+    },
+  });
+
+  assertEquals(normalized.errors, []);
+  assertEquals(normalized.event?.venue?.address, "New York, NY");
+  assertEquals(normalized.event?.venue?.precision, "approximate");
+});
+
 Deno.test("computePartifulSync keeps previous known status when snapshot status is unknown", () => {
   const sync = computePartifulSync(
     [{

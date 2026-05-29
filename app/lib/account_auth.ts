@@ -245,6 +245,11 @@ export async function requireAdminAccountSession(request: Request): Promise<Acco
   return session;
 }
 
+export async function getAccountUserByHandle(handle: string): Promise<AccountSessionUser | null> {
+  const user = await getUserByHandle(normalizeAccountHandle(handle));
+  return user ? userInfo(user) : null;
+}
+
 export async function startAccountRegistration(
   request: Request,
 ): Promise<AccountAuthStartRegistrationResponse> {

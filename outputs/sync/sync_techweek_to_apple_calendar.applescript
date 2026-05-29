@@ -28,18 +28,18 @@ Venue basis: 15 Cliff Street, New York, NY 10038 (meal_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: 15 Cliff Street, New York, NY 10038 -> Beyond the Spec Masterclass: Engineering in the Age of Agents", start date:date "2026-06-01 13:21", end date:date "2026-06-01 14:00", location:"15 Cliff Street, New York, NY 10038 -> Flatiron", description:"TechWeekID: TW-6408
+	make new event at end of events of scheduleCal with properties {summary:"Travel: 15 Cliff Street, New York, NY 10038 -> Beyond the Spec Masterclass: Engineering in the Age of Agents", start date:date "2026-06-01 13:21", end date:date "2026-06-01 14:00", location:"15 Cliff Street, New York, NY 10038 -> IBM One Madison Avenue, 1 Madison Ave,, New York, NY 10010", description:"TechWeekID: TW-6408
 CalendarBlockID: TW-6408-TRAVEL-IN
 RerankID:
 PartifulID: FHiuNwzr13e3YBI4ssUX
 Walk 3 min to Fulton St (2/3); subway 29 min; walk 2 min from 23 St-Baruch College (4/6); includes 5 min buffer.
 RSVP status: registered
 Category: travel
-Venue basis: 15 Cliff Street, New York, NY 10038 -> Flatiron ()
+Venue basis: 15 Cliff Street, New York, NY 10038 -> IBM One Madison Avenue, 1 Madison Ave,, New York, NY 10010 ()
 Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7408301%2C-73.9868072&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/FHiuNwzr13e3YBI4ssUX"}
-	make new event at end of events of scheduleCal with properties {summary:"[PENDING] Beyond the Spec Masterclass: Engineering in the Age of Agents", start date:date "2026-06-01 14:00", end date:date "2026-06-01 15:00", location:"Flatiron", description:"TechWeekID: TW-6408
+	make new event at end of events of scheduleCal with properties {summary:"[PENDING] Beyond the Spec Masterclass: Engineering in the Age of Agents", start date:date "2026-06-01 14:00", end date:date "2026-06-01 15:00", location:"IBM One Madison Avenue, 1 Madison Ave,, New York, NY 10010", description:"TechWeekID: TW-6408
 CalendarBlockID: TW-6408-SCHEDULE
 RerankID: 6408
 PartifulID: FHiuNwzr13e3YBI4ssUX
@@ -84,18 +84,18 @@ Venue basis: WeWork, 135 Madison Ave, New York, NY (exact_from_signup_status)
 Google Maps: https://www.google.com/maps/search/?api=1&query=WeWork%2C+135+Madison+Ave%2C+New+York%2C+NY
 Rank/tier/score: 29 / A / 71
 URL: https://partiful.com/e/xowd9F3kB7mPFN1luUwY"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: From Vibe Coding to AI-Driven Development -> Open Source Must Win", start date:date "2026-06-01 17:28", end date:date "2026-06-01 18:00", location:"From Vibe Coding to AI-Driven Development -> New York, NY", description:"TechWeekID: TW-5978
+	make new event at end of events of scheduleCal with properties {summary:"Travel: From Vibe Coding to AI-Driven Development -> Open Source Must Win", start date:date "2026-06-01 17:28", end date:date "2026-06-01 18:00", location:"From Vibe Coding to AI-Driven Development -> Lower East Side", description:"TechWeekID: TW-5978
 CalendarBlockID: TW-5978-TRAVEL-IN
 RerankID:
 PartifulID: OF1vP5L8dtXKRtInyWKs
 Walk 3 min to 33 St (4/6); subway 23 min; walk 1 min from Delancey St-Essex St (F); includes 5 min buffer.
 RSVP status: registered
 Category: travel
-Venue basis: From Vibe Coding to AI-Driven Development -> New York, NY ()
+Venue basis: From Vibe Coding to AI-Driven Development -> Lower East Side ()
 Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7459513%2C-73.984086&destination=40.718618%2C-73.988136&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds"}
-	make new event at end of events of scheduleCal with properties {summary:"[REG] Open Source Must Win", start date:date "2026-06-01 18:00", end date:date "2026-06-01 21:00", location:"New York, NY", description:"TechWeekID: TW-5978
+	make new event at end of events of scheduleCal with properties {summary:"[REG] Open Source Must Win", start date:date "2026-06-01 18:00", end date:date "2026-06-01 21:00", location:"Lower East Side", description:"TechWeekID: TW-5978
 CalendarBlockID: TW-5978-SCHEDULE
 RerankID: 5978
 PartifulID: OF1vP5L8dtXKRtInyWKs
@@ -145,18 +145,18 @@ Venue basis: 15 Cliff Street, New York, NY 10038 (sleep_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: 15 Cliff Street, New York, NY 10038 -> How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing", start date:date "2026-06-02 11:12", end date:date "2026-06-02 12:00", location:"15 Cliff Street, New York, NY 10038 -> New York, NY", description:"TechWeekID: TW-4551
+	make new event at end of events of scheduleCal with properties {summary:"Travel: 15 Cliff Street, New York, NY 10038 -> How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing", start date:date "2026-06-02 11:12", end date:date "2026-06-02 12:00", location:"15 Cliff Street, New York, NY 10038 -> 10 East Eighth Street, Ground Floor, New York, NY 10003", description:"TechWeekID: TW-4551
 CalendarBlockID: TW-4551-TRAVEL-IN
 RerankID:
 PartifulID: M7pXmV8sOXT11yHb9pKw
 Walk 3 min to Fulton St (2/3); subway 38 min; walk 2 min from 42 St-Bryant Pk (B/D/F/M); includes 5 min buffer.
 RSVP status: registered
 Category: travel
-Venue basis: 15 Cliff Street, New York, NY 10038 -> New York, NY ()
+Venue basis: 15 Cliff Street, New York, NY 10038 -> 10 East Eighth Street, Ground Floor, New York, NY 10003 ()
 Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.753751%2C-73.983543&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/M7pXmV8sOXT11yHb9pKw"}
-	make new event at end of events of scheduleCal with properties {summary:"[REG] How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing", start date:date "2026-06-02 12:00", end date:date "2026-06-02 13:45", location:"New York, NY", description:"TechWeekID: TW-4551
+	make new event at end of events of scheduleCal with properties {summary:"[REG] How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing", start date:date "2026-06-02 12:00", end date:date "2026-06-02 13:45", location:"10 East Eighth Street, Ground Floor, New York, NY 10003", description:"TechWeekID: TW-4551
 CalendarBlockID: TW-4551-SCHEDULE
 RerankID: 4551
 PartifulID: M7pXmV8sOXT11yHb9pKw
@@ -184,7 +184,18 @@ Venue basis: Midtown (meal_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=Midtown+Manhattan%2C+New+York%2C+NY
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of scheduleCal with properties {summary:"[PENDING] From Copilot to Control Plane - Visdom", start date:date "2026-06-02 16:00", end date:date "2026-06-02 17:30", location:"Midtown", description:"TechWeekID: TW-4341
+	make new event at end of events of scheduleCal with properties {summary:"Travel: How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing -> From Copilot to Control Plane - Visdom", start date:date "2026-06-02 15:29", end date:date "2026-06-02 16:00", location:"How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing -> Chabad Loft's Kavanah Space in Greenwich Village, 10 E 8th St, New York, NY 10003", description:"TechWeekID: TW-4341
+CalendarBlockID: TW-4341-TRAVEL-IN
+RerankID:
+PartifulID: bn5h1g13xzOV6R5XkLaE
+Walk 2 min to 42 St-Bryant Pk (B/D/F/M); subway 19 min; walk 5 min from 8 St-NYU (N/Q/R/W); includes 5 min buffer.
+RSVP status: registered
+Category: travel
+Venue basis: How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing -> Chabad Loft's Kavanah Space in Greenwich Village, 10 E 8th St, New York, NY 10003 ()
+Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.753751%2C-73.983543&destination=40.7317609%2C-73.9957287&travelmode=transit
+Rank/tier/score:  /  /
+URL: https://partiful.com/e/bn5h1g13xzOV6R5XkLaE"}
+	make new event at end of events of scheduleCal with properties {summary:"[PENDING] From Copilot to Control Plane - Visdom", start date:date "2026-06-02 16:00", end date:date "2026-06-02 17:30", location:"Chabad Loft's Kavanah Space in Greenwich Village, 10 E 8th St, New York, NY 10003", description:"TechWeekID: TW-4341
 CalendarBlockID: TW-4341-SCHEDULE
 RerankID: 4341
 PartifulID: bn5h1g13xzOV6R5XkLaE
@@ -197,22 +208,22 @@ Listen for: CTO/VP Eng pain, platform ownership, productivity reporting, GitHub/
 Follow-up: Push for a concrete post-Tech Week call if they own DevEx, platform, or engineering metrics.
 RSVP status: applied
 Category: primary
-Venue basis: Bryant Park, New York, NY (approx_neighborhood_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Bryant+Park%2C+New+York%2C+NY
+Venue basis: Chabad Loft's Kavanah Space in Greenwich Village, 10 E 8th St, New York, NY 10003 (exact_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=Chabad+Loft%27s+Kavanah+Space+in+Greenwich+Village%2C+10+E+8th+St%2C+New+York%2C+NY+10003
 Rank/tier/score: 1 / S / 100
 URL: https://partiful.com/e/bn5h1g13xzOV6R5XkLaE"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: From Copilot to Control Plane - Visdom -> Future of DevEx", start date:date "2026-06-02 17:36", end date:date "2026-06-02 18:00", location:"From Copilot to Control Plane - Visdom -> SoHo", description:"TechWeekID: TW-4161
+	make new event at end of events of scheduleCal with properties {summary:"Travel: From Copilot to Control Plane - Visdom -> Future of DevEx", start date:date "2026-06-02 17:44", end date:date "2026-06-02 18:00", location:"From Copilot to Control Plane - Visdom -> SoHo, Manhattan, New York, NY", description:"TechWeekID: TW-4161
 CalendarBlockID: TW-4161-TRAVEL-IN
 RerankID:
 PartifulID: 7DYGSiY1WUuRSvEnD5gp
-Walk 2 min to 42 St-Bryant Pk (B/D/F/M); subway 17 min; walk 0 min from Prince St (N/Q/R/W); includes 5 min buffer.
+Walk approx 16 min / 1275 m using OSM-geocoded points.
 RSVP status: registered
 Category: travel
-Venue basis: From Copilot to Control Plane - Visdom -> SoHo ()
-Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.753751%2C-73.983543&destination=40.724329%2C-73.997702&travelmode=transit
+Venue basis: From Copilot to Control Plane - Visdom -> SoHo, Manhattan, New York, NY ()
+Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7317609%2C-73.9957287&destination=40.72288%2C-73.9987505&travelmode=walking
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9"}
-	make new event at end of events of scheduleCal with properties {summary:"[PENDING] Future of DevEx", start date:date "2026-06-02 18:00", end date:date "2026-06-02 21:00", location:"SoHo", description:"TechWeekID: TW-4161
+	make new event at end of events of scheduleCal with properties {summary:"[PENDING] Future of DevEx", start date:date "2026-06-02 18:00", end date:date "2026-06-02 21:00", location:"SoHo, Manhattan, New York, NY", description:"TechWeekID: TW-4161
 CalendarBlockID: TW-4161-SCHEDULE
 RerankID: 4161
 PartifulID: 7DYGSiY1WUuRSvEnD5gp
@@ -225,8 +236,8 @@ Listen for: Internal developer platforms, friction measurement, review quality, 
 Follow-up: Ask who owns DevEx metrics and whether source-linked contribution evidence would help.
 RSVP status: applied
 Category: primary
-Venue basis: Spring St and Broadway, New York, NY (approx_neighborhood_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY
+Venue basis: SoHo, Manhattan, New York, NY (approx_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=SoHo%2C+Manhattan%2C+New+York%2C+NY
 Rank/tier/score: 3 / S / 100
 URL: https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9"}
 	make new event at end of events of scheduleCal with properties {summary:"Meal: Dinner after Future of DevEx", start date:date "2026-06-02 21:00", end date:date "2026-06-02 22:00", location:"SoHo", description:"TechWeekID:
@@ -240,15 +251,15 @@ Venue basis: SoHo (meal_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=SoHo%2C+New+York%2C+NY
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: Future of DevEx -> 15 Cliff Street, New York, NY 10038", start date:date "2026-06-02 22:00", end date:date "2026-06-02 22:21", location:"Future of DevEx -> 15 Cliff Street, New York, NY 10038", description:"TechWeekID: TW-4161
+	make new event at end of events of scheduleCal with properties {summary:"Travel: Future of DevEx -> 15 Cliff Street, New York, NY 10038", start date:date "2026-06-02 22:00", end date:date "2026-06-02 22:19", location:"Future of DevEx -> 15 Cliff Street, New York, NY 10038", description:"TechWeekID: TW-4161
 CalendarBlockID: TW-20260602-TRAVEL-HOME
 RerankID:
 PartifulID: 7DYGSiY1WUuRSvEnD5gp
-Walk 0 min to Prince St (N/Q/R/W); subway 13 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.
+Walk 3 min to Spring St (4/6); subway 8 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.
 RSVP status: registered
 Category: travel
 Venue basis: Future of DevEx -> 15 Cliff Street, New York, NY 10038 ()
-Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.724329%2C-73.997702&destination=40.7084297%2C-74.0056635&travelmode=transit
+Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.72288%2C-73.9987505&destination=40.7084297%2C-74.0056635&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9"}
 	make new event at end of events of scheduleCal with properties {summary:"Sleep: 8 hours", start date:date "2026-06-03 02:45", end date:date "2026-06-03 10:45", location:"15 Cliff Street, New York, NY 10038", description:"TechWeekID:
@@ -273,18 +284,18 @@ Venue basis: 15 Cliff Street, New York, NY 10038 (meal_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: 15 Cliff Street, New York, NY 10038 -> Building secure AI for your data: DeepFellow Demo + Q&A", start date:date "2026-06-03 11:28", end date:date "2026-06-03 12:00", location:"15 Cliff Street, New York, NY 10038 -> Chelsea", description:"TechWeekID: TW-5889
+	make new event at end of events of scheduleCal with properties {summary:"Travel: 15 Cliff Street, New York, NY 10038 -> Building secure AI for your data: DeepFellow Demo + Q&A", start date:date "2026-06-03 11:22", end date:date "2026-06-03 12:00", location:"15 Cliff Street, New York, NY 10038 -> 368 9th Ave, New York, NY 10001, United States", description:"TechWeekID: TW-5889
 CalendarBlockID: TW-5889-TRAVEL-IN
 RerankID:
 PartifulID: 4HvzWY1VZlHgK21fMBUz
-Walk 3 min to Fulton St (2/3); subway 20 min; walk 4 min from 23 St (A/C/E); includes 5 min buffer.
+Walk 3 min to Fulton St (2/3); subway 24 min; walk 6 min from 34 St-Penn Station (A/C/E); includes 5 min buffer.
 RSVP status: registered
 Category: travel
-Venue basis: 15 Cliff Street, New York, NY 10038 -> Chelsea ()
-Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.744081%2C-73.999562&travelmode=transit
+Venue basis: 15 Cliff Street, New York, NY 10038 -> 368 9th Ave, New York, NY 10001, United States ()
+Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7511486%2C-73.9976401&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN"}
-	make new event at end of events of scheduleCal with properties {summary:"[PENDING] Building secure AI for your data: DeepFellow Demo + Q&A", start date:date "2026-06-03 12:00", end date:date "2026-06-03 13:15", location:"Chelsea", description:"TechWeekID: TW-5889
+	make new event at end of events of scheduleCal with properties {summary:"[PENDING] Building secure AI for your data: DeepFellow Demo + Q&A", start date:date "2026-06-03 12:00", end date:date "2026-06-03 13:15", location:"368 9th Ave, New York, NY 10001, United States", description:"TechWeekID: TW-5889
 CalendarBlockID: TW-5889-SCHEDULE
 RerankID: 5889
 PartifulID: 4HvzWY1VZlHgK21fMBUz
@@ -297,19 +308,19 @@ Listen for: Security reviews, data access, compliance needs, audit trails, manag
 Follow-up: Offer a follow-up focused on source-linked evidence without surveillance dashboards.
 RSVP status: applied
 Category: primary
-Venue basis: 23rd Street and 8th Avenue, New York, NY (approx_from_calendar_location)
-Google Maps: https://www.google.com/maps/search/?api=1&query=23rd+Street+and+8th+Avenue%2C+New+York%2C+NY
+Venue basis: 368 9th Ave, New York, NY 10001, United States (exact_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=368+9th+Ave%2C+New+York%2C+NY+10001%2C+United+States
 Rank/tier/score: 16 / S / 80
 URL: https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: Building secure AI for your data: DeepFellow Demo + Q&A -> The Future of Coding Agents and IDE", start date:date "2026-06-03 13:35", end date:date "2026-06-03 14:00", location:"Building secure AI for your data: DeepFellow Demo + Q&A -> 1155 6th Ave, New York, NY 10036", description:"TechWeekID: TW-4444
+	make new event at end of events of scheduleCal with properties {summary:"Travel: Building secure AI for your data: DeepFellow Demo + Q&A -> The Future of Coding Agents and IDE", start date:date "2026-06-03 13:38", end date:date "2026-06-03 14:00", location:"Building secure AI for your data: DeepFellow Demo + Q&A -> 1155 6th Ave, New York, NY 10036", description:"TechWeekID: TW-4444
 CalendarBlockID: TW-4444-TRAVEL-IN
 RerankID:
 PartifulID: 1N6CtiCpYquktoTh5NUm
-Walk 4 min to 23 St (A/C/E); subway 11 min; walk 5 min from Times Sq-42 St (GS); includes 5 min buffer.
+Walk approx 22 min / 1690 m using OSM-geocoded points.
 RSVP status: registered
 Category: travel
 Venue basis: Building secure AI for your data: DeepFellow Demo + Q&A -> 1155 6th Ave, New York, NY 10036 ()
-Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.744081%2C-73.999562&destination=40.7564611%2C-73.9831996&travelmode=transit
+Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7511486%2C-73.9976401&destination=40.7564611%2C-73.9831996&travelmode=walking
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/1N6CtiCpYquktoTh5NUm"}
 	make new event at end of events of scheduleCal with properties {summary:"[REG] The Future of Coding Agents and IDE", start date:date "2026-06-03 14:00", end date:date "2026-06-03 15:00", location:"1155 6th Ave, New York, NY 10036", description:"TechWeekID: TW-4444
@@ -340,18 +351,18 @@ Venue basis: Midtown (meal_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=Midtown+Manhattan%2C+New+York%2C+NY
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: The Future of Coding Agents and IDE -> Fireside chat - When coding agents are the user?", start date:date "2026-06-03 15:40", end date:date "2026-06-03 16:00", location:"The Future of Coding Agents and IDE -> New York, NY", description:"TechWeekID: TW-5529
+	make new event at end of events of scheduleCal with properties {summary:"Travel: The Future of Coding Agents and IDE -> Fireside chat - When coding agents are the user?", start date:date "2026-06-03 15:30", end date:date "2026-06-03 16:00", location:"The Future of Coding Agents and IDE -> South Park Commons, 36 Cooper Square,, New York, NY", description:"TechWeekID: TW-5529
 CalendarBlockID: TW-5529-TRAVEL-IN
 RerankID:
 PartifulID: E8NhJNHWGhMetLlrFvQ7
-Walk approx 20 min / 1595 m using OSM-geocoded points.
+Walk 5 min to Times Sq-42 St (GS); subway 16 min; walk 4 min from Astor Pl (4/6); includes 5 min buffer.
 RSVP status: registered
 Category: travel
-Venue basis: The Future of Coding Agents and IDE -> New York, NY ()
-Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7564611%2C-73.9831996&destination=40.7458%2C-73.9888&travelmode=walking
+Venue basis: The Future of Coding Agents and IDE -> South Park Commons, 36 Cooper Square,, New York, NY ()
+Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7564611%2C-73.9831996&destination=40.7283276%2C-73.9915654&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7"}
-	make new event at end of events of scheduleCal with properties {summary:"[REG] Fireside chat - When coding agents are the user?", start date:date "2026-06-03 16:00", end date:date "2026-06-03 17:15", location:"New York, NY", description:"TechWeekID: TW-5529
+	make new event at end of events of scheduleCal with properties {summary:"[REG] Fireside chat - When coding agents are the user?", start date:date "2026-06-03 16:00", end date:date "2026-06-03 17:15", location:"South Park Commons, 36 Cooper Square,, New York, NY", description:"TechWeekID: TW-5529
 CalendarBlockID: TW-5529-SCHEDULE
 RerankID: 5529
 PartifulID: E8NhJNHWGhMetLlrFvQ7
@@ -364,22 +375,22 @@ Listen for: Tool schemas, docs, prompts, guardrails, review evidence, ownership 
 Follow-up: Ask for feedback on whether Accolades should track agent-orchestration evidence explicitly.
 RSVP status: registered
 Category: primary
-Venue basis: 28th Street and Broadway, New York, NY (approx_neighborhood_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=28th+Street+and+Broadway%2C+New+York%2C+NY
+Venue basis: South Park Commons, 36 Cooper Square,, New York, NY (exact_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=South+Park+Commons%2C+36+Cooper+Square%2C%2C+New+York%2C+NY
 Rank/tier/score: 15 / S / 81
 URL: https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: Fireside chat - When coding agents are the user? -> MCP in the Wild: Panel & Night of Networking", start date:date "2026-06-03 17:40", end date:date "2026-06-03 18:00", location:"Fireside chat - When coding agents are the user? -> East Village", description:"TechWeekID: TW-4664
+	make new event at end of events of scheduleCal with properties {summary:"Travel: Fireside chat - When coding agents are the user? -> MCP in the Wild: Panel & Night of Networking", start date:date "2026-06-03 17:29", end date:date "2026-06-03 18:00", location:"Fireside chat - When coding agents are the user? -> 419 Lafayette St 6th floor New York, NY 10003, USA", description:"TechWeekID: TW-4664
 CalendarBlockID: TW-4664-TRAVEL-IN
 RerankID:
 PartifulID: 6ZuudQBBZXcMNjdMynJ2
-Walk 1 min to 28 St (N/Q/R/W); subway 13 min; walk 1 min from Astor Pl (4/6); includes 5 min buffer.
+Walk 4 min to Astor Pl (4/6); subway 12 min; walk 10 min from Grand Central-42 St (7); includes 5 min buffer.
 RSVP status: registered
 Category: travel
-Venue basis: Fireside chat - When coding agents are the user? -> East Village ()
-Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7458%2C-73.9888&destination=40.72985%2C-73.99139&travelmode=transit
+Venue basis: Fireside chat - When coding agents are the user? -> 419 Lafayette St 6th floor New York, NY 10003, USA ()
+Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7283276%2C-73.9915654&destination=40.750632%2C-73.9687884&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2"}
-	make new event at end of events of scheduleCal with properties {summary:"[PENDING] MCP in the Wild: Panel & Night of Networking", start date:date "2026-06-03 18:00", end date:date "2026-06-03 20:30", location:"East Village", description:"TechWeekID: TW-4664
+	make new event at end of events of scheduleCal with properties {summary:"[PENDING] MCP in the Wild: Panel & Night of Networking", start date:date "2026-06-03 18:00", end date:date "2026-06-03 20:30", location:"419 Lafayette St 6th floor New York, NY 10003, USA", description:"TechWeekID: TW-4664
 CalendarBlockID: TW-4664-SCHEDULE
 RerankID: 4664
 PartifulID: 6ZuudQBBZXcMNjdMynJ2
@@ -392,8 +403,8 @@ Listen for: Tool-call trails, context sources, agent actions, human review, inte
 Follow-up: Ask for technical feedback on evidence capture from tool and agent workflows.
 RSVP status: applied
 Category: primary
-Venue basis: Astor Place, New York, NY (approx_neighborhood_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Astor+Place%2C+New+York%2C+NY
+Venue basis: 419 Lafayette St 6th floor New York, NY 10003, USA (exact_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=419+Lafayette+St+6th+floor+New+York%2C+NY+10003%2C+USA
 Rank/tier/score: 58 / A / 63
 URL: https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2"}
 	make new event at end of events of scheduleCal with properties {summary:"Meal: Dinner after MCP in the Wild", start date:date "2026-06-03 20:30", end date:date "2026-06-03 21:30", location:"East Village", description:"TechWeekID:
@@ -407,15 +418,15 @@ Venue basis: East Village (meal_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=East+Village%2C+New+York%2C+NY
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: MCP in the Wild: Panel & Night of Networking -> 15 Cliff Street, New York, NY 10038", start date:date "2026-06-03 21:30", end date:date "2026-06-03 21:51", location:"MCP in the Wild: Panel & Night of Networking -> 15 Cliff Street, New York, NY 10038", description:"TechWeekID: TW-4664
+	make new event at end of events of scheduleCal with properties {summary:"Travel: MCP in the Wild: Panel & Night of Networking -> 15 Cliff Street, New York, NY 10038", start date:date "2026-06-03 21:30", end date:date "2026-06-03 22:01", location:"MCP in the Wild: Panel & Night of Networking -> 15 Cliff Street, New York, NY 10038", description:"TechWeekID: TW-4664
 CalendarBlockID: TW-20260603-TRAVEL-HOME
 RerankID:
 PartifulID: 6ZuudQBBZXcMNjdMynJ2
-Walk 1 min to Astor Pl (4/6); subway 12 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.
+Walk 10 min to Grand Central-42 St (7); subway 13 min; walk 3 min from Fulton St (2/3); includes 5 min buffer.
 RSVP status: registered
 Category: travel
 Venue basis: MCP in the Wild: Panel & Night of Networking -> 15 Cliff Street, New York, NY 10038 ()
-Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.72985%2C-73.99139&destination=40.7084297%2C-74.0056635&travelmode=transit
+Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.750632%2C-73.9687884&destination=40.7084297%2C-74.0056635&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2"}
 	make new event at end of events of scheduleCal with properties {summary:"Sleep: 8 hours", start date:date "2026-06-04 03:15", end date:date "2026-06-04 11:15", location:"15 Cliff Street, New York, NY 10038", description:"TechWeekID:
@@ -429,18 +440,18 @@ Venue basis: 15 Cliff Street, New York, NY 10038 (sleep_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: 15 Cliff Street, New York, NY 10038 -> The Semiconductor & AI Supply Chain Lunch: Investors & Operators", start date:date "2026-06-04 11:59", end date:date "2026-06-04 12:30", location:"15 Cliff Street, New York, NY 10038 -> Nomad", description:"TechWeekID: TW-6642
+	make new event at end of events of scheduleCal with properties {summary:"Travel: 15 Cliff Street, New York, NY 10038 -> The Semiconductor & AI Supply Chain Lunch: Investors & Operators", start date:date "2026-06-04 11:59", end date:date "2026-06-04 12:30", location:"15 Cliff Street, New York, NY 10038 -> Midtown East, New York, NY", description:"TechWeekID: TW-6642
 CalendarBlockID: TW-6642-TRAVEL-IN
 RerankID:
 PartifulID: WJe6XcxPXwbpCiCVLCas
 Walk 3 min to Fulton St (2/3); subway 22 min; walk 1 min from 28 St (N/Q/R/W); includes 5 min buffer.
 RSVP status: registered
 Category: travel
-Venue basis: 15 Cliff Street, New York, NY 10038 -> Nomad ()
+Venue basis: 15 Cliff Street, New York, NY 10038 -> Midtown East, New York, NY ()
 Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7458%2C-73.9888&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/WJe6XcxPXwbpCiCVLCas"}
-	make new event at end of events of scheduleCal with properties {summary:"[PENDING] The Semiconductor & AI Supply Chain Lunch: Investors & Operators", start date:date "2026-06-04 12:30", end date:date "2026-06-04 14:00", location:"Nomad", description:"TechWeekID: TW-6642
+	make new event at end of events of scheduleCal with properties {summary:"[PENDING] The Semiconductor & AI Supply Chain Lunch: Investors & Operators", start date:date "2026-06-04 12:30", end date:date "2026-06-04 14:00", location:"Midtown East, New York, NY", description:"TechWeekID: TW-6642
 CalendarBlockID: TW-6642-SCHEDULE
 RerankID: 6642
 PartifulID: WJe6XcxPXwbpCiCVLCas
@@ -462,22 +473,22 @@ Venue basis: 15 Cliff Street, New York, NY 10038 (meal_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> Shipping Faster with AI Coding Agents: What's Working and What's Not", start date:date "2026-06-04 15:46", end date:date "2026-06-04 16:00", location:"The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> New York, NY", description:"TechWeekID: TW-5372
+	make new event at end of events of scheduleCal with properties {summary:"Travel: The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> Shipping Faster with AI Coding Agents: What's Working and What's Not", start date:date "2026-06-04 15:46", end date:date "2026-06-04 16:00", location:"The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003", description:"TechWeekID: TW-5372
 CalendarBlockID: TW-5372-TRAVEL-IN
 RerankID:
 PartifulID: 5K5c4eODrGPKME7or20H
-Walk 1 min to 28 St (N/Q/R/W); subway 8 min; walk 0 min from Prince St (N/Q/R/W); includes 5 min buffer.
+Walk 1 min to 28 St (N/Q/R/W); subway 6 min; walk 2 min from 8 St-NYU (N/Q/R/W); includes 5 min buffer.
 RSVP status: registered
 Category: travel
-Venue basis: The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> New York, NY ()
-Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7458%2C-73.9888&destination=40.724329%2C-73.997702&travelmode=transit
+Venue basis: The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003 ()
+Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7458%2C-73.9888&destination=40.729391%2C-73.9921562&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/5K5c4eODrGPKME7or20H"}
-	make new event at end of events of scheduleCal with properties {summary:"[PENDING] Shipping Faster with AI Coding Agents: What's Working and What's Not", start date:date "2026-06-04 16:00", end date:date "2026-06-04 18:38", location:"New York, NY", description:"TechWeekID: TW-5372
+	make new event at end of events of scheduleCal with properties {summary:"[PENDING] Shipping Faster with AI Coding Agents: What's Working and What's Not", start date:date "2026-06-04 16:00", end date:date "2026-06-04 18:48", location:"Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003", description:"TechWeekID: TW-5372
 CalendarBlockID: TW-5372-SCHEDULE
 RerankID: 5372
 PartifulID: 5K5c4eODrGPKME7or20H
-Leave early if needed so you can make the registered 19:00 Stop Making AI Guess event. Wait for host approval Submitted via Partiful API; rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none. Route calendar shortens this from the event's scheduled 19:00 end; leave 22 min early for transit.
+Leave early if needed so you can make the registered 19:00 Stop Making AI Guess event. Wait for host approval Submitted via Partiful API; rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none. Route calendar shortens this from the event's scheduled 19:00 end; leave 12 min early for transit.
 Sales coaching:
 Pitch: Accolades credits the engineering work commit counts miss, using source-linked GitHub and Slack evidence.
 Open: This is a direct AI-coding workflow room. Start with manager trust.
@@ -486,20 +497,20 @@ Listen for: Review overload, shallow approvals, unclear ownership, productivity 
 Follow-up: Ask for a buyer call with the engineering leader responsible for AI coding adoption.
 RSVP status: applied
 Category: primary
-Venue basis: Spring St and Broadway, New York, NY (approx_neighborhood_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY
+Venue basis: Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003 (exact_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=Materialize+Offices%2C+436+Lafayette+St%2C+Floor+6%2C+New+York%2C+NY+10003
 Rank/tier/score: 4 / S / 100
 URL: https://partiful.com/e/5K5c4eODrGPKME7or20H"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: Shipping Faster with AI Coding Agents: What's Working and What's Not -> Stop Making AI Guess: When Your Codebase Becomes the Spec", start date:date "2026-06-04 18:38", end date:date "2026-06-04 19:00", location:"Shipping Faster with AI Coding Agents: What's Working and What's Not -> Union Square", description:"TechWeekID: TW-5114
+	make new event at end of events of scheduleCal with properties {summary:"Travel: Shipping Faster with AI Coding Agents: What's Working and What's Not -> Stop Making AI Guess: When Your Codebase Becomes the Spec", start date:date "2026-06-04 18:48", end date:date "2026-06-04 19:00", location:"Shipping Faster with AI Coding Agents: What's Working and What's Not -> Union Square", description:"TechWeekID: TW-5114
 CalendarBlockID: TW-5114-TRAVEL-IN
 RerankID:
 PartifulID: X0u5GrmzvIUTrjoAOgVm
-Leave previous event 22 min before its scheduled end.
-Walk approx 22 min / 1755 m using OSM-geocoded points.
+Leave previous event 12 min before its scheduled end.
+Walk approx 12 min / 898 m using OSM-geocoded points.
 RSVP status: registered
 Category: travel
 Venue basis: Shipping Faster with AI Coding Agents: What's Working and What's Not -> Union Square ()
-Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.724329%2C-73.997702&destination=40.735736%2C-73.990568&travelmode=walking
+Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.729391%2C-73.9921562&destination=40.735736%2C-73.990568&travelmode=walking
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm"}
 	make new event at end of events of scheduleCal with properties {summary:"[REG] Stop Making AI Guess: When Your Codebase Becomes the Spec", start date:date "2026-06-04 19:00", end date:date "2026-06-04 20:45", location:"Union Square", description:"TechWeekID: TW-5114
@@ -563,18 +574,18 @@ Venue basis: 15 Cliff Street, New York, NY 10038 (meal_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: 15 Cliff Street, New York, NY 10038 -> Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration", start date:date "2026-06-05 16:21", end date:date "2026-06-05 17:00", location:"15 Cliff Street, New York, NY 10038 -> Union Square", description:"TechWeekID: TW-5722
+	make new event at end of events of scheduleCal with properties {summary:"Travel: 15 Cliff Street, New York, NY 10038 -> Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration", start date:date "2026-06-05 16:21", end date:date "2026-06-05 17:00", location:"15 Cliff Street, New York, NY 10038 -> Union Square, 201 Park Ave S, New York, NY", description:"TechWeekID: TW-5722
 CalendarBlockID: TW-5722-TRAVEL-IN
 RerankID:
 PartifulID: jkjGahQgmH9PLIxjfTFt
 Walk 3 min to Fulton St (2/3); subway 27 min; walk 4 min from 14 St-Union Sq (N/Q/R/W); includes 5 min buffer.
 RSVP status: registered
 Category: travel
-Venue basis: 15 Cliff Street, New York, NY 10038 -> Union Square ()
+Venue basis: 15 Cliff Street, New York, NY 10038 -> Union Square, 201 Park Ave S, New York, NY ()
 Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7365763%2C-73.9885429&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/jkjGahQgmH9PLIxjfTFt"}
-	make new event at end of events of scheduleCal with properties {summary:"[PENDING] Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration", start date:date "2026-06-05 17:00", end date:date "2026-06-05 20:00", location:"Union Square", description:"TechWeekID: TW-5722
+	make new event at end of events of scheduleCal with properties {summary:"[PENDING] Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration", start date:date "2026-06-05 17:00", end date:date "2026-06-05 20:00", location:"Union Square, 201 Park Ave S, New York, NY", description:"TechWeekID: TW-5722
 CalendarBlockID: TW-5722-SCHEDULE
 RerankID: 5722
 PartifulID: jkjGahQgmH9PLIxjfTFt
@@ -587,8 +598,8 @@ Listen for: Multi-agent coordination, operations work, incident reviews, hidden 
 Follow-up: Ask for intros to platform leads running agent or automation infrastructure.
 RSVP status: applied
 Category: primary
-Venue basis: Union Square Park, 201 Park Ave S, New York, NY 10003 (exact_from_partiful_maps)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Union+Square+Park%2C+201+Park+Ave+S%2C+New+York%2C+NY+10003
+Venue basis: Union Square, 201 Park Ave S, New York, NY (exact_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=Union+Square%2C+201+Park+Ave+S%2C+New+York%2C+NY
 Rank/tier/score: 45 / A / 64
 URL: https://partiful.com/e/jkjGahQgmH9PLIxjfTFt"}
 	make new event at end of events of scheduleCal with properties {summary:"Travel: Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> 15 Cliff Street, New York, NY 10038", start date:date "2026-06-05 20:00", end date:date "2026-06-05 20:23", location:"Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orchestration -> 15 Cliff Street, New York, NY 10038", description:"TechWeekID: TW-5722
@@ -613,7 +624,7 @@ Venue basis: 15 Cliff Street, New York, NY 10038 (sleep_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] The builder’s table: AI finance leaders lunch with Vayu, Base44 & PwC", start date:date "2026-06-01 14:30", end date:date "2026-06-01 16:00", location:"Midtown", description:"TechWeekID: TW-6493
+	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] The builder’s table: AI finance leaders lunch with Vayu, Base44 & PwC", start date:date "2026-06-01 14:30", end date:date "2026-06-01 16:00", location:"Boucherie, 145 W 53rd St, New York, NY", description:"TechWeekID: TW-6493
 CalendarBlockID: TW-6493-REFERENCE
 RerankID: 6493
 PartifulID: MQvS9RrcXl6HcAEzfzhg
@@ -624,7 +635,7 @@ Venue basis: Bryant Park, New York, NY (approx_from_calendar_location)
 Google Maps: https://www.google.com/maps/search/?api=1&query=Bryant+Park%2C+New+York%2C+NY
 Rank/tier/score: added-10 / B / 52
 URL: https://partiful.com/e/MQvS9RrcXl6HcAEzfzhg"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING BACKUP] Slack x Amplitude: AI at work", start date:date "2026-06-01 17:00", end date:date "2026-06-01 18:30", location:"Tribeca", description:"TechWeekID: TW-5110
+	make new event at end of events of referenceCal with properties {summary:"[PENDING BACKUP] Slack x Amplitude: AI at work", start date:date "2026-06-01 17:00", end date:date "2026-06-01 18:30", location:"Fabrik, 16 Vestry St, New York, NY 10013", description:"TechWeekID: TW-5110
 CalendarBlockID: TW-5110-REFERENCE
 RerankID: 5110
 PartifulID: dmFBKIxzn2LdFmktqas8
@@ -686,7 +697,7 @@ Venue basis: Skinos, 123 Washington St, New York, NY (exact_from_signup_status)
 Google Maps: https://www.google.com/maps/search/?api=1&query=Skinos%2C+123+Washington+St%2C+New+York%2C+NY
 Rank/tier/score: 169 / B / 54
 URL: https://partiful.com/e/oQvmxTsHOVayx47ok3li?c=0hT1WkMm"}
-	make new event at end of events of referenceCal with properties {summary:"[WAITLIST BACKUP] Operating MCP", start date:date "2026-06-02 16:00", end date:date "2026-06-02 19:00", location:"TBC", description:"TechWeekID: TW-4522
+	make new event at end of events of referenceCal with properties {summary:"[WAITLIST BACKUP] Operating MCP", start date:date "2026-06-02 16:00", end date:date "2026-06-02 19:00", location:"159 W 25th St 3rd Floor, New York, NY", description:"TechWeekID: TW-4522
 CalendarBlockID: TW-4522-REFERENCE
 RerankID: 4522
 PartifulID: 5vHvRPI0VlMQwOmQadCN
@@ -716,8 +727,8 @@ Listen for: Audit trails, legal/compliance sensitivity, review records, decision
 Follow-up: Ask if source-linked engineering evidence would be useful for compliance conversations.
 RSVP status: registered
 Category: backup
-Venue basis: Wall St, New York, NY (approx_freeform_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Wall+St%2C+New+York%2C+NY
+Venue basis: One Battery Park Plaza, 7th Floor New York, NY 10004 (exact_from_partiful_freeform)
+Google Maps: https://www.google.com/maps/search/?api=1&query=One+Battery+Park+Plaza%2C+7th+Floor+New+York%2C+NY+10004
 Rank/tier/score: 72 / B / 58
 URL: https://partiful.com/e/UBrZopzqpRwbn6Qk0npO?c=4IfpVNvT"}
 	make new event at end of events of referenceCal with properties {summary:"[PENDING BACKUP] WorkOS + Postman Agents & APIs Demo Night", start date:date "2026-06-02 17:30", end date:date "2026-06-02 19:30", location:"56 Greene Street, 4th Floor New York, NY 10012", description:"TechWeekID: TW-4224
@@ -733,11 +744,11 @@ Listen for: API governance, permissions, review evidence, enterprise buyers, wor
 Follow-up: Ask for intros to teams responsible for developer platform or internal API governance.
 RSVP status: applied
 Category: backup
-Venue basis: Spring St and Broadway, New York, NY (approx_freeform_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY
+Venue basis: 56 Greene Street, 4th Floor New York, NY 10012 (exact_from_partiful_freeform)
+Google Maps: https://www.google.com/maps/search/?api=1&query=56+Greene+Street%2C+4th+Floor+New+York%2C+NY+10012
 Rank/tier/score: 217 / B / 51
 URL: https://partiful.com/e/XqIBMZmB4oubCZWFP2Sl"}
-	make new event at end of events of referenceCal with properties {summary:"[REG ADDED] AI on Main Street: How Chinatown's Small Businesses Are Using AI", start date:date "2026-06-02 17:30", end date:date "2026-06-02 19:00", location:"Chinatown", description:"TechWeekID: TW-6393
+	make new event at end of events of referenceCal with properties {summary:"[REG ADDED] AI on Main Street: How Chinatown's Small Businesses Are Using AI", start date:date "2026-06-02 17:30", end date:date "2026-06-02 19:00", location:"115 Bowery Ground Floor, New York, NY", description:"TechWeekID: TW-6393
 CalendarBlockID: TW-6393-REFERENCE
 RerankID: 6393
 PartifulID: hl2AIeWhZ1e2t6LveEGw
@@ -761,8 +772,8 @@ Listen for: Governance, internal platforms, production agents, executive reporti
 Follow-up: Ask for a specific post-event call with the platform, DevEx, or AI governance owner.
 RSVP status: applied
 Category: apply
-Venue basis: Spring St and Broadway, New York, NY (approx_freeform_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY
+Venue basis: Soho (approx_freeform)
+Google Maps: https://www.google.com/maps/search/?api=1&query=Soho
 Rank/tier/score: 2 / S / 100
 URL: https://partiful.com/e/FSzOO6xPn11iqxVdtQ9j?"}
 	make new event at end of events of referenceCal with properties {summary:"[REG BACKUP] Cloudflare + Shopify: Build for the Agent Era", start date:date "2026-06-02 18:00", end date:date "2026-06-02 20:00", location:"Shopify New York, 131 Greene St, New York, NY 10012", description:"TechWeekID: TW-5925
@@ -782,7 +793,7 @@ Venue basis: Shopify New York, 131 Greene St, New York, NY 10012 (exact_from_sig
 Google Maps: https://www.google.com/maps/search/?api=1&query=Shopify+New+York%2C+131+Greene+St%2C+New+York%2C+NY+10012
 Rank/tier/score: 23 / S / 75
 URL: https://partiful.com/e/jytNb4IdG0HxwJnqDSgf"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] Founders x Investors AI Toolkit & Happy Hour", start date:date "2026-06-02 18:00", end date:date "2026-06-02 19:30", location:"Midtown", description:"TechWeekID: TW-6629
+	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] Founders x Investors AI Toolkit & Happy Hour", start date:date "2026-06-02 18:00", end date:date "2026-06-02 19:30", location:"City Hall Area, New York, NY", description:"TechWeekID: TW-6629
 CalendarBlockID: TW-6629-REFERENCE
 RerankID: 6629
 PartifulID: Vs2eC7nERtgF0PgNWfUo
@@ -806,11 +817,11 @@ Listen for: Small teams scaling fast, agent-heavy workflows, contribution reward
 Follow-up: Ask for a founder-to-founder product critique and one relevant buyer intro.
 RSVP status: applied
 Category: apply
-Venue basis: 23rd Street and 8th Avenue, New York, NY (approx_freeform_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=23rd+Street+and+8th+Avenue%2C+New+York%2C+NY
+Venue basis: New York, NY – Chelsea neighborhood (venue details upon confirmation) (approx_freeform)
+Google Maps: https://www.google.com/maps/search/?api=1&query=New+York%2C+NY+%E2%80%93+Chelsea+neighborhood+%28venue+details+upon+confirmation%29
 Rank/tier/score: 9 / S / 94
 URL: https://partiful.com/e/titPml1Nw0DKwGl9B6CF"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING CURATED] Agent Harnesses: What It Takes to Make AI Agents Work in the Enterprise", start date:date "2026-06-03 16:00", end date:date "2026-06-03 21:00", location:"Union Square", description:"TechWeekID: TW-4719
+	make new event at end of events of referenceCal with properties {summary:"[PENDING CURATED] Agent Harnesses: What It Takes to Make AI Agents Work in the Enterprise", start date:date "2026-06-03 16:00", end date:date "2026-06-03 21:00", location:"Union Square W, New York, NY 10003", description:"TechWeekID: TW-4719
 CalendarBlockID: TW-4719-REFERENCE
 RerankID: 4719
 PartifulID: 2NP0rZW8BmdGAGUOEhGP
@@ -827,7 +838,7 @@ Venue basis: Union Square W, New York, NY 10003 (exact_from_partiful_maps)
 Google Maps: https://www.google.com/maps/search/?api=1&query=Union+Square+W%2C+New+York%2C+NY+10003
 Rank/tier/score: 8 / S / 97
 URL: https://partiful.com/e/2NP0rZW8BmdGAGUOEhGP?f=1"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] Voice AI Meetup: Build a Voice Agent in 1 hour", start date:date "2026-06-03 17:00", end date:date "2026-06-03 18:30", location:"SoHo", description:"TechWeekID: TW-4882
+	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] Voice AI Meetup: Build a Voice Agent in 1 hour", start date:date "2026-06-03 17:00", end date:date "2026-06-03 18:30", location:"Rockefeller Center, New York, NY", description:"TechWeekID: TW-4882
 CalendarBlockID: TW-4882-REFERENCE
 RerankID: 4882
 PartifulID: pIS8aostHgPm9GXmaN6X
@@ -838,7 +849,7 @@ Venue basis: Spring St and Broadway, New York, NY (approx_from_calendar_location
 Google Maps: https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY
 Rank/tier/score: added-14 / B / 50
 URL: https://partiful.com/e/pIS8aostHgPm9GXmaN6X"}
-	make new event at end of events of referenceCal with properties {summary:"[REG CURATED] The CTO Mixer: Humanizing Tech | Happy Hour", start date:date "2026-06-03 17:30", end date:date "2026-06-03 19:30", location:"Midtown, Manhattan, New York, NY", description:"TechWeekID: TW-4778
+	make new event at end of events of referenceCal with properties {summary:"[REG CURATED] The CTO Mixer: Humanizing Tech | Happy Hour", start date:date "2026-06-03 17:30", end date:date "2026-06-03 19:30", location:"Midtown, 130 E 57th St, New York, NY", description:"TechWeekID: TW-4778
 CalendarBlockID: TW-4778-REFERENCE
 RerankID: 4778
 PartifulID: h1hGv0PkskcagJOv5M9K
@@ -851,8 +862,8 @@ Listen for: Performance reviews, planning evidence, PR quality, distributed-team
 Follow-up: If pain is clear, ask for a 20-minute CTO follow-up and permission to send a one-pager.
 RSVP status: registered
 Category: apply
-Venue basis: Astor Place, New York, NY (approx_neighborhood_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Astor+Place%2C+New+York%2C+NY
+Venue basis: Midtown, 130 E 57th St, New York, NY (exact_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=Midtown%2C+130+E+57th+St%2C+New+York%2C+NY
 Rank/tier/score: 6 / S / 100
 URL: https://partiful.com/e/h1hGv0PkskcagJOv5M9K"}
 	make new event at end of events of referenceCal with properties {summary:"[PENDING BACKUP] Camp AI: Agents at Work", start date:date "2026-06-03 17:30", end date:date "2026-06-03 20:30", location:"620 8th Ave, New York, NY 10018", description:"TechWeekID: TW-5693
@@ -872,7 +883,7 @@ Venue basis: 620 8th Ave, New York, NY 10018 (manual_exact_manhattan)
 Google Maps: https://www.google.com/maps/search/?api=1&query=620+8th+Ave%2C+New+York%2C+NY+10018
 Rank/tier/score: 19 / S / 78
 URL: https://partiful.com/e/Fp5STyPH0McEt0awlWFD"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] Tessera Labs x a16z : The Closing Gap (Private Dinner)", start date:date "2026-06-03 17:30", end date:date "2026-06-03 19:00", location:"Flatiron", description:"TechWeekID: TW-4931
+	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] Tessera Labs x a16z : The Closing Gap (Private Dinner)", start date:date "2026-06-03 17:30", end date:date "2026-06-03 19:00", location:"ilili, 236 5th Ave, New York, NY", description:"TechWeekID: TW-4931
 CalendarBlockID: TW-4931-REFERENCE
 RerankID: 4931
 PartifulID: tPlMvExfd6gOdgKCW6O7
@@ -883,7 +894,7 @@ Venue basis: 23rd Street and Broadway, New York, NY (approx_from_calendar_locati
 Google Maps: https://www.google.com/maps/search/?api=1&query=23rd+Street+and+Broadway%2C+New+York%2C+NY
 Rank/tier/score: added-5 / B / 55
 URL: https://partiful.com/e/tPlMvExfd6gOdgKCW6O7"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] Data Center, Power & Enterprise Infrastructure Dinner", start date:date "2026-06-03 18:00", end date:date "2026-06-03 19:30", location:"Central Park", description:"TechWeekID: TW-5720
+	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] Data Center, Power & Enterprise Infrastructure Dinner", start date:date "2026-06-03 18:00", end date:date "2026-06-03 19:30", location:"Central Park, Manhattan, New York, NY", description:"TechWeekID: TW-5720
 CalendarBlockID: TW-5720-REFERENCE
 RerankID: 5720
 PartifulID: Vkvjr5dBr2FmbI2yK5UB
@@ -894,7 +905,7 @@ Venue basis: Central Park, Manhattan, NY (approx_from_calendar_location)
 Google Maps: https://www.google.com/maps/search/?api=1&query=Central+Park%2C+Manhattan%2C+NY
 Rank/tier/score: added-1 / A / 73
 URL: https://partiful.com/e/Vkvjr5dBr2FmbI2yK5UB"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] SGLang Happy Hour: AI Infra in Finance", start date:date "2026-06-03 18:00", end date:date "2026-06-03 19:30", location:"SoHo", description:"TechWeekID: TW-6519
+	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] SGLang Happy Hour: AI Infra in Finance", start date:date "2026-06-03 18:00", end date:date "2026-06-03 19:30", location:"1/2 Bond St, 1 Bond St, New York, NY", description:"TechWeekID: TW-6519
 CalendarBlockID: TW-6519-REFERENCE
 RerankID: 6519
 PartifulID: p74X9KDrgoLaDtU8BmvS
@@ -905,7 +916,7 @@ Venue basis: Spring St and Broadway, New York, NY (approx_from_calendar_location
 Google Maps: https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY
 Rank/tier/score: added-2 / A / 67
 URL: https://partiful.com/e/p74X9KDrgoLaDtU8BmvS"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING CURATED] The Tech Leaders Suite", start date:date "2026-06-03 19:00", end date:date "2026-06-03 21:00", location:"Brooklyn", description:"TechWeekID: TW-4197
+	make new event at end of events of referenceCal with properties {summary:"[PENDING CURATED] The Tech Leaders Suite", start date:date "2026-06-03 19:00", end date:date "2026-06-03 21:00", location:"Barclays Center, Brooklyn, NY", description:"TechWeekID: TW-4197
 CalendarBlockID: TW-4197-REFERENCE
 RerankID: 4197
 PartifulID: UhyErPPxuo2vELIutdGj
@@ -918,11 +929,11 @@ Listen for: Manager reporting, trust, team health, engineering productivity, exe
 Follow-up: Ask for a leadership-focused follow-up if they manage engineers or internal platforms.
 RSVP status: applied
 Category: apply
-Venue basis: Barclays Center, Brooklyn, NY (approx_neighborhood_hidden)
+Venue basis: Barclays Center, Brooklyn, NY (approx_from_signup_status)
 Google Maps: https://www.google.com/maps/search/?api=1&query=Barclays+Center%2C+Brooklyn%2C+NY
 Rank/tier/score: 5 / S / 100
 URL: https://partiful.com/e/UhyErPPxuo2vELIutdGj?"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] The Mooch and IBM’s Gary Cohn on Owning the Future: Digital Sovereignty in the Age of AI", start date:date "2026-06-04 13:00", end date:date "2026-06-04 14:30", location:"Flatiron", description:"TechWeekID: TW-6526
+	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] The Mooch and IBM’s Gary Cohn on Owning the Future: Digital Sovereignty in the Age of AI", start date:date "2026-06-04 13:00", end date:date "2026-06-04 14:30", location:"IBM One Madison Avenue, 1 Madison Ave, FL 2, New York, NY", description:"TechWeekID: TW-6526
 CalendarBlockID: TW-6526-REFERENCE
 RerankID: 6526
 PartifulID: tUV88fW7J763Q0ZLdTBI
@@ -944,7 +955,7 @@ Venue basis: 23rd Street and Broadway, New York, NY (approx_from_calendar_locati
 Google Maps: https://www.google.com/maps/search/?api=1&query=23rd+Street+and+Broadway%2C+New+York%2C+NY
 Rank/tier/score: added-24 / B / 49
 URL: https://partiful.com/e/KIimVVdYB8fjaiE1UdZz"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING BACKUP] Agents at Scale", start date:date "2026-06-04 18:00", end date:date "2026-06-04 20:00", location:"SoHo", description:"TechWeekID: TW-4191
+	make new event at end of events of referenceCal with properties {summary:"[PENDING BACKUP] Agents at Scale", start date:date "2026-06-04 18:00", end date:date "2026-06-04 20:00", location:"SoHo, Manhattan, New York, NY", description:"TechWeekID: TW-4191
 CalendarBlockID: TW-4191-REFERENCE
 RerankID: 4191
 PartifulID: 6BlGFmwIdpyndqyLYS2v
@@ -957,11 +968,11 @@ Listen for: Evaluation gaps, agent ops, review ownership, platform labor, tracea
 Follow-up: Ask to learn how they log agent work today and whether source-linked credit would fit.
 RSVP status: applied
 Category: backup
-Venue basis: Spring St and Broadway, New York, NY (approx_neighborhood_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY
+Venue basis: SoHo, Manhattan, New York, NY (approx_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=SoHo%2C+Manhattan%2C+New+York%2C+NY
 Rank/tier/score: 10 / S / 93
 URL: https://partiful.com/e/6BlGFmwIdpyndqyLYS2v?c=bv5YqCoL"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING BACKUP] Steal These AI Workflows: Live Demos from NYC's Top AI Builders", start date:date "2026-06-04 18:00", end date:date "2026-06-04 19:30", location:"Union Square", description:"TechWeekID: TW-4826
+	make new event at end of events of referenceCal with properties {summary:"[PENDING BACKUP] Steal These AI Workflows: Live Demos from NYC's Top AI Builders", start date:date "2026-06-04 18:00", end date:date "2026-06-04 19:30", location:"Union Square E, New York, NY 10003", description:"TechWeekID: TW-4826
 CalendarBlockID: TW-4826-REFERENCE
 RerankID: 4826
 PartifulID: sGvp4VIr3KrGqRoWCKhV
@@ -974,7 +985,7 @@ Listen for: Prompting, issue specs, PRs, Slack decisions, demos that could becom
 Follow-up: Ask demo builders to name one evidence source Accolades should integrate first.
 RSVP status: applied
 Category: backup
-Venue basis: Union Square E, New York, NY 10003 (exact_from_partiful_maps)
+Venue basis: Union Square E, New York, NY 10003 (exact_from_signup_status)
 Google Maps: https://www.google.com/maps/search/?api=1&query=Union+Square+E%2C+New+York%2C+NY+10003
 Rank/tier/score: 34 / A / 66
 URL: https://partiful.com/e/sGvp4VIr3KrGqRoWCKhV"}
@@ -1008,8 +1019,8 @@ Listen for: AI-native operating models, fast-growing teams, founder pain, engine
 Follow-up: Ask for one sharp product critique and one relevant engineering-leader intro.
 RSVP status: registered
 Category: apply
-Venue basis: 23rd Street and Broadway, New York, NY (approx_neighborhood_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=23rd+Street+and+Broadway%2C+New+York%2C+NY
+Venue basis: Flatiron, Manhattan, New York, NY (approx_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=Flatiron%2C+Manhattan%2C+New+York%2C+NY
 Rank/tier/score: 11 / S / 90
 URL: https://partiful.com/e/idltitmjA4ZzL9IuK0Y6"}
 	make new event at end of events of referenceCal with properties {summary:"[PENDING BACKUP] From Prediction Markets to Predictive Intelligence Systems", start date:date "2026-06-04 19:00", end date:date "2026-06-04 20:30", location:"Financial District", description:"TechWeekID: TW-5204
@@ -1040,7 +1051,7 @@ Venue basis: Union Square, Manhattan, New York, NY (approx_from_calendar_locatio
 Google Maps: https://www.google.com/maps/search/?api=1&query=Union+Square%2C+Manhattan%2C+New+York%2C+NY
 Rank/tier/score: added-6 / B / 55
 URL: https://partiful.com/e/PhqnW15PCQAdoENB6aNl"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING BACKUP] Free Phos, Real Convos. Agents in your DMs", start date:date "2026-06-04 20:00", end date:date "2026-06-04 21:30", location:"Flatiron", description:"TechWeekID: TW-5207
+	make new event at end of events of referenceCal with properties {summary:"[PENDING BACKUP] Free Phos, Real Convos. Agents in your DMs", start date:date "2026-06-04 20:00", end date:date "2026-06-04 21:30", location:"City Hall Area, New York, NY", description:"TechWeekID: TW-5207
 CalendarBlockID: TW-5207-REFERENCE
 RerankID: 5207
 PartifulID: ed2EFWip0do9OuYmVPZI
@@ -1057,7 +1068,7 @@ Venue basis: Pho Dragon Restaurant, 47 W 14th St, New York, NY 10011 (exact_from
 Google Maps: https://www.google.com/maps/search/?api=1&query=Pho+Dragon+Restaurant%2C+47+W+14th+St%2C+New+York%2C+NY+10011
 Rank/tier/score: 18 / S / 79
 URL: https://partiful.com/e/ed2EFWip0do9OuYmVPZI"}
-	make new event at end of events of referenceCal with properties {summary:"[PENDING CURATED] YouCode AI Salon", start date:date "2026-06-05 18:00", end date:date "2026-06-05 21:00", location:"New York, NY", description:"TechWeekID: TW-250
+	make new event at end of events of referenceCal with properties {summary:"[PENDING CURATED] YouCode AI Salon", start date:date "2026-06-05 18:00", end date:date "2026-06-05 21:00", location:"The Ivory Peacock, 38 W 26th St, New York, NY", description:"TechWeekID: TW-250
 CalendarBlockID: TW-250-REFERENCE
 RerankID: 250
 PartifulID: kvGpuFMeACW7ZWPYtxTP
@@ -1070,8 +1081,8 @@ Listen for: Builder workflows, early team habits, contribution rewards, technica
 Follow-up: Ask for feedback or an intro; do not over-invest unless they match the ICP.
 RSVP status: applied
 Category: apply
-Venue basis: Barclays Center, Brooklyn, NY (approx_neighborhood_hidden)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Barclays+Center%2C+Brooklyn%2C+NY
+Venue basis: The Ivory Peacock, 38 W 26th St, New York, NY (exact_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=The+Ivory+Peacock%2C+38+W+26th+St%2C+New+York%2C+NY
 Rank/tier/score: 26 / A / 73
 URL: https://partiful.com/e/kvGpuFMeACW7ZWPYtxTP"}
 end tell
