@@ -23,6 +23,7 @@ import {
   writeCacheValue,
   writeStateValue,
 } from "./lib/kv_store.ts";
+import type { PartifulSyncStatus, PartifulVenuePrecision } from "./lib/partiful_sync.ts";
 
 function assertEquals(actual: unknown, expected: unknown) {
   const actualJson = JSON.stringify(actual);
@@ -151,57 +152,202 @@ Deno.test("statusLabelForScheduleStatus follows live Partiful status", () => {
   assertEquals(statusLabelForScheduleStatus("WAITLISTED_FOR_APPROVAL", "PENDING"), "WAITLIST");
 });
 
-Deno.test("mergeDiscoveredPartifulEntries clobbers matching entries with live Partiful venue", () => {
-  const merged = mergeDiscoveredPartifulEntries(
-    [scheduleEntry()],
-    [{
-      cacheId: "partiful:OF1vP5L8dtXKRtInyWKs",
-      syncedAt: "2026-05-29T12:00:00.000Z",
+type PartifulMergeRecord = Parameters<typeof mergeDiscoveredPartifulEntries>[1][number];
+
+function makeDiscoveredPartifulMatch(overrides: {
+  partifulId?: string;
+  title?: string;
+  status?: PartifulSyncStatus;
+  rawStatus?: string;
+  venue?: {
+    label: string;
+    address: string;
+    googleMapsUrl: string;
+    appleMapsUrl: string;
+    precision: PartifulVenuePrecision;
+  } | null;
+} = {}): PartifulMergeRecord {
+  const defaults: {
+    partifulId: string;
+    title: string;
+    status: PartifulSyncStatus;
+    rawStatus: string;
+    venue: {
+      label: string;
+      address: string;
+      googleMapsUrl: string;
+      appleMapsUrl: string;
+      precision: PartifulVenuePrecision;
+    };
+  } = {
+    partifulId: "OF1vP5L8dtXKRtInyWKs",
+    title: "Open Source Must Win - #NYTechWeek",
+    status: "registered",
+    rawStatus: "APPROVED",
+    venue: {
+      label: "Exact Venue, 123 Test St, New York, NY",
+      address: "123 Test St, New York, NY 10003",
+      googleMapsUrl: "https://maps.example/test",
+      appleMapsUrl: "",
+      precision: "exact",
+    },
+  };
+  const payload = { ...defaults, ...overrides };
+  return {
+    cacheId: `partiful:${payload.partifulId}`,
+    syncedAt: "2026-05-29T12:00:00.000Z",
+    updatedAt: "2026-05-29T12:00:00.000Z",
+    normalizedEvent: {
+      partifulId: payload.partifulId,
+      eventUrl: `https://partiful.com/e/${payload.partifulId}`,
+      title: payload.title,
+      status: payload.status,
+      rawStatus: payload.rawStatus,
+      rawEventStatus: "PUBLISHED",
+      description: "",
+      startAt: "2026-06-01T22:00:00.000Z",
+      endAt: "2026-06-02T01:00:00.000Z",
       updatedAt: "2026-05-29T12:00:00.000Z",
-      normalizedEvent: {
-        partifulId: "OF1vP5L8dtXKRtInyWKs",
-        eventUrl: "https://partiful.com/e/OF1vP5L8dtXKRtInyWKs",
-        title: "Open Source Must Win - #NYTechWeek",
-        status: "registered",
-        rawStatus: "APPROVED",
-        rawEventStatus: "PUBLISHED",
-        description: "",
-        startAt: "2026-06-01T22:00:00.000Z",
-        endAt: "2026-06-02T01:00:00.000Z",
-        updatedAt: "2026-05-29T12:00:00.000Z",
-        approvedAt: "",
-        rsvpCount: 1,
-        guestCount: 20,
-        plusOne: "none",
-        venue: {
-          label: "Exact Venue, 123 Test St, New York, NY",
-          address: "123 Test St, New York, NY 10003",
-          googleMapsUrl: "https://maps.example/test",
-          appleMapsUrl: "",
-          precision: "exact",
-        },
-        source: "test",
-      },
-      mergedEvent: {
-        eventUrl: "https://partiful.com/e/OF1vP5L8dtXKRtInyWKs",
-        partifulEventUrl: "https://partiful.com/e/OF1vP5L8dtXKRtInyWKs",
-        partifulId: "OF1vP5L8dtXKRtInyWKs",
-        partifulRawStatus: "APPROVED",
-        partifulStatus: "APPROVED",
-        partifulSyncedAt: "2026-05-29T12:00:00.000Z",
-        status: "registered",
-        title: "Open Source Must Win",
-      },
-      statusChanged: false,
-      matchedBy: "partiful_id",
-    }],
-  );
+      approvedAt: "",
+      rsvpCount: 1,
+      guestCount: 20,
+      plusOne: "none",
+      venue: payload.venue === null ? null : payload.venue,
+      source: "test",
+    },
+    mergedEvent: {
+      eventUrl: `https://partiful.com/e/${payload.partifulId}`,
+      partifulEventUrl: `https://partiful.com/e/${payload.partifulId}`,
+      partifulId: payload.partifulId,
+      partifulRawStatus: payload.rawStatus,
+      partifulStatus: payload.rawStatus,
+      partifulSyncedAt: "2026-05-29T12:00:00.000Z",
+      status: payload.status,
+      title: payload.title.replace(" - #NYTechWeek", ""),
+    },
+    statusChanged: false,
+    matchedBy: "partiful_id",
+  };
+}
+
+Deno.test("mergeDiscoveredPartifulEntries clobbers matching entries with live Partiful venue", () => {
+  const merged = mergeDiscoveredPartifulEntries([scheduleEntry()], [
+    makeDiscoveredPartifulMatch({}),
+  ]);
 
   assertEquals(merged[0].location, "123 Test St, New York, NY 10003");
   assertEquals(merged[0].venueQuery, "123 Test St, New York, NY 10003");
   assertEquals(merged[0].venuePrecision, "partiful_exact");
   assertEquals(merged[0].googleMapsUrl, "https://maps.example/test");
   assertEquals(merged[0].displayTitle, "Open Source Must Win");
+});
+
+Deno.test("mergeDiscoveredPartifulEntries keeps exact schedule venues when live Partiful venue is less precise", () => {
+  const merged = mergeDiscoveredPartifulEntries(
+    [scheduleEntry({
+      partifulId: "OF1vP5L8dtXKRtInyWKs",
+      location: "Exact Venue, 123 Test St, New York, NY",
+      venueQuery: "Exact Venue, 123 Test St, New York, NY",
+      venuePrecision: "manual_exact_manhattan",
+      googleMapsUrl: "https://maps.example/current-venue",
+      title: "[PENDING] Open Source Must Win",
+    })],
+    [makeDiscoveredPartifulMatch({
+      status: "registered",
+      venue: {
+        label: "New York City, New York",
+        address: "New York, NY",
+        googleMapsUrl: "https://maps.example/live-approximate",
+        appleMapsUrl: "",
+        precision: "approximate",
+      },
+    })],
+  );
+
+  assertEquals(merged[0].location, "Exact Venue, 123 Test St, New York, NY");
+  assertEquals(merged[0].venueQuery, "Exact Venue, 123 Test St, New York, NY");
+  assertEquals(merged[0].venuePrecision, "manual_exact_manhattan");
+  assertEquals(merged[0].googleMapsUrl, "https://maps.example/current-venue");
+  assertEquals(merged[0].title, "[REG] Open Source Must Win");
+});
+
+Deno.test("mergeDiscoveredPartifulEntries does not replace useful approximate venues with generic city text", () => {
+  const merged = mergeDiscoveredPartifulEntries(
+    [scheduleEntry({
+      partifulId: "OF1vP5L8dtXKRtInyWKs",
+      location: "SoHo",
+      venueQuery: "Spring St and Broadway, New York, NY",
+      venuePrecision: "approx_from_calendar_location",
+      googleMapsUrl: "https://maps.example/current-neighborhood",
+    })],
+    [makeDiscoveredPartifulMatch({
+      venue: {
+        label: "New York, NY",
+        address: "New York, NY",
+        googleMapsUrl: "https://maps.example/generic-city",
+        appleMapsUrl: "",
+        precision: "exact",
+      },
+    })],
+  );
+
+  assertEquals(merged[0].location, "SoHo");
+  assertEquals(merged[0].venueQuery, "Spring St and Broadway, New York, NY");
+  assertEquals(merged[0].venuePrecision, "approx_from_calendar_location");
+  assertEquals(merged[0].googleMapsUrl, "https://maps.example/current-neighborhood");
+});
+
+Deno.test("mergeDiscoveredPartifulEntries rebuilds map links when live Partiful venue updates and map link is missing", () => {
+  const merged = mergeDiscoveredPartifulEntries(
+    [scheduleEntry({
+      partifulId: "OF1vP5L8dtXKRtInyWKs",
+      location: "Old Venue, New York, NY",
+      venueQuery: "Old Venue, New York, NY",
+      venuePrecision: "manual_neighborhood",
+      googleMapsUrl: "https://maps.example/current-venue",
+      title: "[PENDING] Open Source Must Win",
+    })],
+    [makeDiscoveredPartifulMatch({
+      status: "registered",
+      venue: {
+        label: "New Venue",
+        address: "250 Test Ave, New York, NY",
+        googleMapsUrl: "",
+        appleMapsUrl: "",
+        precision: "exact",
+      },
+    })],
+  );
+
+  assertEquals(merged[0].location, "250 Test Ave, New York, NY");
+  assertEquals(merged[0].venueQuery, "250 Test Ave, New York, NY");
+  assertEquals(merged[0].venuePrecision, "partiful_exact");
+  assertEquals(
+    merged[0].googleMapsUrl,
+    "https://www.google.com/maps/search/?api=1&query=250+Test+Ave%2C+New+York%2C+NY",
+  );
+});
+
+Deno.test("mergeDiscoveredPartifulEntries recomputes title status prefix from live Partiful status", () => {
+  const merged = mergeDiscoveredPartifulEntries(
+    [scheduleEntry({
+      partifulId: "OF1vP5L8dtXKRtInyWKs",
+      status: "PENDING_APPROVAL",
+      title: "[PENDING] Open Source Must Win",
+      venuePrecision: "manual_neighborhood",
+    })],
+    [makeDiscoveredPartifulMatch({
+      title: "Open Source Must Win - #NYTechWeek",
+      status: "registered",
+      rawStatus: "APPROVED",
+      venue: null,
+    })],
+  );
+
+  assertEquals(merged[0].title, "[REG] Open Source Must Win");
+  assertEquals(merged[0].displayTitle, "Open Source Must Win");
+  assertEquals(merged[0].status, "registered");
+  assertEquals(merged[0].statusLabel, "REG");
 });
 
 Deno.test("buildLeadFollowUpEmailContent escapes HTML and includes event context", () => {
@@ -683,6 +829,17 @@ kvRouterTest("agenda recalculation creates a share-safe latest resource", async 
     getPath(immutableBody, ["payload", "days"]),
     getPath(latestBody, ["payload", "days"]),
   );
+
+  useAccountSessionForTest({ id: "agenda-share-non-admin", handle: "admin" });
+  const blocked = await router(
+    new Request("http://localhost/api/resources/admin/agenda/share", {
+      method: "POST",
+      headers: { cookie: "techweek_session=share-session" },
+    }),
+  );
+  assertEquals(blocked.status, 403);
+  const blockedBody = await blocked.json() as Record<string, unknown>;
+  assertEquals(getPath(blockedBody, ["error", "message"]), "Admin access required.");
 
   useAdminSessionForTest();
   const duplicate = await router(

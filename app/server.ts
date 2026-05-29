@@ -36,6 +36,7 @@ import {
   DEFAULT_USER_AGENT,
   geocode,
   googleMapsDirectionsUrl,
+  googleMapsSearchUrl,
   HOME_POINT,
   pointMapsQuery,
   routeBetween,
@@ -1135,6 +1136,8 @@ async function handleResourceShareCreate(
     return json(publicResourceResponse(request, record, true), { status: 201 });
   }
 
+  const adminError = await requireAdminAccountSession(request);
+  if (adminError) return adminError;
   const payload = await currentAgendaSharePayload();
   const record = await upsertPublicResource(user, "agenda", payload);
   return json(publicResourceResponse(request, record, true), { status: 201 });
@@ -1846,18 +1849,23 @@ function clobberEntryWithPartifulSync(
   const liveVenue = venue ? bestPartifulVenueText(venue) : "";
   const title = stripHashTechWeek(event.title);
   const status = event.status === "unknown" ? entry.status : event.status;
+  const shouldClobberVenue = shouldClobberVenueWithLive(
+    entry.venuePrecision,
+    venue?.precision,
+    liveVenue,
+  );
   return {
     ...entry,
     ...(status ? { status, statusLabel: statusLabelForScheduleStatus(status) } : {}),
     ...(title
       ? { title: statusPrefixedTitle(entry.title, title, status), displayTitle: title }
       : {}),
-    ...(liveVenue
+    ...(shouldClobberVenue
       ? {
         location: liveVenue,
         venueQuery: liveVenue,
         venuePrecision: `partiful_${venue?.precision || "unknown"}`,
-        googleMapsUrl: venue?.googleMapsUrl || entry.googleMapsUrl,
+        googleMapsUrl: venue?.googleMapsUrl || googleMapsSearchUrl(liveVenue),
       }
       : {}),
   };
@@ -1868,13 +1876,69 @@ function bestPartifulVenueText(venue: NormalizedPartifulEvent["venue"]): string 
   return venue.address || venue.label || "";
 }
 
+function shouldClobberVenueWithLive(
+  currentVenuePrecision: string,
+  liveVenuePrecision: string | undefined,
+  liveVenue: string,
+): boolean {
+  if (!liveVenue) return false;
+  const livePrecision = Math.min(
+    venuePrecisionRank(`partiful_${liveVenuePrecision || "unknown"}`),
+    venueTextRank(liveVenue),
+  );
+  const currentPrecision = venuePrecisionRank(currentVenuePrecision);
+  return livePrecision >= currentPrecision;
+}
+
+function venuePrecisionRank(precision: string): number {
+  const normalized = precision.trim().toLowerCase();
+  if (!normalized || normalized === "partiful_" || normalized === "unknown") return 0;
+  const compact = normalized.replace(/^partiful_/, "");
+  if (compact.includes("exact")) return 3;
+  if (
+    compact.includes("approx") || compact.includes("neighborhood") || compact.includes("provided")
+  ) {
+    return 2;
+  }
+  if (compact.includes("hidden") || compact.includes("private")) return 0;
+  if (compact === "route_context" || compact === "meal_buffer" || compact === "sleep_buffer") {
+    return 1;
+  }
+  if (compact.includes("subway_station")) return 1;
+  return 1;
+}
+
+function venueTextRank(value: string): number {
+  const text = value.trim();
+  if (!text) return 0;
+  const normalized = text.toLowerCase().replace(/\s+/g, " ");
+  if (
+    [
+      "new york",
+      "new york, ny",
+      "new york city",
+      "new york, new york",
+      "new york, new york, ny",
+      "nyc",
+    ].includes(normalized)
+  ) {
+    return 0;
+  }
+  if (
+    /\d/.test(text) &&
+    /\b(new york|ny|ave|avenue|st|street|road|rd|blvd|boulevard|broadway|floor|fl|suite|ste)\b/i
+      .test(text)
+  ) {
+    return 3;
+  }
+  return 2;
+}
+
 function statusPrefixedTitle(
-  currentTitle: string,
+  _currentTitle: string,
   liveTitle: string,
   status: string,
 ): string {
-  const prefix = currentTitle.match(/^\[[^\]]+\]\s*/)?.[0] || "";
-  if (prefix) return `${prefix}${liveTitle}`;
   const label = statusLabelForScheduleStatus(status);
   return label ? `[${label}] ${liveTitle}` : liveTitle;
 }
