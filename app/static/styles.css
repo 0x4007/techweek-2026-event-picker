@@ -104,7 +104,7 @@
     --type-other-bg: #111419;
     --soft: #142131;
     --surface: #111820;
-    --ink-contrast: #ffffff;
+    --ink-contrast: #07090c;
     --header-bg: rgb(7 9 12 / 88%);
     --header-border: rgb(41 49 58 / 82%);
     --focus-ring: rgb(0 113 227 / 34%);
@@ -303,31 +303,6 @@ body > header > section {
   min-width: 0;
 }
 
-[data-account-button] {
-  flex: 0 1 auto;
-  min-width: 36px;
-  max-width: none;
-  background: var(--soft);
-  color: var(--ink);
-  box-shadow: none;
-}
-
-[data-account-button] span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-[data-account-button][data-auth-state="authenticated"] {
-  background: var(--accent-bg);
-  color: var(--accent);
-}
-
-[data-account-button][data-auth-state="setup"] {
-  background: var(--ink);
-  color: var(--bg);
-}
-
 [data-share-readonly] {
   justify-self: end;
   padding: 0 2px;
@@ -436,6 +411,147 @@ main > section {
   color: var(--accent);
 }
 
+[data-panel="account"] {
+  gap: 10px;
+}
+
+[data-account-summary],
+[data-agent-token-panel],
+[data-panel="account"] [data-resource-share],
+[data-account-invites] {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+[data-account-summary] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+[data-account-summary] > section,
+[data-agent-token-panel] > section:first-child,
+[data-panel="account"] [data-resource-share] > section:first-child,
+[data-account-invites] > section:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+[data-account-action] {
+  background: var(--soft);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+[data-account-action]:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+[data-account-action]:disabled {
+  opacity: 1;
+  background: var(--soft);
+  color: var(--muted);
+}
+
+[data-account-tools] {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+[data-account-tools]:has([data-agent-token-panel][hidden]) {
+  grid-template-columns: 1fr;
+}
+
+[data-agent-token-create] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+[data-agent-token-create] label,
+[data-agent-token-output] label {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+[data-agent-token-create] label {
+  flex: 0 0 92px;
+}
+
+[data-agent-token-create] label span,
+[data-agent-token-output] label span,
+.invite-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 760;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+[data-agent-token-create] input,
+[data-agent-token-output] textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+[data-agent-token-create] input {
+  min-height: 34px;
+  padding: 6px 8px;
+}
+
+[data-agent-token-output] {
+  display: grid;
+  gap: 8px;
+}
+
+[data-agent-token-output] textarea {
+  min-height: 54px;
+  max-height: 130px;
+  resize: vertical;
+  padding: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+[data-agent-token-config] {
+  min-height: 112px;
+}
+
+[data-panel="account"] [data-actions] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+[data-panel="account"] [data-actions] button,
+[data-panel="account"] [data-actions] a {
+  min-height: 30px;
+  background: var(--soft);
+  color: var(--ink);
+  box-shadow: none;
+  font-size: 11px;
+}
+
+[data-panel="account"] [data-actions] button:hover,
+[data-panel="account"] [data-actions] a:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
 .invite-row {
   display: flex;
   align-items: center;
@@ -470,6 +586,42 @@ main > section {
 .invite-row button:hover {
   background: var(--accent-bg);
   color: var(--accent);
+}
+
+.invite-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 10px;
+  align-items: start;
+}
+
+[data-invite-card],
+.invite-qrcode,
+.invite-referrals {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  align-content: start;
+}
+
+[data-invite-card] {
+  grid-column: 1;
+}
+
+.invite-qrcode {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.invite-qrcode img {
+  width: min(100%, 148px);
+  height: auto;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.invite-referrals {
+  grid-column: 1;
 }
 
 [data-next-card],
@@ -1410,15 +1562,6 @@ article[data-entry] > p {
     gap: 3px;
   }
 
-  [data-account-button] {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
-    width: 40px;
-    min-width: 40px;
-    padding: 0;
-  }
-
   body > header nav button {
     min-height: 30px;
     padding: 0 4px;
@@ -1436,13 +1579,21 @@ article[data-entry] > p {
     text-overflow: ellipsis;
   }
 
-  [data-account-button] span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
+  [data-account-summary],
+  [data-account-tools],
+  .invite-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .invite-qrcode,
+  .invite-referrals,
+  [data-invite-card] {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .invite-qrcode img {
+    width: 148px;
   }
 
   [data-next-card] {
