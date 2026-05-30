@@ -151,6 +151,26 @@ Button rules:
 
 - Never place white or near-white text/icons on a white, near-white, translucent-white, or
   light-muted button background.
+- Disabled buttons must stay readable; do not rely on opacity if it makes text blend into the button
+  fill.
+- If a button background can become light in any state, explicitly set dark text/icon color for that
+  state.
+- If a button background can become dark or accent-colored in any state, explicitly set a readable
+  light text/icon color for that state.
+- Verify both unauthenticated and authenticated account states because auth state often changes
+  button labels, colors, and disabled behavior.
+
+## UI Contrast Guardrails
+
+White-on-white or otherwise unreadable controls are release-blocking defects. For every HTML/CSS or
+frontend behavior change, inspect the rendered UI in a browser before final handoff and verify every
+visible button, link styled as a button, nav tab, and disabled/loading/auth state has readable
+foreground/background contrast.
+
+Button rules:
+
+- Never place white or near-white text/icons on a white, near-white, translucent-white, or
+  light-muted button background.
 - Disabled buttons must stay readable; do not rely on opacity if it makes text blend into the
   button fill.
 - If a button background can become light in any state, explicitly set dark text/icon color for that
