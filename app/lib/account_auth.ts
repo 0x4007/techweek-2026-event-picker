@@ -36,8 +36,7 @@ const DEFAULT_COOKIE_NAME = "techweek_session";
 const RP_DISPLAY_NAME = "Tech Week Event Picker";
 const TEXT_DECODER = new TextDecoder();
 const TEXT_ENCODER = new TextEncoder();
-const PASSKEY_DENO_NET_SUFFIX = "deno.net";
-const PASSKEY_DENO_OTHER_SUFFIXES = new Set(["deno.dev", "deno.app"]);
+const PASSKEY_DENO_SUFFIXES = new Set(["deno.net", "deno.dev", "deno.app"]);
 
 export type AccountSessionUser = {
   id: string;
@@ -1003,14 +1002,11 @@ function canonicalPasskeyRpId(host: string): string {
   const normalized = host.trim().toLowerCase();
   if (!normalized || isLoopbackHost(normalized)) return normalized;
 
-  if (normalized.endsWith(`.${PASSKEY_DENO_NET_SUFFIX}`)) {
+  for (const suffix of PASSKEY_DENO_SUFFIXES) {
+    if (!normalized.endsWith(`.${suffix}`)) continue;
     const parts = normalized.split(".");
-    if (parts.length < 3) return PASSKEY_DENO_NET_SUFFIX;
-    return `${parts[parts.length - 3]}.${PASSKEY_DENO_NET_SUFFIX}`;
-  }
-
-  for (const suffix of PASSKEY_DENO_OTHER_SUFFIXES) {
-    if (normalized.endsWith(`.${suffix}`)) return suffix;
+    if (parts.length < 3) return normalized;
+    return `${parts[parts.length - 3]}.${suffix}`;
   }
 
   return normalized;
