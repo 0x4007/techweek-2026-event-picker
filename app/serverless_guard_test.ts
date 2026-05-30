@@ -64,6 +64,14 @@ Deno.test("serverless runtime has no local OCR, auth-file, or external context d
     "Deploy workflow should publish production with deno deploy.",
   );
   assert(
+    workflow.includes("--config deno.json"),
+    "Deploy workflow should use the bundled Deno Deploy config.",
+  );
+  assert(
+    workflow.includes("${{ runner.temp }}/techweek-deploy-root"),
+    "Deploy workflow should stage deploy files outside the ignored repo worktree.",
+  );
+  assert(
     denoConfig.deploy?.runtime?.entrypoint === "app/main.ts",
     "Deno Deploy config should use app/main.ts.",
   );
