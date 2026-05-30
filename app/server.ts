@@ -63,27 +63,11 @@ import {
   writeStateValueIfVersion,
 } from "./lib/kv_store.ts";
 import {
-  AccountAuthError,
   accountSessionCookie,
   type AccountSessionState,
-  accountSessionState,
   type AccountSessionUser,
   clearAccountSessionCookie,
-  consumeAccountSessionHandoff,
-  createAccountAgentToken,
-  createAccountSessionHandoff,
-  finishAccountLogin,
-  finishAccountRegistration,
-  getAccountUserByHandle,
-  listAccountAgentTokens,
-  loginWithAccountAgentToken,
-  logoutAccountSession,
   normalizeAccountHandle,
-  requireAccountSession as requireStoredAccountSession,
-  requireAdminAccountSession as requireStoredAdminAccountSession,
-  revokeAccountAgentToken,
-  startAccountLogin,
-  startAccountRegistration,
 } from "./lib/account_auth.ts";
 
 const ROOT = new URL("../", import.meta.url);
@@ -135,6 +119,9 @@ export const PARTIFUL_AUTO_SYNC_CRON_EXPRESSION = "* * * * *";
 const DENO_DEPLOY_HOSTNAME = "techweek-2026-event-picker.0x4007.deno.net";
 const SAME_SITE_APP_HOSTNAME = "techweek.pavlovcik.com";
 const SAME_SITE_PROXY_HEADER = "x-techweek-same-site-proxy";
+const AUTH_HUB_ORIGIN = "https://deno-universal-auth.0x4007.deno.net";
+const AUTH_HUB_CLIENT_ID = "techweek-2026-event-picker";
+const AUTH_HUB_AUDIENCE = "techweek-2026-event-picker";
 void DENO_DEPLOY_HOSTNAME;
 void SAME_SITE_APP_HOSTNAME;
 void SAME_SITE_PROXY_HEADER;
@@ -972,23 +959,12 @@ async function handleAccountSession(request: Request): Promise<Response> {
 }
 
 async function requireAdminAccountSession(request: Request): Promise<Response | null> {
-  try {
-    if (accountSessionForTest !== undefined) {
-      const session = await readAccountSession(request);
-      if (!session.authenticated) {
-        return json({ error: { message: "Authentication required." } }, { status: 401 });
-      }
-      if (session.user?.isAdmin !== true) {
-        return json({ error: { message: "Admin access required." } }, { status: 403 });
-      }
-      return null;
-    }
-    await requireStoredAdminAccountSession(request);
-  } catch (error) {
-    if (error instanceof AccountAuthError) {
-      return json({ error: { message: error.message } }, { status: error.status });
-    }
-    throw error;
+  const session = await readAccountSession(request);
+  if (!session.authenticated) {
+    return json({ error: { message: "Authentication required." } }, { status: 401 });
+  }
+  if (session.user?.isAdmin !== true) {
+    return json({ error: { message: "Admin access required." } }, { status: 403 });
   }
   return null;
 }
@@ -1133,7 +1109,7 @@ async function handleResourceShareGet(
   resourceType: ResourceType,
   id: string,
 ): Promise<Response> {
-  const owner = await getAccountUserByHandle(handle);
+  const owner = accountUserFromHandle(handle);
   if (!owner) return notFound();
   const record = await resolvePublicResource(owner.id, resourceType, id);
   if (!record || !record.isPublic || record.userId !== owner.id) return notFound();
@@ -1275,56 +1251,49 @@ async function writeAgendaShareResourceForUser(
 }
 
 async function handleAccountSessionHandoff(request: Request): Promise<Response> {
-  const raw = await request.json().catch(() => null);
-  const body = recordValue(raw);
-  const handoffToken = textField(body?.handoffToken, 2000);
-  if (!handoffToken) return badRequest("handoffToken is required.");
-
-  const targetOrigin = requestOrigin(request);
-  const result = await consumeAccountSessionHandoff(request, handoffToken, targetOrigin);
-  const session = result.session;
-
-  const referralCode = normalizeInviteCode(textField(raw?.referralCode, 120));
-  if (referralCode) {
-    await claimReferralWithSessionReferralCode(
-      session.user?.id || "",
-      session.user?.handle || "",
-      referralCode,
-    );
-  }
-
-  return json({ session }, {
-    headers: {
-      "set-cookie": accountSessionCookie(result.sessionToken, session.expiresAt, request),
-    },
+  void request;
+  return json({ error: { message: "Local account handoff has moved to the auth hub." } }, {
+    status: 410,
   });
 }
 
 async function handleAuthRegisterStart(request: Request): Promise<Response> {
-  return json(await startAccountRegistration(request));
+  void request;
+  return json({ error: { message: "Passkey registration has moved to the auth hub." } }, {
+    status: 410,
+  });
 }
 
 async function handleAuthRegisterFinish(request: Request): Promise<Response> {
-  const result = await finishAccountRegistration(request);
-  return authFinishResponse(result, request);
+  void request;
+  return json({ error: { message: "Passkey registration has moved to the auth hub." } }, {
+    status: 410,
+  });
 }
 
 async function handleAuthLoginStart(request: Request): Promise<Response> {
-  return json(await startAccountLogin(request));
+  void request;
+  return json({ error: { message: "Passkey login has moved to the auth hub." } }, {
+    status: 410,
+  });
 }
 
 async function handleAuthLoginFinish(request: Request): Promise<Response> {
-  const result = await finishAccountLogin(request);
-  return authFinishResponse(result, request);
+  void request;
+  return json({ error: { message: "Passkey login has moved to the auth hub." } }, {
+    status: 410,
+  });
 }
 
 async function handleAuthAgentTokenLogin(request: Request): Promise<Response> {
-  const result = await loginWithAccountAgentToken(request);
-  return authFinishResponse(result, request);
+  const raw = await request.json().catch(() => null);
+  const body = recordValue(raw);
+  const token = textField(body?.token, 2000);
+  if (!token) return badRequest("token is required.");
+  return await exchangeAuthHubAgentToken(request, token);
 }
 
 async function handleAuthLogout(request: Request): Promise<Response> {
-  await logoutAccountSession(request);
   return new Response(null, {
     status: 204,
     headers: { "set-cookie": clearAccountSessionCookie(request) },
@@ -1332,14 +1301,28 @@ async function handleAuthLogout(request: Request): Promise<Response> {
 }
 
 async function handleAuthHandoff(request: Request): Promise<Response> {
-  const raw = await request.json().catch(() => null);
-  const body = recordValue(raw);
-  const targetOrigin = textField(body?.embedOrigin, 500) || textField(body?.origin, 500);
-  return json(await createAccountSessionHandoff(request, targetOrigin));
+  void request;
+  return json({ error: { message: "Local auth handoff has moved to the auth hub." } }, {
+    status: 410,
+  });
 }
 
-async function handleAccountAgentTokensGet(): Promise<Response> {
-  return json({ tokens: await listAccountAgentTokens() });
+async function handleAuthHubSsoExchange(request: Request): Promise<Response> {
+  const raw = await request.json().catch(() => null);
+  const body = recordValue(raw);
+  const code = textField(body?.code, 2000);
+  if (!code) return badRequest("code is required.");
+  return await exchangeAuthHubCode(request, code);
+}
+
+async function handleAccountAgentTokensGet(request: Request): Promise<Response> {
+  const token = accountSessionToken(request);
+  if (!token) return json({ error: { message: "Authentication required." } }, { status: 401 });
+  const response = await fetch(`${AUTH_HUB_ORIGIN}/api/auth/agent-tokens`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  const body = await readJsonOrText(response);
+  return json(body, { status: response.status });
 }
 
 async function handleAccountAgentTokensPost(request: Request): Promise<Response> {
@@ -1348,21 +1331,86 @@ async function handleAccountAgentTokensPost(request: Request): Promise<Response>
   if (!session.authenticated || user?.isAdmin !== true) {
     return json({ error: { message: "Admin access required." } }, { status: 403 });
   }
-  return json(await createAccountAgentToken(request, user), { status: 201 });
-}
-
-async function handleAccountAgentTokenDelete(tokenId: string): Promise<Response> {
-  const revoked = await revokeAccountAgentToken(tokenId);
-  return revoked ? new Response(null, { status: 204 }) : notFound();
-}
-
-function authFinishResponse(
-  result: { session: AccountSessionState; sessionToken: string; expiresAt?: string },
-  request: Request,
-): Response {
-  return json({ session: result.session }, {
+  const raw = await request.json().catch(() => null);
+  const body = recordValue(raw) || {};
+  const token = accountSessionToken(request);
+  if (!token) return json({ error: { message: "Authentication required." } }, { status: 401 });
+  const response = await fetch(`${AUTH_HUB_ORIGIN}/api/auth/agent-tokens`, {
+    method: "POST",
     headers: {
-      "set-cookie": accountSessionCookie(result.sessionToken, result.expiresAt, request),
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      handle: textField(body.handle, 120),
+      ttlDays: Number(body.ttlDays || 7),
+      clientId: AUTH_HUB_CLIENT_ID,
+      audience: AUTH_HUB_AUDIENCE,
+    }),
+  });
+  const result = await readJsonOrText(response);
+  return json(result, { status: response.status });
+}
+
+async function handleAccountAgentTokenDelete(request: Request, tokenId: string): Promise<Response> {
+  const token = accountSessionToken(request);
+  if (!token) return json({ error: { message: "Authentication required." } }, { status: 401 });
+  const response = await fetch(
+    `${AUTH_HUB_ORIGIN}/api/auth/agent-tokens/${encodeURIComponent(tokenId)}`,
+    {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${token}` },
+    },
+  );
+  if (response.status === 204) return new Response(null, { status: 204 });
+  const body = await readJsonOrText(response);
+  return json(body, { status: response.status });
+}
+
+async function exchangeAuthHubCode(request: Request, code: string): Promise<Response> {
+  const origin = requestOrigin(request);
+  const redirectUri = new URL("/auth.html", `${origin}/`).toString();
+  const response = await fetch(`${AUTH_HUB_ORIGIN}/api/auth/sso/exchange`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      code,
+      clientId: AUTH_HUB_CLIENT_ID,
+      audience: AUTH_HUB_AUDIENCE,
+      origin,
+      redirectUri,
+    }),
+  });
+  return await authHubTokenResponse(request, response);
+}
+
+async function exchangeAuthHubAgentToken(request: Request, token: string): Promise<Response> {
+  const response = await fetch(`${AUTH_HUB_ORIGIN}/api/auth/agent-tokens/exchange`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      token,
+      clientId: AUTH_HUB_CLIENT_ID,
+      audience: AUTH_HUB_AUDIENCE,
+    }),
+  });
+  return await authHubTokenResponse(request, response);
+}
+
+async function authHubTokenResponse(request: Request, response: Response): Promise<Response> {
+  const body = await readJsonOrText(response);
+  if (!response.ok) return json(body, { status: response.status });
+  const record = recordValue(body);
+  const accessToken = textField(record?.accessToken, 4000);
+  const session = accountSessionFromAuthHubBody(record);
+  if (!accessToken || !session.authenticated) {
+    return json({ error: { message: "Auth hub returned an invalid token response." } }, {
+      status: 502,
+    });
+  }
+  return json({ session }, {
+    headers: {
+      "set-cookie": accountSessionCookie(accessToken, session.expiresAt, request),
     },
   });
 }
@@ -1381,20 +1429,9 @@ async function claimReferralWithSessionReferralCode(
 }
 
 async function requireAuthenticatedAccountSession(request: Request): Promise<Response | null> {
-  try {
-    if (accountSessionForTest !== undefined) {
-      const session = await readAccountSession(request);
-      if (!session.authenticated) {
-        return json({ error: { message: "Authentication required." } }, { status: 401 });
-      }
-      return null;
-    }
-    await requireStoredAccountSession(request);
-  } catch (error) {
-    if (error instanceof AccountAuthError) {
-      return json({ error: { message: error.message } }, { status: error.status });
-    }
-    throw error;
+  const session = await readAccountSession(request);
+  if (!session.authenticated) {
+    return json({ error: { message: "Authentication required." } }, { status: 401 });
   }
   return null;
 }
@@ -1560,7 +1597,80 @@ async function readAccountSession(request: Request): Promise<AccountSessionState
     }
     return accountSessionForTest;
   }
-  return await accountSessionState(request);
+  const token = accountSessionToken(request);
+  if (!token) return unauthenticatedHubSession();
+  try {
+    const response = await fetch(`${AUTH_HUB_ORIGIN}/api/auth/session/me`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return unauthenticatedHubSession();
+    const body = recordValue(await readJsonOrText(response));
+    return accountSessionFromAuthHubBody(body);
+  } catch {
+    return unauthenticatedHubSession();
+  }
+}
+
+function unauthenticatedHubSession(): AccountSessionState {
+  return {
+    authenticated: false,
+    auth: "auth_hub",
+    bootstrapConfigured: true,
+    registrationAllowed: false,
+  };
+}
+
+function accountSessionFromAuthHubBody(body: Record<string, unknown> | null): AccountSessionState {
+  const claims = recordValue(body?.claims);
+  const userRecord = recordValue(body?.user);
+  const handle = normalizeAccountHandle(
+    textField(userRecord?.handle, 120) || textField(claims?.handle, 120),
+  );
+  const expiresAt = textField(body?.expiresAt, 120) || claimsExpiresAt(claims);
+  if (!handle) return unauthenticatedHubSession();
+  return {
+    authenticated: true,
+    auth: textField(claims?.auth, 80) || "auth_hub",
+    user: {
+      id: handle,
+      handle,
+      isAdmin: userRecord?.isAdmin === true || claims?.isAdmin === true,
+      credentialCount: Number(userRecord?.credentialCount || 0) || 0,
+    },
+    expiresAt,
+    bootstrapConfigured: true,
+    registrationAllowed: false,
+  };
+}
+
+function claimsExpiresAt(claims: Record<string, unknown> | null): string {
+  const exp = Number(claims?.exp || 0);
+  if (!Number.isFinite(exp) || exp <= 0) return "";
+  return new Date(exp * 1000).toISOString();
+}
+
+function accountSessionToken(request: Request): string {
+  return cookieValue(request.headers.get("cookie") || "", "techweek_session");
+}
+
+function cookieValue(cookieHeader: string, name: string): string {
+  const prefix = `${name}=`;
+  for (const part of cookieHeader.split(";")) {
+    const trimmed = part.trim();
+    if (!trimmed.startsWith(prefix)) continue;
+    try {
+      return decodeURIComponent(trimmed.slice(prefix.length));
+    } catch {
+      return trimmed.slice(prefix.length);
+    }
+  }
+  return "";
+}
+
+function accountUserFromHandle(handle: string): AccountSessionUser | null {
+  const normalized = normalizeAccountHandle(handle);
+  if (!normalized) return null;
+  return { id: normalized, handle: normalized, isAdmin: false, credentialCount: 0 };
 }
 
 function requestOrigin(request: Request): string {
@@ -6223,6 +6333,9 @@ export async function router(request: Request): Promise<Response> {
     if (request.method === "POST" && pathname === "/api/auth/agent-token/login") {
       return await handleAuthAgentTokenLogin(request);
     }
+    if (request.method === "POST" && pathname === "/api/auth/sso/exchange") {
+      return await handleAuthHubSsoExchange(request);
+    }
     if (request.method === "POST" && pathname === "/api/auth/logout") {
       return await handleAuthLogout(request);
     }
@@ -6236,13 +6349,14 @@ export async function router(request: Request): Promise<Response> {
       return await handleAccountInviteGet(request);
     }
     if (request.method === "GET" && pathname === "/api/account/agent-tokens") {
-      return await handleAccountAgentTokensGet();
+      return await handleAccountAgentTokensGet(request);
     }
     if (request.method === "POST" && pathname === "/api/account/agent-tokens") {
       return await handleAccountAgentTokensPost(request);
     }
     if (request.method === "DELETE" && pathname.startsWith("/api/account/agent-tokens/")) {
       return await handleAccountAgentTokenDelete(
+        request,
         decodeURIComponent(pathname.replace("/api/account/agent-tokens/", "")),
       );
     }
@@ -6330,9 +6444,6 @@ export async function router(request: Request): Promise<Response> {
     if (request.method !== "GET" && request.method !== "HEAD") return notFound();
     return await serveStatic(url.pathname, request.method);
   } catch (error) {
-    if (error instanceof AccountAuthError) {
-      return json({ error: { message: error.message } }, { status: error.status });
-    }
     console.error(error);
     return serverError(error instanceof Error ? error.message : "Unknown server error.");
   }
