@@ -68,7 +68,7 @@ Deno.test("serverless runtime has no local OCR, auth-file, or external context d
     "Deploy workflow should use the bundled Deno Deploy config.",
   );
   assert(
-    workflow.includes("${{ runner.temp }}/techweek-deploy-root"),
+    workflow.includes("DEPLOY_ROOT: /tmp/techweek-deploy-root"),
     "Deploy workflow should stage deploy files outside the ignored repo worktree.",
   );
   assert(

@@ -16,7 +16,7 @@ jobs:
       DENO_DEPLOY_ORG: "0x4007"
       DENO_DEPLOY_APP: techweek-2026-event-picker
       DENO_DEPLOY_REGION: us
-      DEPLOY_ROOT: ${{ runner.temp }}/techweek-deploy-root
+      DEPLOY_ROOT: /tmp/techweek-deploy-root
       ENTRYPOINT: app/main.ts
     steps:
       - name: Check out repository
