@@ -128,6 +128,8 @@ const state = {
   accountSession: null,
   accountLoading: false,
   accountError: "",
+  accountAuthPopupReturnUrl: "",
+  accountAuthPopupWindow: null,
   accountAuthPopupTimer: 0,
   accountStorageId: ACCOUNT_ANONYMOUS_STORAGE_ID,
   messages: readJsonStorage(
@@ -937,6 +939,7 @@ function openAccountAuth(mode) {
   url.searchParams.set("embedOrigin", globalThis.location.origin);
   url.searchParams.set("returnUrl", globalThis.location.href);
   state.accountError = "";
+  state.accountAuthPopupReturnUrl = globalThis.location.href;
   renderAccountButton();
   const popup = globalThis.open(
     url.toString(),
@@ -947,6 +950,7 @@ function openAccountAuth(mode) {
     globalThis.location.href = url.toString();
     return;
   }
+  state.accountAuthPopupWindow = popup;
   popup.focus?.();
   const openedAt = Date.now();
   state.accountAuthPopupTimer = globalThis.setInterval(() => {
@@ -964,7 +968,13 @@ function openAccountAuth(mode) {
 function handleAccountAuthMessage(event) {
   if (event.origin !== globalThis.location.origin) return;
   if (event.data?.type !== ACCOUNT_AUTH_MESSAGE_TYPE) return;
+  if (state.accountAuthPopupWindow && event.source !== state.accountAuthPopupWindow) return;
   clearAccountAuthPopupWatcher();
+  const returnUrl = safeRedirectUrl(event.data?.returnUrl || state.accountAuthPopupReturnUrl);
+  if (returnUrl) {
+    globalThis.location.href = returnUrl;
+    return;
+  }
   void loadAccountSession();
 }
 
@@ -972,10 +982,27 @@ function clearAccountAuthPopupWatcher() {
   if (!state.accountAuthPopupTimer) return;
   globalThis.clearInterval(state.accountAuthPopupTimer);
   state.accountAuthPopupTimer = 0;
+  state.accountAuthPopupReturnUrl = "";
+  state.accountAuthPopupWindow = null;
 }
 
 function accountAuthUrl(path) {
   return new URL(path, globalThis.location.origin);
+}
+
+function safeRedirectUrl(value) {
+  const target = parseUrlWithOrigin(value);
+  if (!target || target.origin !== globalThis.location.origin) return "";
+  if (!/^https?:$/.test(target.protocol)) return "";
+  return target.toString();
+}
+
+function parseUrlWithOrigin(value) {
+  try {
+    return value ? new URL(value, globalThis.location.href) : null;
+  } catch {
+    return null;
+  }
 }
 
 function setView(view, options = {}) {

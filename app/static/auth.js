@@ -236,13 +236,33 @@ async function createAgentToken(form) {
 function complete() {
   showMessage("Authenticated.");
   const embedOrigin = parseOrigin(params.get("embedOrigin"));
+  const returnUrl = safeReturnUrl(params.get("returnUrl"), embedOrigin || globalThis.location.origin);
+  const payload = { type: AUTH_COMPLETE_MESSAGE };
+  if (returnUrl) payload.returnUrl = returnUrl.toString();
   if (globalThis.opener && embedOrigin) {
-    globalThis.opener.postMessage({ type: AUTH_COMPLETE_MESSAGE }, embedOrigin);
-    globalThis.setTimeout(() => globalThis.close(), 250);
+    globalThis.opener.postMessage(payload, embedOrigin);
+    globalThis.setTimeout(() => {
+      if (!returnUrl) {
+        globalThis.close();
+        return;
+      }
+      try {
+        if (!globalThis.opener?.closed) {
+          globalThis.opener.location.assign(returnUrl.toString());
+        }
+      } catch {
+        // Ignore opener navigation failures.
+      } finally {
+        globalThis.close();
+      }
+    }, 250);
     return;
   }
-  const returnUrl = params.get("returnUrl");
-  if (returnUrl) globalThis.location.href = returnUrl;
+  if (returnUrl) {
+    globalThis.location.assign(returnUrl.toString());
+    return;
+  }
+  globalThis.location.assign(`${globalThis.location.origin}/`);
 }
 
 async function requestJSON(path, init = {}) {
@@ -390,4 +410,20 @@ function errorMessage(body) {
   if (body.error && typeof body.error.message === "string") return body.error.message;
   if (typeof body.message === "string") return body.message;
   return "";
+}
+
+function safeReturnUrl(value, expectedOrigin) {
+  const target = parseRedirectUrl(value);
+  if (!target) return null;
+  if (target.origin !== expectedOrigin) return null;
+  if (!/^https?:$/.test(target.protocol)) return null;
+  return target;
+}
+
+function parseRedirectUrl(value) {
+  try {
+    return value ? new URL(value, globalThis.location.href) : null;
+  } catch {
+    return null;
+  }
 }
