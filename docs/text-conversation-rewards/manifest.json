@@ -1,0 +1,76 @@
+{
+  "source": {
+    "repo": "https://github.com/ubiquity-os-marketplace/text-conversation-rewards",
+    "branch": "main",
+    "commit": "9a3f13eaa0d14c06048c8d9f78c00ea85fa341dd",
+    "fetchedAt": "2026-05-30T20:06:01.381Z"
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "source": "https://raw.githubusercontent.com/ubiquity-os-marketplace/text-conversation-rewards/main/README.md",
+      "bytes": 22534,
+      "chars": 22534
+    },
+    {
+      "path": "docs/ubiquity-os-platform-and-accolades-context.md",
+      "source": "repo:docs/go-to-market-22-may.md",
+      "bytes": 20095,
+      "chars": 19639
+    },
+    {
+      "path": "docs/ubiquity-os-accolades-whitepaper.md",
+      "source": "repo:docs/go-to-market-22-may.md",
+      "bytes": 20095,
+      "chars": 19639
+    },
+    {
+      "path": "sales-collateral/one-page-sales-brief.md",
+      "source": "repo:docs/go-to-market-22-may.md",
+      "bytes": 20095,
+      "chars": 19639
+    },
+    {
+      "path": "sales-collateral/buyer-discovery.md",
+      "source": "repo:docs/go-to-market-22-may.md",
+      "bytes": 20095,
+      "chars": 19639
+    },
+    {
+      "path": "sales-collateral/messaging.md",
+      "source": "repo:docs/go-to-market-22-may.md",
+      "bytes": 20095,
+      "chars": 19639
+    },
+    {
+      "path": "sales-collateral/event-conversation-guide.md",
+      "source": "repo:docs/go-to-market-22-may.md",
+      "bytes": 20095,
+      "chars": 19639
+    },
+    {
+      "path": "sales-collateral/objection-battlecard.md",
+      "source": "repo:docs/go-to-market-22-may.md",
+      "bytes": 20095,
+      "chars": 19639
+    },
+    {
+      "path": "sales-collateral/buyer-persona-matrix.md",
+      "source": "repo:docs/go-to-market-22-may.md",
+      "bytes": 20095,
+      "chars": 19639
+    },
+    {
+      "path": "sales-collateral/visual-demo-brief.md",
+      "source": "repo:docs/go-to-market-22-may.md",
+      "bytes": 20095,
+      "chars": 19639
+    },
+    {
+      "path": "sales-collateral/demo-dashboard/README.md",
+      "source": "repo:docs/go-to-market-22-may.md",
+      "bytes": 20095,
+      "chars": 19639
+    }
+  ]
+}

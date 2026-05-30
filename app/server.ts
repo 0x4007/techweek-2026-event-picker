@@ -17,12 +17,10 @@ import {
   buildCallableSnapshot,
   callableResult,
   callPartifulFunction,
-  defaultAuthFilePath,
   ensureFreshPartifulAuth,
   parseStoredPartifulAuthJson,
   partifulIdFromUrl,
   type PartifulTarget,
-  readStoredPartifulAuth,
   type StoredPartifulAuth,
 } from "../scripts/lib/partiful_headless.ts";
 import {
@@ -47,6 +45,7 @@ import {
 } from "./lib/routing.ts";
 import {
   cacheCounts,
+  deleteCacheValue,
   deleteLatestResourceForUser,
   listCacheValues,
   readCacheValue,
@@ -98,28 +97,26 @@ const RANKINGS_CSV = new URL(
   import.meta.url,
 );
 const RSVP_PROFILE_JSON = new URL("../.codex/techweek-rsvp-profile.json", import.meta.url);
-const TEXT_REWARDS_REPO = new URL(
-  "file:///Users/nv/repos/ubiquity-os-marketplace/text-conversation-rewards/",
-);
+const TEXT_REWARDS_CONTEXT_ROOT = new URL("../docs/text-conversation-rewards/", import.meta.url);
 const OPERATIONAL_ICS = new URL(
   "../outputs/signed_up/techweek_signed_up_operational_with_travel.ics",
   import.meta.url,
 );
-const LOCAL_OCR_DIR = new URL("../.codex/ocr-local/", import.meta.url);
 const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
 const PARTIFUL_AUTH_JSON_ENV = "TECHWEEK_PARTIFUL_AUTH_JSON";
+const PARTIFUL_AUTH_CACHE_NAMESPACE = "partifulAuth";
+const PARTIFUL_AUTH_CACHE_ID = "server";
+const PARTIFUL_AUTH_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_PORT = 8788;
 const DENO_DEPLOY_DEFAULT_PORT = 8000;
 const TIME_ZONE = "America/New_York";
 const AGENT_MODEL = "gpt-5.5";
-const LOCAL_OCR_TIMEOUT_MS = 7_000;
-const LOCAL_OCR_ROTATIONS = [0, 90, 180, 270] as const;
-const LOCAL_OCR_HIGH_CONFIDENCE_SCORE = 8;
 const TOKEN_ENCODING_NAME = "o200k_base";
 const CHAT_MESSAGE_OVERHEAD_TOKENS = 4;
 const CHAT_REQUEST_OVERHEAD_TOKENS = 3;
 const CHAT_SHARE_MAX_PAYLOAD_BYTES = 64 * 1024;
 const MODEL_CONTEXT_CACHE_MS = 5 * 60 * 1000;
+const MODEL_CONTEXT_CACHE_NAMESPACE = "modelContext";
 const TOKEN_ENCODER = getEncoding(TOKEN_ENCODING_NAME);
 const CHAT_SHARE_TEXT_ENCODER = new TextEncoder();
 const PRODUCT_PLAYBOOK_CONTEXT_CHAR_BUDGET = 120_000;
@@ -131,8 +128,10 @@ const ROUTING_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 45;
 const PARTIFUL_SYNC_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 120;
 const AGENDA_RUN_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const APP_STATE_KEY = "app_state_v1";
+export const PARTIFUL_AUTO_SYNC_RUN_ID_PREFIX = "partiful-auto-";
 const PARTIFUL_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 const PARTIFUL_AUTO_SYNC_LOCK_TTL_MS = 5 * 60 * 1000;
+export const PARTIFUL_AUTO_SYNC_CRON_EXPRESSION = "* * * * *";
 const DENO_DEPLOY_HOSTNAME = "techweek-2026-event-picker.0x4007.deno.net";
 const SAME_SITE_APP_HOSTNAME = "techweek.pavlovcik.com";
 const SAME_SITE_PROXY_HEADER = "x-techweek-same-site-proxy";
@@ -322,55 +321,59 @@ const MANUAL_AGENDA_ROUTE_POINTS = [
   },
 ] as const;
 const PRODUCT_PLAYBOOK_FILES = [
-  { label: "Repository README", url: new URL("README.md", TEXT_REWARDS_REPO), maxChars: 32_000 },
+  {
+    label: "Repository README",
+    url: new URL("README.md", TEXT_REWARDS_CONTEXT_ROOT),
+    maxChars: 32_000,
+  },
   {
     label: "Platform and Accolades context",
-    url: new URL("docs/ubiquity-os-platform-and-accolades-context.md", TEXT_REWARDS_REPO),
+    url: new URL("docs/ubiquity-os-platform-and-accolades-context.md", TEXT_REWARDS_CONTEXT_ROOT),
     maxChars: 32_000,
   },
   {
     label: "Accolades whitepaper",
-    url: new URL("docs/ubiquity-os-accolades-whitepaper.md", TEXT_REWARDS_REPO),
+    url: new URL("docs/ubiquity-os-accolades-whitepaper.md", TEXT_REWARDS_CONTEXT_ROOT),
     maxChars: 38_000,
   },
   {
     label: "One-page sales brief",
-    url: new URL("sales-collateral/one-page-sales-brief.md", TEXT_REWARDS_REPO),
+    url: new URL("sales-collateral/one-page-sales-brief.md", TEXT_REWARDS_CONTEXT_ROOT),
     maxChars: 12_000,
   },
   {
     label: "Buyer discovery",
-    url: new URL("sales-collateral/buyer-discovery.md", TEXT_REWARDS_REPO),
+    url: new URL("sales-collateral/buyer-discovery.md", TEXT_REWARDS_CONTEXT_ROOT),
     maxChars: 10_000,
   },
   {
     label: "Messaging guide",
-    url: new URL("sales-collateral/messaging.md", TEXT_REWARDS_REPO),
+    url: new URL("sales-collateral/messaging.md", TEXT_REWARDS_CONTEXT_ROOT),
     maxChars: 14_000,
   },
   {
     label: "Event conversation guide",
-    url: new URL("sales-collateral/event-conversation-guide.md", TEXT_REWARDS_REPO),
+    url: new URL("sales-collateral/event-conversation-guide.md", TEXT_REWARDS_CONTEXT_ROOT),
     maxChars: 10_000,
   },
   {
     label: "Objection battlecard",
-    url: new URL("sales-collateral/objection-battlecard.md", TEXT_REWARDS_REPO),
+    url: new URL("sales-collateral/objection-battlecard.md", TEXT_REWARDS_CONTEXT_ROOT),
     maxChars: 28_000,
   },
   {
     label: "Buyer persona matrix",
-    url: new URL("sales-collateral/buyer-persona-matrix.md", TEXT_REWARDS_REPO),
+    url: new URL("sales-collateral/buyer-persona-matrix.md", TEXT_REWARDS_CONTEXT_ROOT),
     maxChars: 28_000,
   },
   {
     label: "Visual demo brief",
-    url: new URL("sales-collateral/visual-demo-brief.md", TEXT_REWARDS_REPO),
+    url: new URL("sales-collateral/visual-demo-brief.md", TEXT_REWARDS_CONTEXT_ROOT),
     maxChars: 10_000,
   },
   {
     label: "Demo dashboard README",
-    url: new URL("sales-collateral/demo-dashboard/README.md", TEXT_REWARDS_REPO),
+    url: new URL("sales-collateral/demo-dashboard/README.md", TEXT_REWARDS_CONTEXT_ROOT),
     maxChars: 14_000,
   },
 ] as const;
@@ -429,12 +432,20 @@ const CODEX_CLIENT_CONTEXT_FALLBACKS: Record<
     sourceLabel: "Codex CLI model cache for gpt-5.5",
   },
 };
-let modelContextCache:
-  | { model: string; baseUrl: string; fetchedAtMs: number; info: ModelContextInfo }
-  | null = null;
+type ModelContextCacheRecord = {
+  model: string;
+  baseUrl: string;
+  info: ModelContextInfo;
+};
+
+let modelContextResetNonce = 0;
 
 export function resetModelContextCacheForTest(): void {
-  modelContextCache = null;
+  modelContextResetNonce += 1;
+}
+
+function modelContextCacheId(model: string, baseUrl: string): string {
+  return `${modelContextResetNonce}|${model}|${baseUrl}`;
 }
 
 type CsvRow = Record<string, string>;
@@ -543,8 +554,6 @@ type OcrDraftMetadata = {
   outputWidth?: number;
   outputHeight?: number;
   dataUrlCharacters?: number;
-  localOcrUsed?: boolean;
-  localOcrMeanConfidence?: number;
 };
 
 type AppState = {
@@ -560,7 +569,7 @@ type AppState = {
 };
 
 type PartifulAutoSyncState = {
-  status: "idle" | "running" | "completed" | "failed";
+  status: "idle" | "queued" | "running" | "completed" | "failed";
   lastStartedAt: string;
   lastCompletedAt: string;
   lastRunId: string;
@@ -775,30 +784,6 @@ type LeadDraft = {
   ocr?: OcrDraftMetadata;
 };
 
-type LocalOcrOrientation = {
-  imageDataUrl: string;
-  raw: string;
-  score: number;
-  rotation: number;
-  meanConfidence: number;
-};
-
-type LocalOcrVariantText = {
-  transcript: string;
-  score: number;
-  wordCount: number;
-  meanConfidence: number;
-};
-
-type CommandResult = {
-  success: boolean;
-  code: number | null;
-  stdout: string;
-  stderr: string;
-  timedOut: boolean;
-  error?: Record<string, unknown>;
-};
-
 type ResendEmailConfig = {
   apiKey: string;
   from: string;
@@ -840,7 +825,6 @@ type ClientContext = {
 };
 
 let accountSessionForTest: AccountSessionState | undefined;
-let stateMutationQueue: Promise<unknown> = Promise.resolve();
 
 class ServerRoutingCache implements RoutingCacheAdapter {
   async get<T>(key: CacheKey): Promise<T | null> {
@@ -1657,10 +1641,6 @@ function contentType(pathname: string): string {
   return "application/octet-stream";
 }
 
-function fileUrlPath(url: URL): string {
-  return decodeURIComponent(url.pathname);
-}
-
 async function serveStatic(pathname: string, method = "GET"): Promise<Response> {
   const path = normalizePath(pathname);
   const fileUrl = new URL(path, STATIC_DIR);
@@ -1688,11 +1668,15 @@ async function serveStatic(pathname: string, method = "GET"): Promise<Response> 
       headers,
     });
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound && !pathname.includes(".")) {
+    if (error instanceof Deno.errors.NotFound && shouldServeAppShell(pathname)) {
       return serveStatic("/", method);
     }
     return notFound();
   }
+}
+
+function shouldServeAppShell(pathname: string): boolean {
+  return !pathname.includes(".") || pathname.startsWith("/share/");
 }
 
 function parseLocalDateTime(value: string): number {
@@ -1828,7 +1812,12 @@ export function mergeDiscoveredPartifulEntries(
   const mergedEntries = entries.map((entry) =>
     clobberEntryWithPartifulSync(entry, liveByPartifulId)
   );
-  const existingIds = new Set(mergedEntries.map((entry) => entry.partifulId).filter(Boolean));
+  const existingIds = new Set(
+    mergedEntries
+      .filter((entry) => entry.blockType === "event")
+      .map((entry) => entry.partifulId)
+      .filter(Boolean),
+  );
   const discovered = partifulEvents.flatMap((record) => {
     const event = record.normalizedEvent;
     if (!event.partifulId || existingIds.has(event.partifulId)) return [];
@@ -1842,6 +1831,7 @@ function clobberEntryWithPartifulSync(
   entry: ScheduleEntry,
   liveByPartifulId: Map<string, NormalizedPartifulEvent>,
 ): ScheduleEntry {
+  if (entry.blockType !== "event") return entry;
   if (!entry.partifulId) return entry;
   const event = liveByPartifulId.get(entry.partifulId);
   if (!event) return entry;
@@ -2193,26 +2183,17 @@ function normalizeLeadOcrMetadata(value: unknown): OcrDraftMetadata | undefined 
   const outputWidth = normalizeOcrInteger(raw.outputWidth);
   const outputHeight = normalizeOcrInteger(raw.outputHeight);
   const dataUrlCharacters = normalizeOcrInteger(raw.dataUrlCharacters);
-  const localOcrUsed = raw.localOcrUsed === true || raw.localOcrUsed === "true";
-  const localOcrMeanConfidence = Number.isFinite(Number(raw.localOcrMeanConfidence))
-    ? Number(raw.localOcrMeanConfidence)
-    : undefined;
   const normalized = {
     ocrSource: ocrSource || undefined,
     attemptIndex,
     outputWidth,
     outputHeight,
     dataUrlCharacters,
-    localOcrUsed: localOcrUsed || undefined,
-    localOcrMeanConfidence: Number.isFinite(localOcrMeanConfidence)
-      ? Math.round(localOcrMeanConfidence as number)
-      : undefined,
   };
   if (
     normalized.ocrSource || normalized.attemptIndex !== undefined ||
     normalized.outputWidth !== undefined || normalized.outputHeight !== undefined ||
-    normalized.dataUrlCharacters !== undefined || normalized.localOcrUsed !== undefined ||
-    normalized.localOcrMeanConfidence !== undefined
+    normalized.dataUrlCharacters !== undefined
   ) {
     return normalized;
   }
@@ -2705,23 +2686,28 @@ async function mutateState<T>(
     commit: (state: AppState) => Promise<AppState>,
   ) => Promise<T>,
 ): Promise<T> {
-  const run = stateMutationQueue.catch(() => undefined).then(async () => {
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const snapshot = await readStateSnapshot();
-      try {
-        return await operation(
-          snapshot.state,
-          (state) => writeStateIfUnchanged(state, snapshot.versionstamp),
-        );
-      } catch (error) {
-        if (error instanceof StateWriteConflictError) continue;
-        throw error;
-      }
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const snapshot = await readStateSnapshot();
+    try {
+      return await operation(
+        snapshot.state,
+        (state) => writeStateIfUnchanged(state, snapshot.versionstamp),
+      );
+    } catch (error) {
+      if (error instanceof StateWriteConflictError) continue;
+      throw error;
     }
-    throw new StateWriteConflictError();
-  });
-  stateMutationQueue = run.then(() => undefined, () => undefined);
-  return await run;
+  }
+  throw new StateWriteConflictError();
+}
+
+export function mutateStateForTest<T>(
+  operation: (
+    state: AppState,
+    commit: (state: AppState) => Promise<AppState>,
+  ) => Promise<T>,
+): Promise<T> {
+  return mutateState(operation);
 }
 
 function normalizePartifulAutoSync(value: unknown): PartifulAutoSyncState {
@@ -2730,7 +2716,10 @@ function normalizePartifulAutoSync(value: unknown): PartifulAutoSyncState {
   if (!raw) return state;
   const status = textField(raw.status, 40);
   return {
-    status: status === "running" || status === "completed" || status === "failed" ? status : "idle",
+    status:
+      status === "queued" || status === "running" || status === "completed" || status === "failed"
+        ? status
+        : "idle",
     lastStartedAt: textField(raw.lastStartedAt, 80),
     lastCompletedAt: textField(raw.lastCompletedAt, 80),
     lastRunId: textField(raw.lastRunId, 120),
@@ -3492,10 +3481,9 @@ async function handlePartifulHeadlessSync(request: Request): Promise<Response> {
 }
 
 async function runPartifulHeadlessSync(raw: Record<string, unknown>): Promise<Response> {
-  const requestedAuthFile = textField(raw.authFile, 1000);
   let authSource: PartifulAuthSource;
   try {
-    authSource = await readPartifulAuthSource(requestedAuthFile);
+    authSource = await readPartifulAuthSource();
   } catch (error) {
     if (error instanceof PartifulAuthConfigurationError) {
       return json({
@@ -3509,7 +3497,13 @@ async function runPartifulHeadlessSync(raw: Record<string, unknown>): Promise<Re
   }
   let auth: StoredPartifulAuth;
   try {
-    auth = await ensureFreshPartifulAuth(authSource.auth, authSource.persistPath);
+    auth = await ensureFreshPartifulAuth(authSource.auth, null);
+    await writeCacheValue(PARTIFUL_AUTH_CACHE_NAMESPACE, PARTIFUL_AUTH_CACHE_ID, auth, {
+      ttlMs: PARTIFUL_AUTH_CACHE_TTL_MS,
+      metadata: { source: "partiful_headless" },
+    }).catch((error) => {
+      console.error("[partiful:auth-cache]", error);
+    });
   } catch (error) {
     return json({
       error: {
@@ -3559,7 +3553,6 @@ async function runPartifulHeadlessSync(raw: Record<string, unknown>): Promise<Re
     ...responseBody,
     headless: {
       authSource: authSource.label,
-      ...(authSource.authFile ? { authFile: authSource.authFile } : {}),
       targetCount: selectedTargets.length,
       snapshotCount: snapshots.length,
       failureCount: failures.length,
@@ -3570,50 +3563,59 @@ async function runPartifulHeadlessSync(raw: Record<string, unknown>): Promise<Re
 
 type PartifulAuthSource = {
   auth: StoredPartifulAuth;
-  authFile?: string;
   label: string;
-  persistPath: string | null;
 };
 
-async function readPartifulAuthSource(requestedAuthFile = ""): Promise<PartifulAuthSource> {
-  if (!requestedAuthFile) {
-    const envAuth = textField(Deno.env.get(PARTIFUL_AUTH_JSON_ENV), 200_000);
-    if (envAuth) {
-      try {
-        return {
-          auth: parseStoredPartifulAuthJson(envAuth, PARTIFUL_AUTH_JSON_ENV),
-          label: `deno_env:${PARTIFUL_AUTH_JSON_ENV}`,
-          persistPath: null,
-        };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new PartifulAuthConfigurationError(message);
-      }
-    }
+function parsePartifulAuthPayload(value: unknown, source: string): StoredPartifulAuth {
+  const serialized = typeof value === "string" ? value : JSON.stringify(value);
+  if (!serialized) {
+    throw new PartifulAuthConfigurationError(
+      `Partiful auth source ${source} did not contain a valid payload.`,
+    );
   }
-
-  let authFile: string;
   try {
-    authFile = requestedAuthFile || defaultAuthFilePath();
+    return parseStoredPartifulAuthJson(serialized, source);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new PartifulAuthConfigurationError(message);
   }
-  try {
-    return {
-      auth: await readStoredPartifulAuth(authFile),
-      authFile,
-      label: "local_file",
-      persistPath: authFile,
-    };
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) {
-      throw new PartifulAuthConfigurationError(
-        `Partiful sync is not configured. Set the ${PARTIFUL_AUTH_JSON_ENV} Deno Deploy secret or run the local auth capture task to create ${authFile}.`,
-      );
+}
+
+async function readPartifulAuthSource(): Promise<PartifulAuthSource> {
+  const cached = await readCacheValue<unknown>(
+    PARTIFUL_AUTH_CACHE_NAMESPACE,
+    PARTIFUL_AUTH_CACHE_ID,
+  )
+    .catch(() => null);
+  if (cached !== null) {
+    try {
+      return {
+        auth: parsePartifulAuthPayload(cached, "Partiful KV auth cache"),
+        label: "kv:server",
+      };
+    } catch (error) {
+      await deleteCacheValue(PARTIFUL_AUTH_CACHE_NAMESPACE, PARTIFUL_AUTH_CACHE_ID).catch(() => {
+        // Continue with bootstrap auth if cache cleanup fails.
+      });
+      if (error instanceof PartifulAuthConfigurationError) {
+        // Fall through to bootstrap from env.
+      } else {
+        throw error;
+      }
     }
-    throw error;
   }
+
+  const envAuth = textField(Deno.env.get(PARTIFUL_AUTH_JSON_ENV), 200_000);
+  if (!envAuth) {
+    throw new PartifulAuthConfigurationError(
+      `Partiful sync is not configured. Set the ${PARTIFUL_AUTH_JSON_ENV} Deno Deploy secret.`,
+    );
+  }
+
+  return {
+    auth: parsePartifulAuthPayload(envAuth, `deno_env:${PARTIFUL_AUTH_JSON_ENV}`),
+    label: `deno_env:${PARTIFUL_AUTH_JSON_ENV}`,
+  };
 }
 
 class PartifulAuthConfigurationError extends Error {
@@ -3628,11 +3630,10 @@ async function handlePartifulAutoSync(request: Request): Promise<Response> {
   if (authorizationError) return authorizationError;
 
   const nowMs = Date.now();
-  let queuedRunId = "";
   const response = await mutateState(async (state, commit) => {
     const decision = partifulAutoSyncDecision(state.partifulAutoSync, nowMs);
 
-    if (decision.action === "already_running") {
+    if (decision.action === "already_running" || decision.action === "already_queued") {
       return json({
         action: "already_running",
         reason: decision.reason,
@@ -3657,23 +3658,21 @@ async function handlePartifulAutoSync(request: Request): Promise<Response> {
       });
     }
 
-    const runId = `partiful-auto-${new Date(nowMs).toISOString().replaceAll(/[:.]/g, "-")}`;
+    const runId = `${PARTIFUL_AUTO_SYNC_RUN_ID_PREFIX}${
+      new Date(nowMs).toISOString().replaceAll(/[:.]/g, "-")
+    }`;
     state.partifulAutoSync = {
       ...state.partifulAutoSync,
-      status: "running",
-      lastStartedAt: new Date(nowMs).toISOString(),
+      status: "queued",
       lastRunId: runId,
       lastError: "",
-      nextAllowedAt: new Date(nowMs + PARTIFUL_AUTO_SYNC_INTERVAL_MS).toISOString(),
     };
     await commit(state);
-    queuedRunId = runId;
     return json({
-      action: "started",
+      action: "queued",
       partifulAutoSync: state.partifulAutoSync,
     }, { status: 202 });
   });
-  if (queuedRunId) queuePartifulAutoSync(queuedRunId);
   return response;
 }
 
@@ -3681,10 +3680,10 @@ type PartifulAutoSyncDecision =
   | {
     action: "start";
     reason: string;
-    staleRunning: false;
+    staleRunning: boolean;
   }
   | {
-    action: "already_running" | "skip_recent";
+    action: "already_running" | "already_queued" | "skip_recent";
     reason: string;
     staleRunning: boolean;
   };
@@ -3700,6 +3699,14 @@ function partifulAutoSyncDecision(
   const isFreshRunning = sync.status === "running" && ageMs >= 0 &&
     ageMs < PARTIFUL_AUTO_SYNC_LOCK_TTL_MS;
   const staleRunning = sync.status === "running" && hasStarted && !isFreshRunning;
+
+  if (sync.status === "queued") {
+    return {
+      action: "already_queued",
+      reason: "An automatic Partiful sync is already queued.",
+      staleRunning: false,
+    };
+  }
 
   if (isFreshRunning) {
     return {
@@ -3719,23 +3726,59 @@ function partifulAutoSyncDecision(
 
   return {
     action: "start",
-    reason: "Automatic Partiful sync is due.",
-    staleRunning: false,
+    reason: staleRunning
+      ? "Previous automatic Partiful sync recovered from stale lock."
+      : "Automatic Partiful sync is due.",
+    staleRunning,
   };
 }
 
-function queuePartifulAutoSync(runId: string): void {
-  globalThis.setTimeout(() => {
-    void runPartifulAutoSync(runId);
-  }, 0);
-}
+export async function runPartifulAutoSync(): Promise<void> {
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const claim = await mutateState(async (state, commit) => {
+    const decision = partifulAutoSyncDecision(state.partifulAutoSync, nowMs);
+    if (
+      decision.action === "already_running" ||
+      decision.action === "skip_recent"
+    ) {
+      return { run: false as const, runId: "" };
+    }
 
-async function runPartifulAutoSync(runId: string): Promise<void> {
+    if (decision.staleRunning) {
+      state.partifulAutoSync = {
+        ...state.partifulAutoSync,
+        status: "failed",
+        lastCompletedAt: nowIso,
+        lastError: "Previous automatic Partiful sync did not finish before its lock expired.",
+      };
+    }
+
+    const queuedRunId = decision.action === "already_queued"
+      ? state.partifulAutoSync.lastRunId
+      : "";
+    const runId = queuedRunId
+      ? queuedRunId
+      : `${PARTIFUL_AUTO_SYNC_RUN_ID_PREFIX}${nowIso.replaceAll(/[:.]/g, "-")}`;
+    state.partifulAutoSync = {
+      ...state.partifulAutoSync,
+      status: "running",
+      lastStartedAt: nowIso,
+      lastRunId: runId,
+      lastError: "",
+      nextAllowedAt: new Date(nowMs + PARTIFUL_AUTO_SYNC_INTERVAL_MS).toISOString(),
+    };
+    await commit(state);
+    return { run: true as const, runId };
+  });
+
+  if (!claim.run) return;
+
   try {
     const syncResponse = await runPartifulHeadlessSync({
       liveRouting: false,
-      recalculate: true,
-      activate: true,
+      recalculate: false,
+      activate: false,
     });
     const syncBody = await syncResponse.json().catch(() => ({}));
     if (!syncResponse.ok) {
@@ -3745,7 +3788,7 @@ async function runPartifulAutoSync(runId: string): Promise<void> {
     const liveAgenda = await recalculateAgendaFromBody({ liveRouting: true });
     await storeAgendaRun(liveAgenda);
     await mutateState(async (state, commit) => {
-      if (state.partifulAutoSync.lastRunId !== runId) return;
+      if (state.partifulAutoSync.lastRunId !== claim.runId) return;
       state.activeAgendaRunId = liveAgenda.agendaRunId;
       state.partifulAutoSync = {
         ...state.partifulAutoSync,
@@ -3759,7 +3802,7 @@ async function runPartifulAutoSync(runId: string): Promise<void> {
   } catch (error) {
     console.error("[partiful:auto-sync]", error);
     await mutateState(async (state, commit) => {
-      if (state.partifulAutoSync.lastRunId !== runId) return;
+      if (state.partifulAutoSync.lastRunId !== claim.runId) return;
       state.partifulAutoSync = {
         ...state.partifulAutoSync,
         status: "failed",
@@ -3779,8 +3822,7 @@ function partifulAutoSyncErrorMessage(body: unknown, fallback: string): string {
 
 function partifulAuthRefreshErrorMessage(error: unknown, authSource: PartifulAuthSource): string {
   const base = error instanceof Error ? error.message : String(error);
-  const authFile = authSource.authFile ? ` at ${authSource.authFile}` : "";
-  return `Partiful auth refresh failed for ${authSource.label}${authFile}: ${base}`;
+  return `Partiful auth refresh failed for ${authSource.label}: ${base}`;
 }
 
 function partifulTargetsFromEntries(entries: ScheduleEntry[]): PartifulTarget[] {
@@ -4735,268 +4777,6 @@ function recordValue(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? value as Record<string, unknown> : null;
 }
 
-function shouldUseLocalOcr(rawBody: Record<string, unknown>): boolean {
-  const metadata = recordValue(rawBody.clientMetadata);
-  const image = recordValue(metadata?.image);
-  const sourceExifOrientation = Number(image?.sourceExifOrientation ?? 1);
-  const attemptIndex = Number(metadata?.attemptIndex ?? 0);
-  return attemptIndex === 0 && Number.isFinite(sourceExifOrientation) && sourceExifOrientation > 1;
-}
-
-async function tryLocalOcrOrientation(
-  requestId: string,
-  imageDataUrl: string,
-  rawBody: Record<string, unknown>,
-): Promise<LocalOcrOrientation | null> {
-  if (!shouldUseLocalOcr(rawBody)) return null;
-
-  logJson("ocr_local_start", {
-    requestId,
-    strategy: "tesseract_first_for_oriented_phone_image",
-    image: imageDebugSummary(imageDataUrl),
-    clientMetadata: clientMetadata(rawBody.clientMetadata),
-  });
-
-  try {
-    const result = await localOcrOrientationFromImageDataUrl(requestId, imageDataUrl);
-    if (result) {
-      logJson("ocr_local_orientation_success", {
-        requestId,
-        score: result.score,
-        rotation: result.rotation,
-        image: imageDebugSummary(result.imageDataUrl),
-        rawCharacters: result.raw.length,
-      });
-      return result;
-    }
-    logJson("ocr_local_orientation_miss", { requestId });
-    return null;
-  } catch (error) {
-    logJson("ocr_local_orientation_error", {
-      requestId,
-      error: safeError(error),
-    });
-    return null;
-  }
-}
-
-async function localOcrOrientationFromImageDataUrl(
-  requestId: string,
-  imageDataUrl: string,
-): Promise<LocalOcrOrientation | null> {
-  await Deno.mkdir(LOCAL_OCR_DIR, { recursive: true });
-  const safeId = safePathSegment(requestId);
-  const inputPath = fileUrlPath(new URL(`${safeId}-${crypto.randomUUID()}.jpg`, LOCAL_OCR_DIR));
-  const pathsToRemove = new Set<string>([inputPath]);
-
-  try {
-    await Deno.writeFile(inputPath, dataUrlBytes(imageDataUrl));
-    const imageVariants = await localOcrImageVariants(inputPath, safeId, pathsToRemove);
-    let best: (LocalOcrOrientation & { path: string }) | null = null;
-
-    for (const variant of imageVariants) {
-      const output = await commandOutputWithTimeout(
-        "tesseract",
-        [variant.path, "stdout", "--psm", "6", "-l", "eng", "tsv"],
-        LOCAL_OCR_TIMEOUT_MS,
-      );
-      const parsed = parseTesseractTsv(output.stdout);
-      logJson("ocr_local_variant", {
-        requestId,
-        rotation: variant.rotation,
-        success: output.success,
-        code: output.code,
-        timedOut: output.timedOut,
-        score: parsed.score,
-        wordCount: parsed.wordCount,
-        meanConfidence: parsed.meanConfidence,
-        rawCharacters: output.stdout.length,
-        stderr: truncateDebug(output.stderr, 600),
-        error: output.error,
-      });
-
-      if (!output.success && !output.stdout.trim()) continue;
-      const candidate = {
-        imageDataUrl: "",
-        raw: parsed.transcript,
-        score: parsed.score,
-        rotation: variant.rotation,
-        meanConfidence: parsed.meanConfidence,
-        path: variant.path,
-      };
-      if (!best || candidate.score > best.score) best = candidate;
-    }
-
-    if (!best || best.score < LOCAL_OCR_HIGH_CONFIDENCE_SCORE) return null;
-    return {
-      imageDataUrl: await imagePathToDataUrl(best.path),
-      raw: best.raw,
-      score: best.score,
-      rotation: best.rotation,
-      meanConfidence: best.meanConfidence,
-    };
-  } finally {
-    for (const path of pathsToRemove) {
-      await Deno.remove(path).catch(() => undefined);
-    }
-  }
-}
-
-async function localOcrImageVariants(
-  inputPath: string,
-  safeId: string,
-  pathsToRemove: Set<string>,
-): Promise<Array<{ rotation: number; path: string }>> {
-  const variants: Array<{ rotation: number; path: string }> = [{ rotation: 0, path: inputPath }];
-  for (const rotation of LOCAL_OCR_ROTATIONS.filter((item) => item !== 0)) {
-    const outputPath = fileUrlPath(
-      new URL(`${safeId}-${crypto.randomUUID()}-rot${rotation}.jpg`, LOCAL_OCR_DIR),
-    );
-    pathsToRemove.add(outputPath);
-    const result = await commandOutputWithTimeout(
-      "magick",
-      [
-        inputPath,
-        "-background",
-        "white",
-        "-alpha",
-        "remove",
-        "-rotate",
-        String(rotation),
-        outputPath,
-      ],
-      LOCAL_OCR_TIMEOUT_MS,
-    );
-    if (result.success) {
-      variants.push({ rotation, path: outputPath });
-    } else {
-      logJson("ocr_local_rotate_error", {
-        rotation,
-        code: result.code,
-        timedOut: result.timedOut,
-        stderr: truncateDebug(result.stderr, 600),
-        error: result.error,
-      });
-    }
-  }
-  return variants;
-}
-
-async function commandOutputWithTimeout(
-  command: string,
-  args: string[],
-  timeoutMs: number,
-): Promise<CommandResult> {
-  let child: Deno.ChildProcess | null = null;
-  let timedOut = false;
-  try {
-    child = new Deno.Command(command, {
-      args,
-      stdout: "piped",
-      stderr: "piped",
-    }).spawn();
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      try {
-        child?.kill("SIGKILL");
-      } catch {
-        // The process may have already exited.
-      }
-    }, timeoutMs);
-    try {
-      const output = await child.output();
-      return {
-        success: output.success && !timedOut,
-        code: output.code,
-        stdout: new TextDecoder().decode(output.stdout),
-        stderr: new TextDecoder().decode(output.stderr),
-        timedOut,
-      };
-    } finally {
-      clearTimeout(timeout);
-    }
-  } catch (error) {
-    return {
-      success: false,
-      code: null,
-      stdout: "",
-      stderr: "",
-      timedOut,
-      error: safeError(error),
-    };
-  }
-}
-
-function dataUrlBytes(dataUrl: string): Uint8Array {
-  const comma = dataUrl.indexOf(",");
-  if (comma === -1) throw new Error("Image data URL is missing its base64 payload.");
-  const encoded = dataUrl.slice(comma + 1);
-  const binary = atob(encoded);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index++) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes;
-}
-
-function safePathSegment(value: string): string {
-  let result = "";
-  for (const char of value) {
-    const code = char.charCodeAt(0);
-    const allowed = (code >= 65 && code <= 90) ||
-      (code >= 97 && code <= 122) ||
-      (code >= 48 && code <= 57) ||
-      char === "_" ||
-      char === "." ||
-      char === "-";
-    result += allowed ? char : "_";
-    if (result.length >= 140) break;
-  }
-  return result || "ocr";
-}
-
-function parseTesseractTsv(tsv: string): LocalOcrVariantText {
-  const lines = tsv.replaceAll("\r\n", "\n").replaceAll("\r", "\n").split("\n");
-  const words: string[] = [];
-  let confidenceTotal = 0;
-  let confidenceCount = 0;
-
-  for (const line of lines.slice(1)) {
-    const cells = line.split("\t");
-    if (cells.length < 12) continue;
-    const confidence = Number(cells[10]);
-    const text = cells.slice(11).join("\t").trim();
-    if (!text) continue;
-    words.push(text);
-    if (Number.isFinite(confidence) && confidence >= 0) {
-      confidenceTotal += confidence;
-      confidenceCount++;
-    }
-  }
-
-  const meanConfidence = confidenceCount ? confidenceTotal / confidenceCount : 0;
-  return {
-    transcript: words.join(" "),
-    score: meanConfidence * Math.max(1, words.length),
-    wordCount: words.length,
-    meanConfidence,
-  };
-}
-
-async function imagePathToDataUrl(path: string): Promise<string> {
-  const bytes = await Deno.readFile(path);
-  return `data:image/jpeg;base64,${bytesToBase64(bytes)}`;
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
-  }
-  return btoa(binary);
-}
-
 async function callOcrGateway(
   chatUrl: string,
   token: string,
@@ -5102,52 +4882,6 @@ function responseOutputText(body: unknown): string {
     .join("\n");
 }
 
-function buildLeadOcrMetadata(
-  rawBody: Record<string, unknown>,
-  localOrientation: LocalOcrOrientation | null,
-): OcrDraftMetadata | null {
-  const clientMetadata = recordValue(rawBody.clientMetadata);
-  const imageMetadata = recordValue(clientMetadata?.image);
-  const ocrSource = normalizeOcrContactField(imageMetadata?.ocrSource, 120);
-  const attemptIndex = normalizeOcrInteger(
-    clientMetadata?.attemptIndex ?? imageMetadata?.attemptIndex ?? imageMetadata?.retryIndex,
-  );
-  const outputWidth = normalizeOcrInteger(
-    imageMetadata?.outputWidth,
-  );
-  const outputHeight = normalizeOcrInteger(
-    imageMetadata?.outputHeight,
-  );
-  const dataUrlCharacters = normalizeOcrInteger(
-    imageMetadata?.ocrDataUrlCharacters ??
-      imageMetadata?.compressedDataUrlCharacters ??
-      imageMetadata?.dataUrlCharacters ??
-      imageMetadata?.originalDataUrlCharacters,
-  );
-  const localOcrMeanConfidenceValue = localOrientation?.meanConfidence;
-  const localOcrMeanConfidence = Number.isFinite(Number(localOcrMeanConfidenceValue))
-    ? Math.round(Number(localOcrMeanConfidenceValue))
-    : undefined;
-  const normalized: OcrDraftMetadata = {
-    ocrSource: ocrSource || undefined,
-    attemptIndex,
-    outputWidth,
-    outputHeight,
-    dataUrlCharacters,
-    localOcrUsed: Boolean(localOrientation) || undefined,
-    localOcrMeanConfidence,
-  };
-  if (
-    normalized.ocrSource || normalized.attemptIndex !== undefined ||
-    normalized.outputWidth !== undefined || normalized.outputHeight !== undefined ||
-    normalized.dataUrlCharacters !== undefined || normalized.localOcrUsed !== undefined ||
-    normalized.localOcrMeanConfidence !== undefined
-  ) {
-    return normalized;
-  }
-  return null;
-}
-
 async function handleLeadOcr(request: Request): Promise<Response> {
   const body = await request.json().catch(() => null);
   const rawBody = body && typeof body === "object" ? body as Record<string, unknown> : {};
@@ -5197,11 +4931,8 @@ async function handleLeadOcr(request: Request): Promise<Response> {
     clientMetadata: clientMetadata(rawBody.clientMetadata),
   });
 
-  const localOrientation = await tryLocalOcrOrientation(requestId, imageDataUrl, rawBody);
-  const gatewayImageDataUrl = localOrientation?.imageDataUrl ?? imageDataUrl;
-  const gatewayImage = imageDebugSummary(gatewayImageDataUrl);
-  const ocrBody = cardOcrChatBody(gatewayImageDataUrl);
-  logOcrContext(requestId, ocrBody, gatewayImageDataUrl);
+  const ocrBody = cardOcrChatBody(imageDataUrl);
+  logOcrContext(requestId, ocrBody, imageDataUrl);
 
   const { token, chatUrl } = gatewayConfig();
   if (!token) {
@@ -5221,7 +4952,7 @@ async function handleLeadOcr(request: Request): Promise<Response> {
       requestId,
       stage: "gateway_fetch",
       error: safeError(error),
-      image: gatewayImage,
+      image,
     });
     return endpointError("Business card OCR failed.", requestId, 502, safeError(error));
   }
@@ -5251,7 +4982,7 @@ async function handleLeadOcr(request: Request): Promise<Response> {
       stage: "gateway_response",
       message: upstreamMessage,
       upstream: upstreamDebug,
-      image: gatewayImage,
+      image,
     });
     return endpointError(
       clientMessage,
@@ -5319,8 +5050,7 @@ async function handleLeadOcr(request: Request): Promise<Response> {
   logJson("ocr_success", {
     requestId,
     model: result.model,
-    source: localOrientation ? "vision_oriented_image" : "vision_only",
-    localOcrUsed: Boolean(localOrientation),
+    source: "vision_only",
     draft: draftDebug(draft),
     rawCharacters: content.length,
   });
@@ -5328,8 +5058,7 @@ async function handleLeadOcr(request: Request): Promise<Response> {
     requestId,
     draft,
     raw: content,
-    source: localOrientation ? "vision_oriented_image" : "vision_only",
-    ocrMetadata: buildLeadOcrMetadata(rawBody, localOrientation),
+    source: "vision_only",
   }, {
     headers: responseDebugHeaders(result.upstream.headers, requestId),
   });
@@ -5585,11 +5314,12 @@ async function resolveModelContextInfo(
   model: string,
 ): Promise<ModelContextInfo> {
   const baseUrl = config.modelsUrl.replace(/\/models$/, "");
-  const cached = modelContextCache;
-  if (
-    cached && cached.model === model && cached.baseUrl === baseUrl &&
-    Date.now() - cached.fetchedAtMs < MODEL_CONTEXT_CACHE_MS
-  ) {
+  const cacheId = modelContextCacheId(model, baseUrl);
+  const cached = await readCacheValue<ModelContextCacheRecord>(
+    MODEL_CONTEXT_CACHE_NAMESPACE,
+    cacheId,
+  );
+  if (cached && cached.model === model && cached.baseUrl === baseUrl) {
     return { ...cached.info, cacheHit: true };
   }
 
@@ -5732,7 +5462,11 @@ async function resolveModelContextInfo(
       ],
     };
 
-  modelContextCache = { model, baseUrl, fetchedAtMs: Date.now(), info };
+  await writeCacheValue(MODEL_CONTEXT_CACHE_NAMESPACE, cacheId, {
+    model,
+    baseUrl,
+    info,
+  }, { ttlMs: MODEL_CONTEXT_CACHE_MS });
   return info;
 }
 
@@ -6610,18 +6344,19 @@ function redirectDenoDeployToSameSiteDomain(request: Request, url: URL): Respons
   return null;
 }
 
-if (import.meta.main) {
+export function startServer() {
   const onListen = ({ hostname, port: boundPort }: { hostname: string; port: number }) => {
     console.log(`Tech Week app running on http://${hostname}:${boundPort}`);
   };
+
   if (isDenoDeployRuntime()) {
-    Deno.serve({ onListen }, router);
-  } else {
-    const port = findFreePort(resolvePreferredPort());
-    Deno.serve({
-      port,
-      hostname: "0.0.0.0",
-      onListen,
-    }, router);
+    return Deno.serve({ onListen }, router);
   }
+
+  const port = findFreePort(resolvePreferredPort());
+  return Deno.serve({
+    port,
+    hostname: "0.0.0.0",
+    onListen,
+  }, router);
 }

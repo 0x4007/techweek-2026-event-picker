@@ -5,9 +5,11 @@ import {
   extractEmailAddress,
   fallbackAgentAnswer,
   mergeDiscoveredPartifulEntries,
+  mutateStateForTest,
   normalizeLeadEmail,
   normalizeLeadPhone,
   parseCsv,
+  resetModelContextCacheForTest,
   router,
   type ScheduleEntry,
   sendResendTestEmail,
@@ -18,6 +20,7 @@ import {
 import {
   readLatestResourceForUser,
   readResourceByHash,
+  readStateEntry,
   readStateValue,
   setKvPathForTest,
   writeCacheValue,
@@ -112,6 +115,42 @@ function kvRouterTest(name: string, fn: () => Promise<void>) {
   });
 }
 
+function createDeferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolveCallback) => {
+    resolve = resolveCallback;
+  });
+  return { promise, resolve };
+}
+
+async function withEnvValues(
+  values: Record<string, string | null>,
+  test: () => Promise<void>,
+): Promise<void> {
+  const previous = new Map<string, string | undefined>();
+  for (const key of Object.keys(values)) {
+    previous.set(key, Deno.env.get(key));
+  }
+  try {
+    for (const [key, value] of Object.entries(values)) {
+      if (value === null) {
+        Deno.env.delete(key);
+      } else {
+        Deno.env.set(key, value);
+      }
+    }
+    await test();
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) {
+        Deno.env.delete(key);
+      } else {
+        Deno.env.set(key, value);
+      }
+    }
+  }
+}
+
 Deno.test("parseCsv handles quoted multiline fields", () => {
   const rows = parseCsv(
     'id,title,note\n1,"Hello, NYC","line one\nline two"\n2,Plain,"A ""quote"""',
@@ -150,6 +189,182 @@ Deno.test("statusLabelForScheduleStatus follows live Partiful status", () => {
   assertEquals(statusLabelForScheduleStatus("registered", "PENDING"), "REG");
   assertEquals(statusLabelForScheduleStatus("PENDING_APPROVAL", "REG"), "PENDING");
   assertEquals(statusLabelForScheduleStatus("WAITLISTED_FOR_APPROVAL", "PENDING"), "WAITLIST");
+});
+
+kvRouterTest("mutateState retries stale snapshot conflicts", async () => {
+  const gate = createDeferred<void>();
+  let p1Attempts = 0;
+  let p2Attempts = 0;
+
+  const p1 = mutateStateForTest(async (state, commit) => {
+    p1Attempts += 1;
+    if (p1Attempts === 1) {
+      state.eventNotes = {
+        ...state.eventNotes,
+        stale: { note: "attempt-1", updatedAt: "2026-05-30T00:00:00.000Z" },
+      };
+      await gate.promise;
+      return await commit(state);
+    }
+    state.eventNotes = {
+      ...state.eventNotes,
+      stale: { note: "retry", updatedAt: "2026-05-30T00:00:01.000Z" },
+    };
+    return await commit(state);
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const p2 = mutateStateForTest(async (state, commit) => {
+    p2Attempts += 1;
+    state.eventNotes = {
+      ...state.eventNotes,
+      fresh: { note: "primary", updatedAt: "2026-05-30T00:00:02.000Z" },
+    };
+    const updated = await commit(state);
+    gate.resolve();
+    return updated;
+  });
+
+  await Promise.all([p1, p2]);
+
+  if (p1Attempts <= 1) {
+    throw new Error(`Expected stale write retry, saw ${p1Attempts} mutateState attempts.`);
+  }
+  if (p2Attempts !== 1) {
+    throw new Error(`Expected p2 to run once, saw ${p2Attempts} attempts.`);
+  }
+
+  const snapshot = await readStateEntry<Record<string, unknown>>("app_state_v1");
+  const value = snapshot.value;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Expected app state to be stored.");
+  }
+  const rawNotes = (value as { eventNotes?: unknown }).eventNotes;
+  if (!rawNotes || typeof rawNotes !== "object" || Array.isArray(rawNotes)) {
+    throw new Error("Expected event notes in app state.");
+  }
+  const eventNotes = rawNotes as Record<string, unknown>;
+  const freshNote = eventNotes.fresh as { note?: string; updatedAt?: string } | undefined;
+  const staleNote = eventNotes.stale as { note?: string; updatedAt?: string } | undefined;
+  if (!freshNote || freshNote.note !== "primary" || !staleNote || staleNote.note !== "retry") {
+    throw new Error(
+      `Expected both stale-retried and fresh event notes, got ${JSON.stringify(eventNotes)}`,
+    );
+  }
+});
+
+kvRouterTest("model-context endpoint stores and reuses KV cache entries", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: string[] = [];
+  const baseUrl = "https://mock-gateway.example";
+  const model = "gpt-5.5";
+  resetModelContextCacheForTest();
+
+  try {
+    await withEnvValues(
+      {
+        UOS_AI_TOKEN: "test-token",
+        UOS_AI_BASE_URL: baseUrl,
+      },
+      async () => {
+        globalThis.fetch = (
+          input: string | URL | Request,
+          _init?: RequestInit,
+        ): Promise<Response> => {
+          const url = typeof input === "string"
+            ? input
+            : input instanceof URL
+            ? input.toString()
+            : input.url;
+          calls.push(url);
+
+          if (url.endsWith(`${baseUrl}/v1/models/${encodeURIComponent(model)}`)) {
+            return Promise.resolve(
+              new Response(
+                JSON.stringify({
+                  id: model,
+                  context_window_tokens: 24_000,
+                  max_output_tokens: 8_000,
+                }),
+                { status: 200, headers: { "content-type": "application/json" } },
+              ),
+            );
+          }
+          if (url.endsWith(`${baseUrl}/v1/models`)) {
+            return Promise.resolve(
+              new Response(
+                JSON.stringify({
+                  data: [{
+                    id: model,
+                    context_window_tokens: 24_000,
+                  }],
+                }),
+                { status: 200, headers: { "content-type": "application/json" } },
+              ),
+            );
+          }
+          if (url.endsWith(`${baseUrl}/uos/models/capabilities`)) {
+            return Promise.resolve(
+              new Response(
+                JSON.stringify({
+                  data: [{
+                    id: model,
+                    context_window_tokens: 32_000,
+                    auto_compact_token_limit_tokens: 28_000,
+                    max_output_tokens: 8_000,
+                  }],
+                }),
+                { status: 200, headers: { "content-type": "application/json" } },
+              ),
+            );
+          }
+          return Promise.resolve(
+            new Response("unsupported test gateway endpoint", { status: 404 }),
+          );
+        };
+
+        useAdminSessionForTest();
+        try {
+          const first = await router(
+            new Request("http://localhost/api/model-context", {
+              headers: ADMIN_STATE_HEADERS,
+            }),
+          );
+          if (first.status !== 200) {
+            throw new Error(`Expected first model-context request status 200, got ${first.status}`);
+          }
+          const firstPayload = await first.json() as { modelContext: { cacheHit?: boolean } };
+          if (firstPayload.modelContext.cacheHit !== false) {
+            throw new Error("Expected first model-context response to be a cache miss.");
+          }
+
+          const second = await router(
+            new Request("http://localhost/api/model-context", {
+              headers: ADMIN_STATE_HEADERS,
+            }),
+          );
+          if (second.status !== 200) {
+            throw new Error(
+              `Expected second model-context request status 200, got ${second.status}`,
+            );
+          }
+          const secondPayload = await second.json() as { modelContext: { cacheHit?: boolean } };
+          if (secondPayload.modelContext.cacheHit !== true) {
+            throw new Error("Expected second model-context response to be a cache hit.");
+          }
+
+          if (calls.length !== 3) {
+            throw new Error(`Expected exactly 3 gateway calls with caching, got ${calls.length}`);
+          }
+        } finally {
+          setAccountSessionForTest(undefined);
+        }
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 type PartifulMergeRecord = Parameters<typeof mergeDiscoveredPartifulEntries>[1][number];
@@ -240,6 +455,41 @@ Deno.test("mergeDiscoveredPartifulEntries clobbers matching entries with live Pa
   assertEquals(merged[0].venuePrecision, "partiful_exact");
   assertEquals(merged[0].googleMapsUrl, "https://maps.example/test");
   assertEquals(merged[0].displayTitle, "Open Source Must Win");
+});
+
+Deno.test("mergeDiscoveredPartifulEntries does not clobber travel rows with matching Partiful ids", () => {
+  const travel = scheduleEntry({
+    calendarBlockId: "TW-5978-TRAVEL-IN",
+    entryType: "travel",
+    blockType: "travel",
+    status: "",
+    statusLabel: "",
+    title: "Travel: Home to Open Source Must Win",
+    displayTitle: "Travel: Home to Open Source Must Win",
+    location: "15 Cliff St to New York, NY",
+    venueQuery: "15 Cliff St to New York, NY",
+    venuePrecision: "route_context",
+    routeMode: "transit",
+    travelMinutes: "22",
+    routeDetails: "Leave 22 min early.",
+    googleMapsUrl: "https://maps.example/directions",
+  });
+
+  const merged = mergeDiscoveredPartifulEntries([travel], [makeDiscoveredPartifulMatch({})]);
+
+  assertEquals(merged[0].entryType, "travel");
+  assertEquals(merged[0].blockType, "travel");
+  assertEquals(merged[0].title, "Travel: Home to Open Source Must Win");
+  assertEquals(merged[0].displayTitle, "Travel: Home to Open Source Must Win");
+  assertEquals(merged[0].location, "15 Cliff St to New York, NY");
+  assertEquals(merged[0].venueQuery, "15 Cliff St to New York, NY");
+  assertEquals(merged[0].venuePrecision, "route_context");
+  assertEquals(merged[0].googleMapsUrl, "https://maps.example/directions");
+  assertEquals(merged[0].status, "");
+  assertEquals(merged[0].statusLabel, "");
+  assertEquals(merged.length, 2);
+  assertEquals(merged[1].blockType, "event");
+  assertEquals(merged[1].displayTitle, "Open Source Must Win");
 });
 
 Deno.test("mergeDiscoveredPartifulEntries keeps exact schedule venues when live Partiful venue is less precise", () => {
@@ -585,6 +835,58 @@ kvRouterTest("Partiful sync POST endpoints reject unauthenticated requests", asy
   }
 });
 
+kvRouterTest("Partiful auto-sync admin trigger queues and reports KV state", async () => {
+  useAdminSessionForTest();
+  try {
+    const queued = await router(
+      new Request("http://localhost/api/sync/partiful/auto", {
+        method: "POST",
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(queued.status, 202);
+    const queuedBody = await queued.json() as Record<string, unknown>;
+    assertEquals(queuedBody.action, "queued");
+    assertEquals(getPath(queuedBody, ["partifulAutoSync", "status"]), "queued");
+
+    const alreadyRunning = await router(
+      new Request("http://localhost/api/sync/partiful/auto", {
+        method: "POST",
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(alreadyRunning.status, 202);
+    const alreadyRunningBody = await alreadyRunning.json() as Record<string, unknown>;
+    assertEquals(alreadyRunningBody.action, "already_running");
+    assertEquals(getPath(alreadyRunningBody, ["partifulAutoSync", "status"]), "queued");
+
+    await mutateStateForTest(async (state, commit) => {
+      state.partifulAutoSync = {
+        ...state.partifulAutoSync,
+        status: "completed",
+        lastStartedAt: new Date().toISOString(),
+        lastCompletedAt: new Date().toISOString(),
+        lastRunId: "partiful-auto-recent-test",
+        lastError: "",
+      };
+      return await commit(state);
+    });
+
+    const skipped = await router(
+      new Request("http://localhost/api/sync/partiful/auto", {
+        method: "POST",
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(skipped.status, 200);
+    const skippedBody = await skipped.json() as Record<string, unknown>;
+    assertEquals(skippedBody.action, "skipped");
+    assertEquals(getPath(skippedBody, ["partifulAutoSync", "status"]), "completed");
+  } finally {
+    setAccountSessionForTest(undefined);
+  }
+});
+
 kvRouterTest("sensitive API routes reject unauthenticated requests at the router", async () => {
   setAccountSessionForTest(null);
   try {
@@ -704,6 +1006,16 @@ kvRouterTest(
     assertEquals(getPath(immutableBody, ["payload", "messages"]), snapshot.messages);
   },
 );
+
+kvRouterTest("static app fallback serves dotted share handle browser routes", async () => {
+  const response = await router(new Request("http://localhost/share/jane.doe/chat/latest"));
+  assertEquals(response.status, 200);
+  assertEquals(response.headers.get("content-type"), "text/html; charset=utf-8");
+  const text = await response.text();
+  if (!text.toLowerCase().includes("<!doctype html>")) {
+    throw new Error("Expected dotted share route to serve the app shell.");
+  }
+});
 
 kvRouterTest(
   "resource writes reject unauthenticated users, oversized chats, and non-owner deletes",
@@ -1571,6 +1883,13 @@ Deno.test({
 kvRouterTest("lead creation persists compact OCR provenance metadata", async () => {
   useAdminSessionForTest();
   const leadName = `OCR Metadata ${crypto.randomUUID().slice(0, 8)}`;
+  const draft = {
+    ocrSource: "canvas_auto_edge_crop",
+    attemptIndex: 0,
+    outputWidth: 1400,
+    outputHeight: 820,
+    dataUrlCharacters: 900000,
+  };
   const create = await router(
     new Request("http://localhost/api/state", {
       method: "POST",
@@ -1586,15 +1905,7 @@ kvRouterTest("lead creation persists compact OCR provenance metadata", async () 
         priority: "A",
         followUp: "OCR provenance test",
         notes: "Seeded by server test.",
-        ocr: {
-          ocrSource: "canvas_auto_edge_crop",
-          attemptIndex: 0,
-          outputWidth: 1400,
-          outputHeight: 820,
-          dataUrlCharacters: 900000,
-          localOcrUsed: true,
-          localOcrMeanConfidence: 82.4,
-        },
+        ocr: draft,
       }),
     }),
   );
@@ -1640,14 +1951,6 @@ kvRouterTest("lead creation persists compact OCR provenance metadata", async () 
     if (ocrValue.dataUrlCharacters !== 900000) {
       throw new Error(`Expected dataUrlCharacters 900000, got ${ocrValue.dataUrlCharacters}`);
     }
-    if (ocrValue.localOcrUsed !== true) {
-      throw new Error(`Expected localOcrUsed true, got ${ocrValue.localOcrUsed}`);
-    }
-    if (ocrValue.localOcrMeanConfidence !== 82) {
-      throw new Error(
-        `Expected localOcrMeanConfidence 82, got ${ocrValue.localOcrMeanConfidence}`,
-      );
-    }
   } finally {
     if (createdId) {
       await router(
@@ -1657,6 +1960,108 @@ kvRouterTest("lead creation persists compact OCR provenance metadata", async () 
           body: JSON.stringify({ type: "lead_delete", id: createdId }),
         }),
       );
+    }
+    setAccountSessionForTest(undefined);
+  }
+});
+
+kvRouterTest("lead OCR endpoint is vision-only and returns no server OCR metadata", async () => {
+  useAdminSessionForTest();
+  const originalFetch = globalThis.fetch;
+  const originalToken = Deno.env.get("UOS_AI_TOKEN");
+  const calls: Array<{ url: string; body: string }> = [];
+  Deno.env.set("UOS_AI_TOKEN", "test-vision-only-token");
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url.endsWith("/chat/completions")) {
+      calls.push({ url, body: String(init?.body ?? "{}") });
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            id: `chatcmpl_${crypto.randomUUID()}`,
+            object: "chat.completion",
+            choices: [{
+              index: 0,
+              message: {
+                role: "assistant",
+                content: JSON.stringify({
+                  name: "Ada Lovelace",
+                  company: "Analytica",
+                  role: "Founder",
+                  email: "ada@analytica.example",
+                  phone: "+1 212 555 0101",
+                }),
+              },
+              finish_reason: "stop",
+            }],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+    }
+    return originalFetch(input, init);
+  }) as typeof fetch;
+
+  try {
+    const response = await router(
+      new Request("http://localhost/api/leads/ocr", {
+        method: "POST",
+        headers: ADMIN_STATE_HEADERS,
+        body: JSON.stringify({
+          requestId: "vision-only-ocr-test",
+          eventTitle: "Beyond the Spec",
+          imageDataUrl: "data:image/jpeg;base64,QUJD",
+          clientMetadata: {
+            attemptIndex: 0,
+            image: {
+              sourceExifOrientation: 6,
+              ocrSource: "canvas_auto_edge_crop",
+              outputWidth: 1234,
+              outputHeight: 5678,
+              ocrDataUrlCharacters: 424242,
+            },
+          },
+        }),
+      }),
+    );
+    if (response.status !== 200) {
+      throw new Error(`Expected OCR status 200, got ${response.status}`);
+    }
+    const body = await response.json() as Record<string, unknown>;
+    if (body.source !== "vision_only") {
+      throw new Error(`Expected source vision_only, got ${body.source}`);
+    }
+    if ("ocrMetadata" in body) {
+      throw new Error("Expected no ocrMetadata in OCR response.");
+    }
+    if (calls.length !== 1) {
+      throw new Error(`Expected one upstream chat call, got ${calls.length}`);
+    }
+    const gatewayPayload = JSON.parse(calls[0].body) as {
+      model?: string;
+      messages?: Array<Record<string, unknown>>;
+    };
+    if (gatewayPayload.model !== "gpt-5.5") {
+      throw new Error(`Expected gpt-5.5 gateway model, got ${gatewayPayload.model}`);
+    }
+    const firstMessage = gatewayPayload.messages?.[0];
+    const content = Array.isArray(firstMessage?.content)
+      ? firstMessage.content as Array<Record<string, unknown>>
+      : [];
+    const imagePart = content.find((part) => part.type === "image_url");
+    if (!imagePart || typeof imagePart.image_url !== "object" || !imagePart.image_url) {
+      throw new Error("Expected image_url content part in chat completion payload.");
+    }
+    const imageUrl = (imagePart.image_url as { url?: unknown }).url;
+    if (imageUrl !== "data:image/jpeg;base64,QUJD") {
+      throw new Error(`Expected original image payload to be sent to gateway, got ${imageUrl}`);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) {
+      Deno.env.delete("UOS_AI_TOKEN");
+    } else {
+      Deno.env.set("UOS_AI_TOKEN", originalToken);
     }
     setAccountSessionForTest(undefined);
   }

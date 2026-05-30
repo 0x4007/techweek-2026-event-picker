@@ -32,6 +32,37 @@ Deno.test("prepare deploy root rejects non-deploy temp directory without deletin
   }
 });
 
+Deno.test("prepare deploy root includes bundled text-conversation reward context snapshot", async () => {
+  const tempRoot = await Deno.makeTempDir({ prefix: "techweek-deploy-root-test-" });
+  const root = `${tempRoot}/deploy-root`;
+  const output = await runPrepareDeployRoot(root);
+  try {
+    const snapshotRoot = `${root}/docs/text-conversation-rewards`;
+    const snapshotFiles = [
+      "manifest.json",
+      "README.md",
+      "docs/ubiquity-os-platform-and-accolades-context.md",
+      "docs/ubiquity-os-accolades-whitepaper.md",
+      "sales-collateral/one-page-sales-brief.md",
+      "sales-collateral/buyer-discovery.md",
+      "sales-collateral/messaging.md",
+      "sales-collateral/event-conversation-guide.md",
+      "sales-collateral/objection-battlecard.md",
+      "sales-collateral/buyer-persona-matrix.md",
+      "sales-collateral/visual-demo-brief.md",
+      "sales-collateral/demo-dashboard/README.md",
+    ];
+    assert(output.code === 0, "Expected deploy-root prepare to succeed.");
+    await Promise.all(
+      snapshotFiles.map(async (path) => {
+        assert(await exists(`${snapshotRoot}/${path}`), `Expected bundled context file: ${path}`);
+      }),
+    );
+  } finally {
+    await Deno.remove(tempRoot, { recursive: true }).catch(() => {});
+  }
+});
+
 async function exists(path: string): Promise<boolean> {
   try {
     await Deno.stat(path);

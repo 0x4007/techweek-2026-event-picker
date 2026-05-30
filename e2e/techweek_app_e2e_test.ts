@@ -2229,7 +2229,7 @@ Deno.test({
           await route.fulfill({
             status: 202,
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ action: "started" }),
+            body: JSON.stringify({ action: "queued" }),
           });
         });
 
@@ -2241,6 +2241,94 @@ Deno.test({
         await page.locator("[data-next-title]").filter({ hasText: "Auto activated agenda event" })
           .waitFor();
         assert(scheduleReads >= 2, "Expected schedule to refresh after auto-sync started.");
+        await assertNoHorizontalOverflow(page);
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "Partiful auto-sync polls while queued and running before completion",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withIphonePage(async (page) => {
+        let autoSyncRequests = 0;
+        let scheduleReads = 0;
+        let autoSyncStarted = false;
+        let pollIndex = 0;
+        const observedStatuses: string[] = [];
+
+        await page.addInitScript(() => {
+          const nativeSetTimeout = globalThis.setTimeout;
+          const patchedSetTimeout = (
+            handler: Parameters<typeof setTimeout>[0],
+            timeout?: number,
+          ) => {
+            const delay = timeout === 1_500 || timeout === 20_000 ? 20 : timeout;
+            return nativeSetTimeout(handler, delay);
+          };
+          globalThis.setTimeout = patchedSetTimeout as typeof setTimeout;
+        });
+
+        await page.route(`${baseUrl}/api/schedule`, async (route) => {
+          scheduleReads += 1;
+          const response = await fetch(`${baseUrl}/api/schedule`, {
+            headers: E2E_AUTH_HEADERS,
+          });
+          const body = await response.json() as JsonRecord;
+          if (autoSyncStarted) {
+            const status = ["queued", "running", "completed"][Math.min(pollIndex, 2)];
+            pollIndex += 1;
+            observedStatuses.push(status);
+            const sync = body.sync as JsonRecord | undefined;
+            const partifulAuto = sync?.partifulAuto as JsonRecord | undefined;
+            if (partifulAuto) partifulAuto.status = status;
+            const appState = body.state as JsonRecord | undefined;
+            const partifulAutoSync = appState?.partifulAutoSync as JsonRecord | undefined;
+            if (partifulAutoSync) partifulAutoSync.status = status;
+            if (status === "completed") {
+              body.activeAgenda = {
+                agendaRunId: "e2e-auto-polled-agenda",
+                generatedAt: "2026-05-25T12:00:00.000Z",
+                summary: { selectedEvents: 1, droppedEvents: 0 },
+              };
+              if (appState) appState.activeAgendaRunId = "e2e-auto-polled-agenda";
+              const next = body.next as JsonRecord | undefined;
+              if (next) next.displayTitle = "Polled auto-sync agenda event";
+            }
+          }
+          await route.fulfill({
+            status: response.status,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          });
+        });
+        await page.route(`${baseUrl}/api/sync/partiful/auto`, async (route) => {
+          autoSyncRequests += 1;
+          autoSyncStarted = true;
+          await route.fulfill({
+            status: 202,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "queued" }),
+          });
+        });
+
+        await page.goto(baseUrl);
+        await waitForTestCondition(
+          () => autoSyncRequests > 0,
+          "Expected Partiful auto-sync to run on page load.",
+        );
+        await page.locator("[data-next-title]").filter({ hasText: "Polled auto-sync agenda event" })
+          .waitFor();
+        assert(
+          ["queued", "running", "completed"].every((status) => observedStatuses.includes(status)),
+          `Expected queued, running, and completed statuses, got ${
+            JSON.stringify(observedStatuses)
+          }.`,
+        );
+        assert(scheduleReads >= 4, "Expected schedule to refresh through queued/running states.");
         await assertNoHorizontalOverflow(page);
       });
     });
@@ -2487,7 +2575,7 @@ Deno.test({
               await route.fulfill({
                 status: 202,
                 headers: { "content-type": "application/json" },
-                body: JSON.stringify({ action: "started" }),
+                body: JSON.stringify({ action: "queued" }),
               });
             });
 

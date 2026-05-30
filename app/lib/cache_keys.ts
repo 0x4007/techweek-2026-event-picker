@@ -6,6 +6,8 @@ export const CACHE_NAMESPACES = [
   "routeEdge",
   "agendaRun",
   "partifulEvent",
+  "partifulAuth",
+  "modelContext",
   "agentDebug",
 ] as const;
 

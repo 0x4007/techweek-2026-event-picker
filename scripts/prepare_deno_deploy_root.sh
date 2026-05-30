@@ -14,6 +14,14 @@ copy_if_exists() {
   fi
 }
 
+copy_dir_if_exists() {
+  local source="$1"
+  local target_dir="$2"
+  if [ -d "$source" ]; then
+    cp -R "$source" "$target_dir/"
+  fi
+}
+
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repo_root="$(cd -- "$script_dir/.." && pwd -P)"
 home_root="$(cd -- "${HOME:-/}" && pwd -P)"
@@ -55,17 +63,20 @@ esac
 
 rm -rf -- "$root"
 mkdir -p \
+  "$root/.github/workflows" \
   "$root/app" \
   "$root/e2e" \
   "$root/outputs/signed_up" \
   "$root/data/rankings" \
   "$root/docs/agenda" \
   "$root/docs/handoffs" \
+  "$root/docs/text-conversation-rewards" \
   "$root/scripts/lib"
 
 cp -R app/. "$root/app/"
 [ ! -d e2e ] || cp -R e2e/. "$root/e2e/"
 cp deno.json deno.lock README.md "$root/"
+copy_if_exists .github/workflows/deno-deploy.yml "$root/.github/workflows"
 
 cp \
   outputs/signed_up/techweek_signed_up_transport_schedule.csv \
@@ -81,6 +92,7 @@ copy_if_exists docs/agenda/TECHWEEK_AGENDA.md "$root/docs/agenda"
 copy_if_exists docs/handoffs/SIGNUP_AGENT_HANDOFF.md "$root/docs/handoffs"
 copy_if_exists docs/handoffs/SIGNUP_STATE_HANDOFF.md "$root/docs/handoffs"
 copy_if_exists docs/handoffs/BACKUP_SIGNUP_AGENT_HANDOFF.md "$root/docs/handoffs"
+copy_dir_if_exists docs/text-conversation-rewards "$root/docs"
 
 cp -R scripts/lib/. "$root/scripts/lib/"
 copy_if_exists scripts/build_signed_up_calendar.ts "$root/scripts"
@@ -93,3 +105,4 @@ copy_if_exists scripts/list_twilio_partiful_codes.ts "$root/scripts"
 copy_if_exists scripts/login_partiful_with_twilio.ts "$root/scripts"
 copy_if_exists scripts/prepare_deno_deploy_root.sh "$root/scripts"
 copy_if_exists scripts/prepare_deno_deploy_root_test.ts "$root/scripts"
+copy_if_exists scripts/snapshot_text_conversation_rewards.ts "$root/scripts"

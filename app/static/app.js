@@ -574,6 +574,7 @@ capturePendingReferralFromUrl();
 const initialSharePath = sharePathFromLocation();
 if (initialSharePath) {
   void initializeSharedResourceFromLocation(initialSharePath);
+  void loadAccountSession();
 } else {
   void loadAccountSession();
 }
@@ -680,10 +681,12 @@ async function loadAccountSession() {
     }
     applyAccountSession(body.session || null);
     if (body?.session?.authenticated) {
-      if (!wasAuthenticated || !state.payload) {
-        await loadScheduleAfterAuthentication();
+      if (!state.publicShareMode) {
+        if (!wasAuthenticated || !state.payload) {
+          await loadScheduleAfterAuthentication();
+        }
+        await loadInviteDataForAuthenticatedSession();
       }
-      await loadInviteDataForAuthenticatedSession();
     } else {
       state.invitePayload = null;
       renderInvite();
@@ -2238,7 +2241,9 @@ async function requestServerPartifulAutoSync() {
         body?.error?.message || `Partiful auto-sync request failed with HTTP ${response.status}.`,
       );
     }
-    if (response.status === 202 || body.action === "started" || body.action === "already_running") {
+    if (
+      response.status === 202 && (body.action === "queued" || body.action === "already_running")
+    ) {
       schedulePartifulAutoSyncSchedulePoll();
     }
     if (body.action === "skipped" && !hasActiveAgenda()) {
@@ -2316,7 +2321,10 @@ async function pollPartifulAutoSyncSchedule(attempt = 0) {
     setAgendaStatus(`Partiful auto-sync failed: ${autoSync.lastError}`);
     return;
   }
-  if (autoSync?.status === "running" && attempt < PARTIFUL_AUTO_SYNC_MAX_POLLS) {
+  if (
+    (autoSync?.status === "queued" || autoSync?.status === "running") &&
+    attempt < PARTIFUL_AUTO_SYNC_MAX_POLLS
+  ) {
     schedulePartifulAutoSyncSchedulePoll(PARTIFUL_AUTO_SYNC_STATUS_POLL_MS, attempt + 1);
   }
 }
