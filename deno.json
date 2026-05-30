@@ -7,7 +7,15 @@
   },
   "deploy": {
     "org": "0x4007",
-    "app": "techweek-2026-event-picker"
+    "app": "techweek-2026-event-picker",
+    "install": "true",
+    "build": "true",
+    "predeploy": "true",
+    "runtime": {
+      "mode": "dynamic",
+      "entrypoint": "app/main.ts",
+      "cwd": "."
+    }
   },
   "tasks": {
     "dev": "deno run --unstable-kv --env-file=.env --watch --allow-read=app,outputs,.codex,data,docs,/Users/nv/.codex --allow-write=.codex,/Users/nv/.codex --allow-env --allow-net app/main.ts",

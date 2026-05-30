@@ -145,17 +145,40 @@ jobs:
           fi
           echo "$assign_output"
 
+      - name: Deploy to Deno Deploy
+        if: steps.deploy_changes.outputs.deploy == 'true'
+        working-directory: ${{ env.DEPLOY_ROOT }}
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          set -euo pipefail
+          deno deploy \
+            --token "$DENO_DEPLOY_TOKEN" \
+            --org "$DENO_DEPLOY_ORG" \
+            --app "$DENO_DEPLOY_APP" \
+            --prod \
+            .
+
       - name: Verify deployment
         run: |
           set -euo pipefail
           base_url="https://${DENO_DEPLOY_APP}.${DENO_DEPLOY_ORG}.deno.net"
+          expected_app_js_sha="$(sha256sum "$DEPLOY_ROOT/app/static/app.js" | awk '{print $1}')"
           for attempt in $(seq 1 60); do
+            app_js_tmp="$(mktemp)"
             if curl -fsSL "$base_url/" | grep -q 'data-chat-share' &&
-              curl -fsSL "$base_url/api/health" | grep -q '"status": "ready"'; then
+              curl -fsSL "$base_url/api/health" | grep -q '"status": "ready"' &&
+              curl -fsSL "$base_url/app.js" -o "$app_js_tmp" &&
+              [ "$(sha256sum "$app_js_tmp" | awk '{print $1}')" = "$expected_app_js_sha" ]; then
+              rm -f "$app_js_tmp"
               exit 0
             fi
+            rm -f "$app_js_tmp"
             sleep 5
           done
           curl -fsSL "$base_url/" | grep -n 'data-chat-share' || true
           curl -fsSL "$base_url/api/health" || true
+          curl -fsSL "$base_url/app.js" -o /tmp/live-app.js || true
+          printf 'Expected app.js sha: %s\n' "$expected_app_js_sha"
+          [ -f /tmp/live-app.js ] && sha256sum /tmp/live-app.js || true
           exit 1

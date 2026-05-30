@@ -11,6 +11,11 @@ Deno.test("serverless runtime has no local OCR, auth-file, or external context d
   const main = await readRepoText("app/main.ts");
   const denoConfig = JSON.parse(await readRepoText("deno.json")) as {
     tasks?: Record<string, string>;
+    deploy?: {
+      runtime?: {
+        entrypoint?: string;
+      };
+    };
   };
   const workflow = await readRepoText(".github/workflows/deno-deploy.yml");
   const deployRootScript = await readRepoText("scripts/prepare_deno_deploy_root.sh");
@@ -53,6 +58,14 @@ Deno.test("serverless runtime has no local OCR, auth-file, or external context d
   }
 
   assert(workflow.includes("ENTRYPOINT: app/main.ts"), "Deploy workflow should use app/main.ts.");
+  assert(
+    workflow.includes("deno deploy") && workflow.includes("--prod"),
+    "Deploy workflow should publish production with deno deploy.",
+  );
+  assert(
+    denoConfig.deploy?.runtime?.entrypoint === "app/main.ts",
+    "Deno Deploy config should use app/main.ts.",
+  );
   assert(
     deployRootScript.includes("docs/text-conversation-rewards"),
     "Deploy root should include bundled product context.",
