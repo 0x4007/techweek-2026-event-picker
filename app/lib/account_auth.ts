@@ -36,6 +36,8 @@ const DEFAULT_COOKIE_NAME = "techweek_session";
 const RP_DISPLAY_NAME = "Tech Week Event Picker";
 const TEXT_DECODER = new TextDecoder();
 const TEXT_ENCODER = new TextEncoder();
+const PASSKEY_DENO_NET_SUFFIX = "deno.net";
+const PASSKEY_DENO_OTHER_SUFFIXES = new Set(["deno.dev", "deno.app"]);
 
 export type AccountSessionUser = {
   id: string;
@@ -919,7 +921,7 @@ function requestMeta(request: Request, clientOrigin: string): { origin: string; 
   for (const origin of candidates) {
     if (!origin || !originAllowed(request, origin)) continue;
     const parsed = new URL(origin);
-    return { origin, rpId: parsed.hostname };
+    return { origin, rpId: canonicalPasskeyRpId(parsed.hostname) };
   }
   throw new AccountAuthError(400, "could not determine trusted passkey origin");
 }
@@ -995,6 +997,23 @@ function hostname(value: string): string {
 function isLoopbackHost(host: string): boolean {
   host = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
   return host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
+function canonicalPasskeyRpId(host: string): string {
+  const normalized = host.trim().toLowerCase();
+  if (!normalized || isLoopbackHost(normalized)) return normalized;
+
+  if (normalized.endsWith(`.${PASSKEY_DENO_NET_SUFFIX}`)) {
+    const parts = normalized.split(".");
+    if (parts.length < 3) return PASSKEY_DENO_NET_SUFFIX;
+    return `${parts[parts.length - 3]}.${PASSKEY_DENO_NET_SUFFIX}`;
+  }
+
+  for (const suffix of PASSKEY_DENO_OTHER_SUFFIXES) {
+    if (normalized.endsWith(`.${suffix}`)) return suffix;
+  }
+
+  return normalized;
 }
 
 function userKey(userId: string): string {
