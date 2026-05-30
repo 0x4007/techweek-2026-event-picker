@@ -574,6 +574,7 @@ capturePendingReferralFromUrl();
 const initialSharePath = sharePathFromLocation();
 if (initialSharePath) {
   void initializeSharedResourceFromLocation(initialSharePath);
+  void loadAccountSession();
 } else {
   void loadAccountSession();
 }
@@ -680,10 +681,12 @@ async function loadAccountSession() {
     }
     applyAccountSession(body.session || null);
     if (body?.session?.authenticated) {
-      if (!wasAuthenticated || !state.payload) {
-        await loadScheduleAfterAuthentication();
+      if (!state.publicShareMode) {
+        if (!wasAuthenticated || !state.payload) {
+          await loadScheduleAfterAuthentication();
+        }
+        await loadInviteDataForAuthenticatedSession();
       }
-      await loadInviteDataForAuthenticatedSession();
     } else {
       state.invitePayload = null;
       renderInvite();

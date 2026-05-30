@@ -1,11 +1,5 @@
 # Tech Week 2026 Event Picker Agent Notes
 
-## Sub Agents for Coding Work
-
-To increase development speed, prefer to break down the prompt into scopes that minimize overlap. Use gpt-5.3-codex-spark with xhigh reasoning for each subagent. Orchestrate the subagents to do their work concurrently, and then create a final subagent to combine all the work together. To prevent infinite subagent spawning, you must always pass a note to a subagent letting it know that it is a subagent and that it can not spin off another child agent.
-
-At the top level there should be a single orchestrator agent, and then only one layer below of sub agents doing the coding and merging work. The orchestrator should see the user's prompt end-to-end by not directly manipulating code, but instead, spawning sub agents to do the technical work. Orchestrator/top level agent should only focus on management and achieving the user's goal without directly manipulating the code.
-
 ## Project Purpose
 
 This repository is being used to research, rank, schedule, and RSVP to NYC Tech Week 2026 events.
@@ -145,6 +139,26 @@ agent-browser --session techweek-verify eval '
 
 The UI check should report `Signed in as <handle>` and show the same next agenda block returned by
 `/api/schedule`.
+
+## UI Contrast Guardrails
+
+White-on-white or otherwise unreadable controls are release-blocking defects. For every HTML/CSS or
+frontend behavior change, inspect the rendered UI in a browser before final handoff and verify every
+visible button, link styled as a button, nav tab, and disabled/loading/auth state has readable
+foreground/background contrast.
+
+Button rules:
+
+- Never place white or near-white text/icons on a white, near-white, translucent-white, or
+  light-muted button background.
+- Disabled buttons must stay readable; do not rely on opacity if it makes text blend into the button
+  fill.
+- If a button background can become light in any state, explicitly set dark text/icon color for that
+  state.
+- If a button background can become dark or accent-colored in any state, explicitly set a readable
+  light text/icon color for that state.
+- Verify both unauthenticated and authenticated account states because auth state often changes
+  button labels, colors, and disabled behavior.
 
 ## Data Sources
 

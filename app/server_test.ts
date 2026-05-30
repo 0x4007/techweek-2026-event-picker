@@ -242,6 +242,41 @@ Deno.test("mergeDiscoveredPartifulEntries clobbers matching entries with live Pa
   assertEquals(merged[0].displayTitle, "Open Source Must Win");
 });
 
+Deno.test("mergeDiscoveredPartifulEntries does not clobber travel rows with matching Partiful ids", () => {
+  const travel = scheduleEntry({
+    calendarBlockId: "TW-5978-TRAVEL-IN",
+    entryType: "travel",
+    blockType: "travel",
+    status: "",
+    statusLabel: "",
+    title: "Travel: Home to Open Source Must Win",
+    displayTitle: "Travel: Home to Open Source Must Win",
+    location: "15 Cliff St to New York, NY",
+    venueQuery: "15 Cliff St to New York, NY",
+    venuePrecision: "route_context",
+    routeMode: "transit",
+    travelMinutes: "22",
+    routeDetails: "Leave 22 min early.",
+    googleMapsUrl: "https://maps.example/directions",
+  });
+
+  const merged = mergeDiscoveredPartifulEntries([travel], [makeDiscoveredPartifulMatch({})]);
+
+  assertEquals(merged[0].entryType, "travel");
+  assertEquals(merged[0].blockType, "travel");
+  assertEquals(merged[0].title, "Travel: Home to Open Source Must Win");
+  assertEquals(merged[0].displayTitle, "Travel: Home to Open Source Must Win");
+  assertEquals(merged[0].location, "15 Cliff St to New York, NY");
+  assertEquals(merged[0].venueQuery, "15 Cliff St to New York, NY");
+  assertEquals(merged[0].venuePrecision, "route_context");
+  assertEquals(merged[0].googleMapsUrl, "https://maps.example/directions");
+  assertEquals(merged[0].status, "");
+  assertEquals(merged[0].statusLabel, "");
+  assertEquals(merged.length, 2);
+  assertEquals(merged[1].blockType, "event");
+  assertEquals(merged[1].displayTitle, "Open Source Must Win");
+});
+
 Deno.test("mergeDiscoveredPartifulEntries keeps exact schedule venues when live Partiful venue is less precise", () => {
   const merged = mergeDiscoveredPartifulEntries(
     [scheduleEntry({
@@ -704,6 +739,16 @@ kvRouterTest(
     assertEquals(getPath(immutableBody, ["payload", "messages"]), snapshot.messages);
   },
 );
+
+kvRouterTest("static app fallback serves dotted share handle browser routes", async () => {
+  const response = await router(new Request("http://localhost/share/jane.doe/chat/latest"));
+  assertEquals(response.status, 200);
+  assertEquals(response.headers.get("content-type"), "text/html; charset=utf-8");
+  const text = await response.text();
+  if (!text.toLowerCase().includes("<!doctype html>")) {
+    throw new Error("Expected dotted share route to serve the app shell.");
+  }
+});
 
 kvRouterTest(
   "resource writes reject unauthenticated users, oversized chats, and non-owner deletes",

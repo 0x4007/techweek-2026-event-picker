@@ -1688,11 +1688,15 @@ async function serveStatic(pathname: string, method = "GET"): Promise<Response> 
       headers,
     });
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound && !pathname.includes(".")) {
+    if (error instanceof Deno.errors.NotFound && shouldServeAppShell(pathname)) {
       return serveStatic("/", method);
     }
     return notFound();
   }
+}
+
+function shouldServeAppShell(pathname: string): boolean {
+  return !pathname.includes(".") || pathname.startsWith("/share/");
 }
 
 function parseLocalDateTime(value: string): number {
@@ -1828,7 +1832,12 @@ export function mergeDiscoveredPartifulEntries(
   const mergedEntries = entries.map((entry) =>
     clobberEntryWithPartifulSync(entry, liveByPartifulId)
   );
-  const existingIds = new Set(mergedEntries.map((entry) => entry.partifulId).filter(Boolean));
+  const existingIds = new Set(
+    mergedEntries
+      .filter((entry) => entry.blockType === "event")
+      .map((entry) => entry.partifulId)
+      .filter(Boolean),
+  );
   const discovered = partifulEvents.flatMap((record) => {
     const event = record.normalizedEvent;
     if (!event.partifulId || existingIds.has(event.partifulId)) return [];
@@ -1842,6 +1851,7 @@ function clobberEntryWithPartifulSync(
   entry: ScheduleEntry,
   liveByPartifulId: Map<string, NormalizedPartifulEvent>,
 ): ScheduleEntry {
+  if (entry.blockType !== "event") return entry;
   if (!entry.partifulId) return entry;
   const event = liveByPartifulId.get(entry.partifulId);
   if (!event) return entry;
