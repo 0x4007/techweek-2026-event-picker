@@ -1,4 +1,8 @@
 {
+  "unstable": [
+    "cron",
+    "kv"
+  ],
   "imports": {
     "@simplewebauthn/server": "jsr:@simplewebauthn/server@13.2.2",
     "@simplewebauthn/server/helpers": "jsr:@simplewebauthn/server@13.2.2/helpers",

@@ -10,6 +10,7 @@ Deno.test("serverless runtime has no local OCR, auth-file, or external context d
   const server = await readRepoText("app/server.ts");
   const main = await readRepoText("app/main.ts");
   const denoConfig = JSON.parse(await readRepoText("deno.json")) as {
+    unstable?: string[];
     tasks?: Record<string, string>;
     deploy?: {
       runtime?: {
@@ -66,6 +67,8 @@ Deno.test("serverless runtime has no local OCR, auth-file, or external context d
     denoConfig.deploy?.runtime?.entrypoint === "app/main.ts",
     "Deno Deploy config should use app/main.ts.",
   );
+  assert(denoConfig.unstable?.includes("cron"), "Deno config should enable Deno.cron.");
+  assert(denoConfig.unstable?.includes("kv"), "Deno config should enable Deno.openKv.");
   assert(
     deployRootScript.includes("docs/text-conversation-rewards"),
     "Deploy root should include bundled product context.",
