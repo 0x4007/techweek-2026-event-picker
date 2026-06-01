@@ -181,9 +181,9 @@ jobs:
           expected_app_js_sha="$(sha256sum "$DEPLOY_ROOT/app/static/app.js" | awk '{print $1}')"
           for attempt in $(seq 1 60); do
             app_js_tmp="$(mktemp)"
-            if curl -fsSL "$base_url/" | grep -q 'data-chat-share' &&
-              curl -fsSL "$base_url/api/health" | grep -q '"status": "ready"' &&
-              curl -fsSL "$base_url/app.js" -o "$app_js_tmp" &&
+            if curl --max-time 10 -fsSL "$base_url/" | grep -q 'data-chat-share' &&
+              curl --max-time 10 -fsSL "$base_url/api/health" | grep -q '"status": "ready"' &&
+              curl --max-time 10 -fsSL "$base_url/app.js" -o "$app_js_tmp" &&
               [ "$(sha256sum "$app_js_tmp" | awk '{print $1}')" = "$expected_app_js_sha" ]; then
               rm -f "$app_js_tmp"
               exit 0
@@ -191,9 +191,9 @@ jobs:
             rm -f "$app_js_tmp"
             sleep 5
           done
-          curl -fsSL "$base_url/" | grep -n 'data-chat-share' || true
-          curl -fsSL "$base_url/api/health" || true
-          curl -fsSL "$base_url/app.js" -o /tmp/live-app.js || true
+          curl --max-time 10 -fsSL "$base_url/" | grep -n 'data-chat-share' || true
+          curl --max-time 10 -fsSL "$base_url/api/health" || true
+          curl --max-time 10 -fsSL "$base_url/app.js" -o /tmp/live-app.js || true
           printf 'Expected app.js sha: %s\n' "$expected_app_js_sha"
           [ -f /tmp/live-app.js ] && sha256sum /tmp/live-app.js || true
           exit 1
