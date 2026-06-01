@@ -160,6 +160,19 @@ jobs:
             --prod \
             .
 
+      - name: Dump Deno Deploy logs on deploy failure
+        if: failure() && steps.deploy_changes.outputs.deploy == 'true'
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          set -euo pipefail
+          start="$(date -u -d '10 minutes ago' '+%Y-%m-%dT%H:%M:%SZ')"
+          deno deploy logs \
+            --token "$DENO_DEPLOY_TOKEN" \
+            --org "$DENO_DEPLOY_ORG" \
+            --app "$DENO_DEPLOY_APP" \
+            --start "$start" || true
+
       - name: Verify deployment
         run: |
           set -euo pipefail
