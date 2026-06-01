@@ -120,6 +120,14 @@ const SAME_SITE_PROXY_HEADER = "x-techweek-same-site-proxy";
 const AUTH_HUB_ORIGIN = "https://deno-universal-auth.0x4007.deno.net";
 const AUTH_HUB_CLIENT_ID = "techweek-2026-event-picker";
 const AUTH_HUB_AUDIENCE = "techweek-2026-event-picker";
+const AUTH_HUB_APP_ORIGINS = new Set([
+  "http://localhost:8788",
+  "http://127.0.0.1:8788",
+  "http://m1.local:8788",
+  "https://techweek-2026-event-picker.0x4007.deno.net",
+  "https://techweek-auth-hub-preview.0x4007.deno.net",
+  "https://techweek.pavlovcik.com",
+]);
 void DENO_DEPLOY_HOSTNAME;
 void SAME_SITE_APP_HOSTNAME;
 void SAME_SITE_PROXY_HEADER;
@@ -1347,7 +1355,12 @@ async function handleAuthHubSsoExchange(request: Request): Promise<Response> {
   const body = recordValue(raw);
   const code = textField(body?.code, 2000);
   if (!code) return badRequest("code is required.");
-  return await exchangeAuthHubCode(request, code);
+  return await exchangeAuthHubCode(
+    request,
+    code,
+    textField(body?.origin, 300),
+    textField(body?.redirectUri, 600),
+  );
 }
 
 async function handleAccountAgentTokensGet(request: Request): Promise<Response> {
@@ -1402,9 +1415,37 @@ async function handleAccountAgentTokenDelete(request: Request, tokenId: string):
   return json(body, { status: response.status });
 }
 
-async function exchangeAuthHubCode(request: Request, code: string): Promise<Response> {
-  const origin = requestOrigin(request);
-  const redirectUri = new URL("/auth.html", `${origin}/`).toString();
+function authHubAppOrigin(value: string): string {
+  try {
+    const origin = new URL(value).origin;
+    return AUTH_HUB_APP_ORIGINS.has(origin) ? origin : "";
+  } catch {
+    return "";
+  }
+}
+
+function authHubRedirectUri(value: string, origin: string): string {
+  try {
+    const url = new URL(value);
+    if (url.origin !== origin || url.pathname !== "/auth.html" || url.search || url.hash) {
+      return "";
+    }
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+async function exchangeAuthHubCode(
+  request: Request,
+  code: string,
+  rawOrigin: string,
+  rawRedirectUri: string,
+): Promise<Response> {
+  const origin = authHubAppOrigin(rawOrigin);
+  if (!origin) return badRequest("origin is required.");
+  const redirectUri = authHubRedirectUri(rawRedirectUri, origin);
+  if (!redirectUri) return badRequest("redirectUri is required.");
   const response = await fetch(`${AUTH_HUB_ORIGIN}/api/auth/sso/exchange`, {
     method: "POST",
     headers: { "content-type": "application/json" },

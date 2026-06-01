@@ -154,7 +154,11 @@ async function completeAuthHubCallback() {
   try {
     const result = await requestJSON("/api/auth/sso/exchange", {
       method: "POST",
-      body: JSON.stringify({ code: params.get("code") || "" }),
+      body: JSON.stringify({
+        code: params.get("code") || "",
+        origin: globalThis.location.origin,
+        redirectUri: new URL("/auth.html", globalThis.location.origin).toString(),
+      }),
     });
     state.session = result.session || null;
     complete(saved.returnUrl, saved.embedOrigin);
