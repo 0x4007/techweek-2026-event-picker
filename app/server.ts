@@ -1802,6 +1802,7 @@ function contentType(pathname: string): string {
 }
 
 async function serveStatic(pathname: string, method = "GET"): Promise<Response> {
+  if (pathname.startsWith("/share/")) return serveStatic("/", method);
   const path = normalizePath(pathname);
   const fileUrl = new URL(path, STATIC_DIR);
   if (!fileUrl.href.startsWith(STATIC_DIR.href)) return notFound();

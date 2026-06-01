@@ -99,7 +99,8 @@ const VIEW_HASH_SEGMENTS = {
   route: "agenda",
   backup: "events",
   crm: "crm",
-  invites: "invites",
+  invites: "account",
+  account: "account",
 };
 const HASH_VIEW_ALIASES = {
   agenda: "route",
@@ -109,9 +110,10 @@ const HASH_VIEW_ALIASES = {
   backup: "backup",
   backups: "backup",
   crm: "crm",
-  invites: "invites",
-  invite: "invites",
-  ref: "invites",
+  invites: "account",
+  invite: "account",
+  ref: "account",
+  account: "account",
 };
 const INVITE_QR_IMAGE_URL = "https://api.qrserver.com/v1/create-qr-code/";
 const PENDING_REFERRAL_STORAGE_KEY = "techweek-pending-referral-code";
@@ -132,6 +134,9 @@ const state = {
   accountAuthPopupWindow: null,
   accountAuthPopupTimer: 0,
   accountStorageId: ACCOUNT_ANONYMOUS_STORAGE_ID,
+  agentTokenLoading: false,
+  agentTokenStatus: "",
+  agentTokenValue: "",
   messages: readJsonStorage(
     scopedStorageKey(CHAT_STORAGE_KEY, ACCOUNT_ANONYMOUS_STORAGE_ID),
     readJsonStorage(CHAT_STORAGE_KEY, []),
@@ -227,8 +232,18 @@ const eventModal = document.querySelector("[data-event-modal]");
 const eventBackdrop = document.querySelector("[data-event-backdrop]");
 const eventCloseButton = document.querySelector("[data-event-close]");
 const pageTitle = document.querySelector("[data-page-title]");
-const accountButton = document.querySelector("[data-account-button]");
-const accountLabel = document.querySelector("[data-account-label]");
+const accountStatus = document.querySelector("[data-account-status]");
+const accountAction = document.querySelector("[data-account-action]");
+const agentTokenPanel = document.querySelector("[data-agent-token-panel]");
+const agentTokenCreateForm = document.querySelector("[data-agent-token-create]");
+const agentTokenStatus = document.querySelector("[data-agent-token-status]");
+const agentTokenOutput = document.querySelector("[data-agent-token-output]");
+const agentTokenValue = document.querySelector("[data-agent-token-value]");
+const agentTokenConfig = document.querySelector("[data-agent-token-config]");
+const agentTokenCommand = document.querySelector("[data-agent-token-command]");
+const agentTokenCopyButton = document.querySelector("[data-agent-token-copy]");
+const agentTokenCopyConfigButton = document.querySelector("[data-agent-token-copy-config]");
+const agentTokenCopyCommandButton = document.querySelector("[data-agent-token-copy-command]");
 const inviteStatus = document.querySelector("[data-invite-status]");
 const inviteCode = document.querySelector("[data-invite-code]");
 const inviteCopyCodeButton = document.querySelector("[data-invite-copy-code]");
@@ -282,7 +297,8 @@ const VIEW_TITLES = {
   route: "Agenda",
   backup: "Events",
   crm: "CRM",
-  invites: "Invites",
+  invites: "Account",
+  account: "Account",
 };
 const devAgent = createDevAgentState();
 const devAgentEnabled = Boolean(devAgent.config.ready);
@@ -502,7 +518,20 @@ if (devAgentEnabled) {
 } else if (devChatOpenButton) {
   devChatOpenButton.hidden = true;
 }
-accountButton.addEventListener("click", handleAccountButton);
+accountAction?.addEventListener("click", handleAccountAction);
+agentTokenCreateForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void createAgentToken(new FormData(agentTokenCreateForm));
+});
+agentTokenCopyButton?.addEventListener("click", () => {
+  if (state.agentTokenValue) void copyText(state.agentTokenValue);
+});
+agentTokenCopyConfigButton?.addEventListener("click", () => {
+  if (state.agentTokenValue) void copyText(agentTokenConfigPayload(state.agentTokenValue));
+});
+agentTokenCopyCommandButton?.addEventListener("click", () => {
+  if (state.agentTokenValue) void copyText(agentTokenLoginCommand(state.agentTokenValue));
+});
 inviteCopyCodeButton?.addEventListener("click", () => {
   if (state.invitePayload?.code) {
     void copyText(state.invitePayload.code);
@@ -838,7 +867,7 @@ function normalizeAccountSession(session) {
   };
 }
 
-function handleAccountButton() {
+function handleAccountAction() {
   if (state.accountLoading) return;
   if (state.accountSession?.authenticated) {
     void signOutAccount();
@@ -847,35 +876,130 @@ function handleAccountButton() {
   openAccountAuth(state.accountSession?.setupRequired ? "register" : "login");
 }
 
+function renderAccountStatus() {
+  if (accountStatus) {
+    if (state.accountLoading) {
+      accountStatus.textContent = "Checking account status...";
+    } else if (state.accountSession?.authenticated) {
+      const handle = state.accountSession?.user?.handle || "Account";
+      accountStatus.textContent = `Signed in as ${handle}.`;
+    } else if (state.accountSession?.setupRequired) {
+      accountStatus.textContent = "Set up your passkey to create an account.";
+    } else {
+      accountStatus.textContent = "Signed out. Sign in to manage invites and features.";
+    }
+  }
+
+  if (accountAction) {
+    const signedIn = state.accountSession?.authenticated === true;
+    const setupRequired = state.accountSession?.setupRequired === true;
+    const actionLabel = signedIn ? "Sign out" : setupRequired ? "Set up" : "Sign in";
+    const actionText = accountAction.querySelector("span") || accountAction;
+    actionText.textContent = actionLabel;
+    accountAction.disabled = state.accountLoading;
+    accountAction.setAttribute(
+      "aria-label",
+      signedIn ? "Sign out of account." : setupRequired ? "Create passkey" : "Sign in to account",
+    );
+  }
+}
+
 function renderAccountButton() {
-  const authenticated = state.accountSession?.authenticated === true;
-  const setupRequired = state.accountSession?.setupRequired === true;
-  const handle = state.accountSession?.user?.handle || "Account";
-  accountButton.dataset.authState = state.accountLoading
-    ? "loading"
-    : authenticated
-    ? "authenticated"
-    : setupRequired
-    ? "setup"
-    : "unauthenticated";
-  accountButton.disabled = state.accountLoading;
-  accountButton.title = authenticated ? `Signed in as ${handle}. Click to sign out.` : "";
-  accountButton.setAttribute(
-    "aria-label",
-    authenticated
-      ? `Signed in as ${handle}. Sign out.`
-      : setupRequired
-      ? "Create the first passkey"
-      : "Sign in with passkey",
-  );
-  accountLabel.textContent = state.accountLoading
-    ? "Checking"
-    : authenticated
-    ? "Sign out"
-    : setupRequired
-    ? "Set up"
-    : "Sign in";
+  renderAccountStatus();
+  renderAgentTokenPanel();
   updateAuthenticatedCtas();
+}
+
+function renderAgentTokenPanel() {
+  if (!agentTokenPanel) return;
+  const isAdmin = state.accountSession?.authenticated === true &&
+    state.accountSession?.user?.isAdmin === true &&
+    !state.publicShareMode;
+  agentTokenPanel.hidden = !isAdmin;
+  if (!isAdmin) {
+    state.agentTokenValue = "";
+    state.agentTokenStatus = "";
+    if (agentTokenOutput) agentTokenOutput.hidden = true;
+    return;
+  }
+
+  if (agentTokenStatus) {
+    agentTokenStatus.textContent = state.agentTokenStatus ||
+      `Create a login token for ${currentAccountHandle() || "this account"}.`;
+  }
+  const token = state.agentTokenValue;
+  if (agentTokenOutput) agentTokenOutput.hidden = !token;
+  if (agentTokenValue) agentTokenValue.value = token;
+  if (agentTokenConfig) agentTokenConfig.value = token ? agentTokenConfigPayload(token) : "";
+  if (agentTokenCommand) agentTokenCommand.value = token ? agentTokenLoginCommand(token) : "";
+  const controls = [
+    agentTokenCreateForm?.querySelector("button[type='submit']"),
+    agentTokenCopyButton,
+    agentTokenCopyConfigButton,
+    agentTokenCopyCommandButton,
+  ];
+  controls.forEach((control) => {
+    if (!control) return;
+    control.disabled = state.agentTokenLoading ||
+      (control !== agentTokenCreateForm?.querySelector("button[type='submit']") && !token);
+  });
+  const daysInput = agentTokenCreateForm?.elements?.ttlDays;
+  if (daysInput) daysInput.disabled = state.agentTokenLoading;
+}
+
+async function createAgentToken(form) {
+  if (state.agentTokenLoading) return;
+  state.agentTokenLoading = true;
+  state.agentTokenStatus = "Creating token...";
+  state.agentTokenValue = "";
+  renderAgentTokenPanel();
+  try {
+    const ttlDays = Number(form.get("ttlDays") || 7);
+    const response = await fetch("/api/account/agent-tokens", {
+      method: "POST",
+      cache: "no-store",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ttlDays }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body?.error?.message || "Could not create agent token.");
+    }
+    state.agentTokenValue = String(body?.token || "");
+    if (!state.agentTokenValue) {
+      throw new Error("Server did not return an agent token.");
+    }
+    state.agentTokenStatus = `Token created for ${currentAccountHandle() || "this account"}.`;
+  } catch (error) {
+    state.agentTokenValue = "";
+    state.agentTokenStatus = error instanceof Error ? error.message : "Could not create token.";
+  } finally {
+    state.agentTokenLoading = false;
+    renderAgentTokenPanel();
+  }
+}
+
+function agentTokenConfigPayload(token) {
+  return JSON.stringify(
+    {
+      origin: globalThis.location.origin,
+      session: "techweek-verify",
+      expectedHandle: currentAccountHandle() || "",
+      token,
+    },
+    null,
+    2,
+  );
+}
+
+function agentTokenLoginCommand(token) {
+  return `deno task account:agent-login -- --origin ${globalThis.location.origin} --session techweek-verify --token '${
+    String(token || "").replaceAll("'", "'\\''")
+  }'`;
 }
 
 function updateAuthenticatedCtas() {
@@ -1005,19 +1129,26 @@ function parseUrlWithOrigin(value) {
   }
 }
 
+function normalizeView(view) {
+  return view === "invites" ? "account" : view;
+}
+
 function setView(view, options = {}) {
-  if (!VIEW_TITLES[view]) return;
-  state.activeView = view;
-  document.body.dataset.view = view;
-  pageTitle.textContent = VIEW_TITLES[view] || "Agenda";
+  const nextView = normalizeView(view);
+  const panelView = nextView === "account" ? "account" : nextView;
+  const navView = nextView;
+  if (!VIEW_TITLES[nextView]) return;
+  state.activeView = nextView;
+  document.body.dataset.view = nextView;
+  pageTitle.textContent = VIEW_TITLES[nextView] || "Agenda";
   viewButtons.forEach((button) => {
-    button.setAttribute("aria-current", button.dataset.viewButton === view ? "page" : "false");
+    button.setAttribute("aria-current", button.dataset.viewButton === navView ? "page" : "false");
   });
   panels.forEach((panel) => {
-    panel.hidden = panel.dataset.panel !== view;
+    panel.hidden = panel.dataset.panel !== panelView;
   });
-  if (view === "crm") renderCRM();
-  if (view === "invites") renderInvite();
+  if (nextView === "crm") renderCRM();
+  if (nextView === "account") renderInvite();
   if (options.updateHash !== false) writeHashNavigation();
 }
 
@@ -2041,7 +2172,7 @@ function applyHashNavigation() {
   const next = readHashNavigation();
   const previousView = state.activeView;
   const previousDay = state.activeDay;
-  state.activeView = next.view || "route";
+  state.activeView = normalizeView(next.view || "route");
   if (next.day) state.activeDay = next.day;
   if (state.payload) normalizeActiveDay();
   state.routeTransitionDirection = routeTransitionDirection(previousDay, state.activeDay);
@@ -2050,7 +2181,7 @@ function applyHashNavigation() {
 }
 
 function writeHashNavigation(options = {}) {
-  const view = VIEW_HASH_SEGMENTS[state.activeView] || "agenda";
+  const view = VIEW_HASH_SEGMENTS[normalizeView(state.activeView)] || "agenda";
   const day = state.activeDay ? `/${state.activeDay}` : "";
   const nextHash = `#${view}${day}`;
   if (globalThis.location.hash === nextHash) return;
@@ -5839,11 +5970,10 @@ function renderReadOnlyShareMode() {
   if (readOnlyShareIndicator) {
     readOnlyShareIndicator.hidden = !state.publicShareMode;
   }
-  if (accountButton) accountButton.hidden = state.publicShareMode;
   if (agendaShareControls) agendaShareControls.hidden = state.publicShareMode;
   viewButtons.forEach((button) => {
     const view = button.dataset.viewButton;
-    const hidden = state.publicShareMode && (view === "crm" || view === "invites");
+    const hidden = state.publicShareMode && (view === "crm" || view === "account");
     button.hidden = hidden;
     button.disabled = hidden;
   });
@@ -6216,15 +6346,30 @@ function setBusy(busy) {
   updateComposerState();
 }
 
+let foregroundScheduleRefreshTimer = 0;
+
+function requestForegroundScheduleRefresh() {
+  if (state.publicShareMode) return;
+  if (document.hidden) return;
+  if (foregroundScheduleRefreshTimer) {
+    globalThis.clearTimeout(foregroundScheduleRefreshTimer);
+  }
+  foregroundScheduleRefreshTimer = globalThis.setTimeout(() => {
+    foregroundScheduleRefreshTimer = 0;
+    refreshAutomaticLeadEvent();
+    void loadScheduleForApp({ scheduleAutoSync: true, forcePartifulSync: true }).catch((error) => {
+      console.warn(error);
+    });
+  }, 150);
+}
+
 if (!initialSharePath) {
-  loadScheduleForApp({ scheduleAutoSync: true }).catch(() => {});
+  loadScheduleForApp({ scheduleAutoSync: true, forcePartifulSync: true }).catch(() => {});
 }
 globalThis.setInterval(refreshAutomaticLeadEvent, LEAD_EVENT_REFRESH_MS);
 document.addEventListener("visibilitychange", () => {
-  if (state.publicShareMode) return;
   if (document.hidden) return;
-  refreshAutomaticLeadEvent();
-  void loadScheduleForApp({ scheduleAutoSync: true }).catch((error) => {
-    console.warn(error);
-  });
+  requestForegroundScheduleRefresh();
 });
+globalThis.addEventListener("focus", requestForegroundScheduleRefresh);
+globalThis.addEventListener("pageshow", requestForegroundScheduleRefresh);
