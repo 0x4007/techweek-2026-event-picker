@@ -122,11 +122,17 @@ function render() {
 function redirectToAuthHub() {
   const authState = crypto.randomUUID();
   const embedOrigin = parseOrigin(params.get("embedOrigin"));
-  const returnUrl = safeReturnUrl(params.get("returnUrl"), embedOrigin || globalThis.location.origin);
-  sessionStorage.setItem(AUTH_STATE_PREFIX + authState, JSON.stringify({
-    embedOrigin,
-    returnUrl: returnUrl ? returnUrl.toString() : "",
-  }));
+  const returnUrl = safeReturnUrl(
+    params.get("returnUrl"),
+    embedOrigin || globalThis.location.origin,
+  );
+  sessionStorage.setItem(
+    AUTH_STATE_PREFIX + authState,
+    JSON.stringify({
+      embedOrigin,
+      returnUrl: returnUrl ? returnUrl.toString() : "",
+    }),
+  );
 
   const redirectUri = new URL("/auth.html", globalThis.location.origin);
   const url = new URL("/authorize", AUTH_HUB_ORIGIN);
