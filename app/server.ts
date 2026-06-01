@@ -1250,35 +1250,35 @@ async function writeAgendaShareResourceForUser(
   return await upsertPublicResource(user, "agenda", buildAgendaSharePayload(entries, agenda));
 }
 
-async function handleAccountSessionHandoff(request: Request): Promise<Response> {
+function handleAccountSessionHandoff(request: Request): Response {
   void request;
   return json({ error: { message: "Local account handoff has moved to the auth hub." } }, {
     status: 410,
   });
 }
 
-async function handleAuthRegisterStart(request: Request): Promise<Response> {
+function handleAuthRegisterStart(request: Request): Response {
   void request;
   return json({ error: { message: "Passkey registration has moved to the auth hub." } }, {
     status: 410,
   });
 }
 
-async function handleAuthRegisterFinish(request: Request): Promise<Response> {
+function handleAuthRegisterFinish(request: Request): Response {
   void request;
   return json({ error: { message: "Passkey registration has moved to the auth hub." } }, {
     status: 410,
   });
 }
 
-async function handleAuthLoginStart(request: Request): Promise<Response> {
+function handleAuthLoginStart(request: Request): Response {
   void request;
   return json({ error: { message: "Passkey login has moved to the auth hub." } }, {
     status: 410,
   });
 }
 
-async function handleAuthLoginFinish(request: Request): Promise<Response> {
+function handleAuthLoginFinish(request: Request): Response {
   void request;
   return json({ error: { message: "Passkey login has moved to the auth hub." } }, {
     status: 410,
@@ -1293,14 +1293,14 @@ async function handleAuthAgentTokenLogin(request: Request): Promise<Response> {
   return await exchangeAuthHubAgentToken(request, token);
 }
 
-async function handleAuthLogout(request: Request): Promise<Response> {
+function handleAuthLogout(request: Request): Response {
   return new Response(null, {
     status: 204,
     headers: { "set-cookie": clearAccountSessionCookie(request) },
   });
 }
 
-async function handleAuthHandoff(request: Request): Promise<Response> {
+function handleAuthHandoff(request: Request): Response {
   void request;
   return json({ error: { message: "Local auth handoff has moved to the auth hub." } }, {
     status: 410,
@@ -1413,19 +1413,6 @@ async function authHubTokenResponse(request: Request, response: Response): Promi
       "set-cookie": accountSessionCookie(accessToken, session.expiresAt, request),
     },
   });
-}
-
-async function claimReferralWithSessionReferralCode(
-  ownerUserId: string,
-  ownerHandle: string,
-  referralCode: string,
-): Promise<void> {
-  if (!ownerUserId || !referralCode) return;
-  await claimReferralByCode(
-    ownerUserId,
-    ownerHandle || "Unknown",
-    normalizeInviteCode(referralCode),
-  );
 }
 
 async function requireAuthenticatedAccountSession(request: Request): Promise<Response | null> {
