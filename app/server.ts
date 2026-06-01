@@ -125,7 +125,6 @@ const AUTH_HUB_APP_ORIGINS = new Set([
   "http://127.0.0.1:8788",
   "http://m1.local:8788",
   "https://techweek-2026-event-picker.0x4007.deno.net",
-  "https://techweek-auth-hub-preview.0x4007.deno.net",
   "https://techweek.pavlovcik.com",
 ]);
 void DENO_DEPLOY_HOSTNAME;
@@ -1418,9 +1417,23 @@ async function handleAccountAgentTokenDelete(request: Request, tokenId: string):
 function authHubAppOrigin(value: string): string {
   try {
     const origin = new URL(value).origin;
-    return AUTH_HUB_APP_ORIGINS.has(origin) ? origin : "";
+    return AUTH_HUB_APP_ORIGINS.has(origin) || isTechweekDenoDeployOrigin(origin) ? origin : "";
   } catch {
     return "";
+  }
+}
+
+function isTechweekDenoDeployOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== "https:") return false;
+    return url.hostname === "techweek-2026-event-picker.0x4007.deno.net" ||
+      (
+        url.hostname.startsWith("techweek-2026-event-picker-") &&
+        url.hostname.endsWith(".0x4007.deno.net")
+      );
+  } catch {
+    return false;
   }
 }
 
