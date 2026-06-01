@@ -1109,10 +1109,8 @@ async function handleResourceShareGet(
   resourceType: ResourceType,
   id: string,
 ): Promise<Response> {
-  const owner = accountUserFromHandle(handle);
-  if (!owner) return notFound();
-  const record = await resolvePublicResource(owner.id, resourceType, id);
-  if (!record || !record.isPublic || record.userId !== owner.id) return notFound();
+  const record = await resolvePublicResourceByHandle(handle, resourceType, id);
+  if (!record) return notFound();
   return json(publicResourceResponse(request, record, id === "latest"));
 }
 
@@ -1135,6 +1133,10 @@ async function handleResourceShareDelete(
 
   if (id === "latest") {
     await deleteLatestResourceForUser(user.id, resourceType);
+    const handleKey = normalizeAccountHandle(user.handle);
+    if (handleKey && handleKey !== user.id) {
+      await deleteLatestResourceForUser(handleKey, resourceType);
+    }
     return new Response(null, { status: 204 });
   }
 
@@ -1142,15 +1144,6 @@ async function handleResourceShareDelete(
   if (!record) return notFound();
   await revokePublicResource(record);
   return new Response(null, { status: 204 });
-}
-
-async function resolvePublicResource<T>(
-  userId: string,
-  resourceType: ResourceType,
-  id: string,
-): Promise<ResourceIndex<T> | null> {
-  if (id === "latest") return await readLatestResourceForUser<T>(userId, resourceType);
-  return await resolveOwnedResource<T>(userId, resourceType, id);
 }
 
 async function resolveOwnedResource<T>(
@@ -1168,6 +1161,26 @@ async function resolveOwnedResource<T>(
   return record;
 }
 
+async function resolvePublicResourceByHandle<T>(
+  handle: string,
+  resourceType: ResourceType,
+  id: string,
+): Promise<ResourceIndex<T> | null> {
+  const normalizedHandle = normalizeAccountHandle(handle);
+  if (!normalizedHandle) return null;
+  const normalizedId = id.toLowerCase();
+  const record = normalizedId === "latest"
+    ? await readLatestResourceForUser<T>(normalizedHandle, resourceType)
+    : isResourceHash(normalizedId)
+    ? await readResourceByHash<T>(resourceType, normalizedId)
+    : isResourceUuid(normalizedId)
+    ? await readResource<T>(resourceType, normalizedId)
+    : null;
+  if (!record || record.resourceType !== resourceType || !record.isPublic) return null;
+  if (normalizeAccountHandle(record.handle) !== normalizedHandle) return null;
+  return record;
+}
+
 async function upsertPublicResource<T>(
   user: AccountSessionUser,
   resourceType: ResourceType,
@@ -1176,17 +1189,18 @@ async function upsertPublicResource<T>(
   const contentHash = await sha256Hex(canonicalJson(payload));
   const existing = await readResourceByHash<T>(resourceType, contentHash, user.id);
   const now = new Date().toISOString();
+  const handle = normalizeAccountHandle(user.handle);
   const record: ResourceIndex<T> = existing
     ? {
       ...existing,
-      handle: user.handle,
+      handle,
       isPublic: true,
       updatedAt: now,
       payload,
     }
     : {
       userId: user.id,
-      handle: user.handle,
+      handle,
       resourceType,
       resourceId: crypto.randomUUID(),
       contentHash,
@@ -1197,6 +1211,9 @@ async function upsertPublicResource<T>(
     };
   await writeResourceIndex(record);
   await writeLatestResourceForUser(user.id, resourceType, record.resourceId);
+  if (handle && handle !== user.id) {
+    await writeLatestResourceForUser(handle, resourceType, record.resourceId);
+  }
   return record;
 }
 
@@ -1209,6 +1226,13 @@ async function revokePublicResource<T>(record: ResourceIndex<T>): Promise<void> 
   });
   if (latestId === record.resourceId) {
     await deleteLatestResourceForUser(record.userId, record.resourceType);
+  }
+  const handleKey = normalizeAccountHandle(record.handle);
+  const latestHandleId = handleKey
+    ? await readLatestResourceIdForUser(handleKey, record.resourceType)
+    : "";
+  if (handleKey && latestHandleId === record.resourceId) {
+    await deleteLatestResourceForUser(handleKey, record.resourceType);
   }
 }
 
@@ -1613,13 +1637,14 @@ function accountSessionFromAuthHubBody(body: Record<string, unknown> | null): Ac
   const handle = normalizeAccountHandle(
     textField(userRecord?.handle, 120) || textField(claims?.handle, 120),
   );
+  const id = textField(userRecord?.id, 160) || textField(claims?.sub, 160) || handle;
   const expiresAt = textField(body?.expiresAt, 120) || claimsExpiresAt(claims);
   if (!handle) return unauthenticatedHubSession();
   return {
     authenticated: true,
     auth: textField(claims?.auth, 80) || "auth_hub",
     user: {
-      id: handle,
+      id,
       handle,
       isAdmin: userRecord?.isAdmin === true || claims?.isAdmin === true,
       credentialCount: Number(userRecord?.credentialCount || 0) || 0,
@@ -1652,12 +1677,6 @@ function cookieValue(cookieHeader: string, name: string): string {
     }
   }
   return "";
-}
-
-function accountUserFromHandle(handle: string): AccountSessionUser | null {
-  const normalized = normalizeAccountHandle(handle);
-  if (!normalized) return null;
-  return { id: normalized, handle: normalized, isAdmin: false, credentialCount: 0 };
 }
 
 function requestOrigin(request: Request): string {

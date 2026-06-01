@@ -23,7 +23,6 @@ import {
   readStateEntry,
   readStateValue,
   setKvPathForTest,
-  writeCacheValue,
   writeStateValue,
 } from "./lib/kv_store.ts";
 import type { PartifulSyncStatus, PartifulVenuePrecision } from "./lib/partiful_sync.ts";
@@ -1181,20 +1180,21 @@ kvRouterTest("Google Calendar write sync endpoint is removed", async () => {
   }
 });
 
-kvRouterTest("account session reports setup state without a local session cookie", async () => {
+kvRouterTest("account session reports auth hub state without a local session cookie", async () => {
   try {
     const response = await router(new Request("http://localhost/api/account/session"));
     assertEquals(response.status, 200);
     const body = await response.json() as Record<string, unknown>;
     assertEquals(getPath(body, ["session", "authenticated"]), false);
-    assertEquals(getPath(body, ["session", "auth"]), "setup_required");
-    assertEquals(getPath(body, ["session", "setupRequired"]), true);
+    assertEquals(getPath(body, ["session", "auth"]), "auth_hub");
+    assertEquals(getPath(body, ["session", "bootstrapConfigured"]), true);
+    assertEquals(getPath(body, ["session", "registrationAllowed"]), false);
   } finally {
     setAccountSessionForTest(undefined);
   }
 });
 
-kvRouterTest("auth registration start returns a standalone WebAuthn user id", async () => {
+kvRouterTest("local auth registration endpoints are hard-cut over to the auth hub", async () => {
   setAccountSessionForTest(undefined);
   const response = await router(
     new Request("http://localhost/api/auth/register/start", {
@@ -1206,17 +1206,12 @@ kvRouterTest("auth registration start returns a standalone WebAuthn user id", as
       }),
     }),
   );
-  assertEquals(response.status, 200);
+  assertEquals(response.status, 410);
   const body = await response.json() as Record<string, unknown>;
-  assertEquals(getPath(body, ["handle"]), "nik-pavlovcik");
-  assertEquals(getPath(body, ["admin"]), true);
-  const webAuthnUserId = decodeBase64urlText(String(getPath(body, ["publicKey", "user", "id"])));
-  if (!webAuthnUserId.startsWith("user_")) {
-    throw new Error(`Expected generated internal WebAuthn user id, got ${webAuthnUserId}`);
-  }
-  if (webAuthnUserId.includes("nik")) {
-    throw new Error(`Expected WebAuthn user id not to expose handle, got ${webAuthnUserId}`);
-  }
+  assertEquals(
+    getPath(body, ["error", "message"]),
+    "Passkey registration has moved to the auth hub.",
+  );
 });
 
 kvRouterTest("account session returns authenticated local passkey identity", async () => {
@@ -1248,18 +1243,9 @@ kvRouterTest("account session returns authenticated local passkey identity", asy
   }
 });
 
-kvRouterTest("admin can mint, list, use, and revoke agent tokens for existing users", async () => {
-  await seedAuthUser({
-    id: "admin_agent_user",
-    handle: "admin",
-    isAdmin: true,
-    credentialIds: ["cred_a", "cred_b"],
-  });
-  await seedAuthUser({
-    id: "target_agent_user",
-    handle: "target",
-    credentialIds: ["cred_target"],
-  });
+kvRouterTest("admin proxies agent token lifecycle through the auth hub", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ method: string; pathname: string; body: Record<string, unknown> }> = [];
   useAccountSessionForTest({
     id: "admin_agent_user",
     handle: "admin",
@@ -1267,184 +1253,166 @@ kvRouterTest("admin can mint, list, use, and revoke agent tokens for existing us
     credentialCount: 2,
   });
 
-  const selfResponse = await router(
-    new Request("http://localhost/api/account/agent-tokens", {
-      method: "POST",
-      headers: { cookie: "techweek_session=test-session" },
-    }),
-  );
-  assertEquals(selfResponse.status, 201);
-  const selfBody = await selfResponse.json() as Record<string, unknown>;
-  assertEquals(getPath(selfBody, ["agentToken", "user", "id"]), "admin_agent_user");
-  const selfRawToken = String(getPath(selfBody, ["token"]) || "");
-  if (!selfRawToken.startsWith("techweek_agent_")) {
-    throw new Error(`Expected raw agent token at creation, got ${selfRawToken}`);
-  }
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    const method = init?.method || (input instanceof Request ? input.method : "GET");
+    const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {};
+    calls.push({ method, pathname: url.pathname, body });
 
-  const targetResponse = await router(
-    new Request("http://localhost/api/account/agent-tokens", {
-      method: "POST",
-      headers: ADMIN_STATE_HEADERS,
-      body: JSON.stringify({ handle: "target", ttlDays: 1 }),
-    }),
-  );
-  assertEquals(targetResponse.status, 201);
-  const targetBody = await targetResponse.json() as Record<string, unknown>;
-  const targetRawToken = String(getPath(targetBody, ["token"]) || "");
-  const targetTokenId = String(getPath(targetBody, ["agentToken", "id"]) || "");
-  assertEquals(getPath(targetBody, ["agentToken", "user", "id"]), "target_agent_user");
-  if (!targetRawToken.startsWith("techweek_agent_")) {
-    throw new Error(`Expected target raw agent token at creation, got ${targetRawToken}`);
-  }
+    if (method === "POST" && url.pathname === "/api/auth/agent-tokens") {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            token: "hub_agent_raw",
+            agentToken: {
+              id: "hub_token_1",
+              user: { id: "target-sub", handle: body.handle },
+              audience: "techweek-2026-event-picker",
+            },
+          }),
+          { status: 201, headers: { "content-type": "application/json" } },
+        ),
+      );
+    }
 
-  const listResponse = await router(
-    new Request("http://localhost/api/account/agent-tokens", {
-      headers: ADMIN_STATE_HEADERS,
-    }),
-  );
-  assertEquals(listResponse.status, 200);
-  const listBody = await listResponse.json() as Record<string, unknown>;
-  const listedTokens = getPath(listBody, ["tokens"]);
-  if (!Array.isArray(listedTokens) || listedTokens.length !== 2) {
-    throw new Error(`Expected two listed token metadata entries, got ${JSON.stringify(listBody)}`);
-  }
-  const serializedList = JSON.stringify(listBody);
-  if (serializedList.includes(targetRawToken) || serializedList.includes(selfRawToken)) {
-    throw new Error(
-      `Expected listed token metadata not to expose raw token values: ${serializedList}`,
-    );
-  }
+    if (method === "GET" && url.pathname === "/api/auth/agent-tokens") {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ tokens: [{ id: "hub_token_1", user: { handle: "target" } }] }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+    }
 
-  setAccountSessionForTest(undefined);
-  const loginResponse = await router(
-    new Request("http://localhost/api/auth/agent-token/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token: targetRawToken }),
-    }),
-  );
-  assertEquals(loginResponse.status, 200);
-  const setCookie = loginResponse.headers.get("set-cookie") || "";
-  if (!setCookie.includes("techweek_session=")) {
-    throw new Error(`Expected agent token login to set session cookie, got ${setCookie}`);
-  }
-  const loginBody = await loginResponse.json() as Record<string, unknown>;
-  assertEquals(getPath(loginBody, ["session", "authenticated"]), true);
-  assertEquals(getPath(loginBody, ["session", "auth"]), "agent_token");
-  assertEquals(getPath(loginBody, ["session", "user", "id"]), "target_agent_user");
+    if (method === "DELETE" && url.pathname === "/api/auth/agent-tokens/hub_token_1") {
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
 
-  const sessionCookie = setCookie.split(";")[0] || "";
-  const sessionResponse = await router(
-    new Request("http://localhost/api/account/session", {
-      headers: { cookie: sessionCookie },
-    }),
-  );
-  assertEquals(sessionResponse.status, 200);
-  const sessionBody = await sessionResponse.json() as Record<string, unknown>;
-  assertEquals(getPath(sessionBody, ["session", "auth"]), "agent_token");
-  assertEquals(getPath(sessionBody, ["session", "user", "id"]), "target_agent_user");
+    return Promise.resolve(new Response("unexpected auth hub request", { status: 500 }));
+  }) as typeof fetch;
 
-  useAccountSessionForTest({
-    id: "admin_agent_user",
-    handle: "admin",
-    isAdmin: true,
-    credentialCount: 2,
-  });
-  const revokeResponse = await router(
-    new Request(`http://localhost/api/account/agent-tokens/${targetTokenId}`, {
-      method: "DELETE",
-      headers: ADMIN_STATE_HEADERS,
-    }),
-  );
-  assertEquals(revokeResponse.status, 204);
-
-  setAccountSessionForTest(undefined);
-  const revokedLoginResponse = await router(
-    new Request("http://localhost/api/auth/agent-token/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token: targetRawToken }),
-    }),
-  );
-  assertEquals(revokedLoginResponse.status, 401);
-  assertEquals(revokedLoginResponse.headers.get("set-cookie"), null);
-});
-
-kvRouterTest("agent token minting only targets existing accounts", async () => {
-  await seedAuthUser({
-    id: "admin_agent_missing_user",
-    handle: "admin-missing",
-    isAdmin: true,
-  });
-  useAccountSessionForTest({
-    id: "admin_agent_missing_user",
-    handle: "admin-missing",
-    isAdmin: true,
-  });
   try {
-    const missingHandle = await router(
+    const targetResponse = await router(
       new Request("http://localhost/api/account/agent-tokens", {
         method: "POST",
         headers: ADMIN_STATE_HEADERS,
-        body: JSON.stringify({ handle: "missing" }),
+        body: JSON.stringify({ handle: "target", ttlDays: 1 }),
       }),
     );
-    assertEquals(missingHandle.status, 404);
-
-    const missingUserId = await router(
-      new Request("http://localhost/api/account/agent-tokens", {
-        method: "POST",
-        headers: ADMIN_STATE_HEADERS,
-        body: JSON.stringify({ userId: "missing_user_id" }),
-      }),
-    );
-    assertEquals(missingUserId.status, 404);
+    assertEquals(targetResponse.status, 201);
+    const targetBody = await targetResponse.json() as Record<string, unknown>;
+    assertEquals(getPath(targetBody, ["token"]), "hub_agent_raw");
+    assertEquals(getPath(targetBody, ["agentToken", "id"]), "hub_token_1");
+    assertEquals(calls[0]?.body.clientId, "techweek-2026-event-picker");
+    assertEquals(calls[0]?.body.audience, "techweek-2026-event-picker");
+    assertEquals(calls[0]?.body.handle, "target");
+    assertEquals(calls[0]?.body.ttlDays, 1);
 
     const listResponse = await router(
       new Request("http://localhost/api/account/agent-tokens", {
         headers: ADMIN_STATE_HEADERS,
       }),
     );
+    assertEquals(listResponse.status, 200);
     const listBody = await listResponse.json() as Record<string, unknown>;
-    assertEquals(getPath(listBody, ["tokens"]), []);
+    const tokens = getPath(listBody, ["tokens"]);
+    if (!Array.isArray(tokens)) {
+      throw new Error(`Expected tokens array, got ${JSON.stringify(listBody)}`);
+    }
+    assertEquals((tokens[0] as Record<string, unknown>).id, "hub_token_1");
+
+    const revokeResponse = await router(
+      new Request("http://localhost/api/account/agent-tokens/hub_token_1", {
+        method: "DELETE",
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(revokeResponse.status, 204);
   } finally {
+    globalThis.fetch = originalFetch;
     setAccountSessionForTest(undefined);
   }
 });
 
-kvRouterTest("agent token login rejects malformed unknown and expired tokens", async () => {
-  await seedAuthUser({ id: "expired_agent_user", handle: "expired-agent" });
-  const expiredToken = `techweek_agent_${"A".repeat(43)}`;
-  const expiredHash = await sha256Base64url(expiredToken);
-  await writeCacheValue("auth-agent-token", expiredHash, {
-    id: "agent_token_expired",
-    tokenHash: expiredHash,
-    userId: "expired_agent_user",
-    userHandle: "expired-agent",
-    userIsAdmin: false,
-    userCredentialCount: 0,
-    createdByUserId: "admin_agent_user",
-    createdByHandle: "admin",
-    createdAt: "2026-05-01T12:00:00.000Z",
-    expiresAt: "2026-05-01T12:01:00.000Z",
-  }, { ttlMs: 0 });
+kvRouterTest(
+  "agent token login exchanges through the auth hub and stores a local session",
+  async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = ((input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      const method = init?.method || (input instanceof Request ? input.method : "GET");
+      if (method === "POST" && url.pathname === "/api/auth/agent-tokens/exchange") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              accessToken: "hub_access_token",
+              expiresAt: "2026-06-01T13:00:00.000Z",
+              claims: {
+                sub: "target-sub",
+                handle: "target",
+                isAdmin: false,
+                auth: "agent_token",
+              },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+        );
+      }
+      return Promise.resolve(new Response("unexpected auth hub request", { status: 500 }));
+    }) as typeof fetch;
 
-  for (
-    const token of [
-      "not-a-token",
-      `techweek_agent_${"B".repeat(43)}`,
-      expiredToken,
-    ]
-  ) {
+    try {
+      const loginResponse = await router(
+        new Request("http://localhost/api/auth/agent-token/login", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ token: "hub_agent_raw" }),
+        }),
+      );
+      assertEquals(loginResponse.status, 200);
+      const setCookie = loginResponse.headers.get("set-cookie") || "";
+      if (!setCookie.includes("techweek_session=hub_access_token")) {
+        throw new Error(`Expected agent token login to set session cookie, got ${setCookie}`);
+      }
+      const loginBody = await loginResponse.json() as Record<string, unknown>;
+      assertEquals(getPath(loginBody, ["session", "authenticated"]), true);
+      assertEquals(getPath(loginBody, ["session", "auth"]), "agent_token");
+      assertEquals(getPath(loginBody, ["session", "user", "id"]), "target-sub");
+      assertEquals(getPath(loginBody, ["session", "user", "handle"]), "target");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+
+kvRouterTest("agent token login forwards auth hub rejections", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    const method = init?.method || (input instanceof Request ? input.method : "GET");
+    if (method === "POST" && url.pathname === "/api/auth/agent-tokens/exchange") {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ error: "unauthorized" }),
+          { status: 401, headers: { "content-type": "application/json" } },
+        ),
+      );
+    }
+    return Promise.resolve(new Response("unexpected auth hub request", { status: 500 }));
+  }) as typeof fetch;
+
+  try {
     const response = await router(
       new Request("http://localhost/api/auth/agent-token/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token: "bad-token" }),
       }),
     );
     assertEquals(response.status, 401);
     assertEquals(response.headers.get("set-cookie"), null);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });
 
@@ -2182,22 +2150,4 @@ function getPath(value: unknown, path: string[]): unknown {
     current = (current as Record<string, unknown>)[key];
   }
   return current;
-}
-
-function decodeBase64urlText(value: string): string {
-  const padded = value + "=".repeat((4 - (value.length % 4)) % 4);
-  const binary = atob(padded.replaceAll("-", "+").replaceAll("_", "/"));
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return new TextDecoder().decode(bytes);
-}
-
-async function sha256Base64url(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  const bytes = new Uint8Array(digest);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
 }
