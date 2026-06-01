@@ -14,6 +14,7 @@ Deno.test("serverless runtime has no local OCR, auth-file, or external context d
     tasks?: Record<string, string>;
     deploy?: {
       runtime?: {
+        type?: string;
         entrypoint?: string;
       };
     };
@@ -36,16 +37,11 @@ Deno.test("serverless runtime has no local OCR, auth-file, or external context d
   }
   assert(!/\bauthFile\b/.test(runtimeText), "Runtime should not contain server authFile paths.");
 
-  const cronIndex = main.indexOf("Deno.cron(");
-  const serveIndex = main.indexOf("startServer()");
-  assert(cronIndex >= 0, "Expected app/main.ts to register Deno.cron.");
-  assert(serveIndex >= 0, "Expected app/main.ts to start the server.");
-  assert(cronIndex < serveIndex, "Deno.cron must be registered before Deno.serve starts.");
-  assert(
-    server.includes('PARTIFUL_AUTO_SYNC_CRON_EXPRESSION = "* * * * *"'),
-    "Partiful auto-sync cron must run every minute.",
-  );
-
+  const serveIndex = main.indexOf("Deno.serve(");
+  assert(serveIndex >= 0, "Expected app/main.ts to start Deno.serve.");
+  assert(!main.includes("Deno.cron("), "app/main.ts should not register cron during warm-up.");
+  assert(!main.includes('from "./server.ts"'), "app/main.ts must not eagerly import server.ts.");
+  assert(main.includes('import("./server.ts")'), "app/main.ts should lazy-load server.ts.");
   for (const taskName of ["dev", "start"]) {
     const task = denoConfig.tasks?.[taskName] ?? "";
     assert(task.includes("app/main.ts"), `${taskName} task should start app/main.ts.`);
@@ -72,10 +68,13 @@ Deno.test("serverless runtime has no local OCR, auth-file, or external context d
     "Deploy workflow should stage deploy files outside the ignored repo worktree.",
   );
   assert(
+    denoConfig.deploy?.runtime?.type === "dynamic",
+    "Deno Deploy config should use the documented dynamic runtime type.",
+  );
+  assert(
     denoConfig.deploy?.runtime?.entrypoint === "app/main.ts",
     "Deno Deploy config should use app/main.ts.",
   );
-  assert(denoConfig.unstable?.includes("cron"), "Deno config should enable Deno.cron.");
   assert(denoConfig.unstable?.includes("kv"), "Deno config should enable Deno.openKv.");
   assert(
     deployRootScript.includes("docs/text-conversation-rewards"),

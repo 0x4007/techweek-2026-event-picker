@@ -1,4 +1,3 @@
-import { getEncoding } from "js-tiktoken";
 import {
   type AgendaRecalculateResult,
   type AgendaRouteEstimate,
@@ -101,7 +100,6 @@ const CHAT_REQUEST_OVERHEAD_TOKENS = 3;
 const CHAT_SHARE_MAX_PAYLOAD_BYTES = 64 * 1024;
 const MODEL_CONTEXT_CACHE_MS = 5 * 60 * 1000;
 const MODEL_CONTEXT_CACHE_NAMESPACE = "modelContext";
-const TOKEN_ENCODER = getEncoding(TOKEN_ENCODING_NAME);
 const CHAT_SHARE_TEXT_ENCODER = new TextEncoder();
 const PRODUCT_PLAYBOOK_CONTEXT_CHAR_BUDGET = 120_000;
 const ROUTE_RUNBOOK_CONTEXT_CHAR_BUDGET = 90_000;
@@ -128,6 +126,19 @@ void SAME_SITE_PROXY_HEADER;
 const PORT_SCAN_ATTEMPTS = 150;
 const INVITE_CODE_LENGTH = 10;
 const INVITE_REFERRAL_PENDING_PREFIX = "techweek_invite_referral_";
+
+type TokenEncoder = {
+  encode(value: string): number[];
+};
+
+let tokenEncoderPromise: Promise<TokenEncoder> | null = null;
+
+async function tokenEncoder(): Promise<TokenEncoder> {
+  tokenEncoderPromise ??= import("js-tiktoken").then(({ getEncoding }) =>
+    getEncoding(TOKEN_ENCODING_NAME)
+  );
+  return await tokenEncoderPromise;
+}
 
 type InviteReferralEntry = {
   userId: string;
@@ -5894,12 +5905,13 @@ function chatRequestBody(model: string, stream: boolean, messages: ChatMessage[]
   };
 }
 
-function agentTokenUtilization(
+async function agentTokenUtilization(
   requestBody: ReturnType<typeof chatRequestBody>,
   modelContext: ModelContextInfo,
-): AgentTokenUtilization {
+): Promise<AgentTokenUtilization> {
+  const encoder = await tokenEncoder();
   const messages = requestBody.messages.map((message, index) => {
-    const contentTokens = countTokens(message.content);
+    const contentTokens = countTokens(encoder, message.content);
     return {
       index,
       role: message.role,
@@ -5921,7 +5933,7 @@ function agentTokenUtilization(
   const estimatedEnvelopeTokens = CHAT_REQUEST_OVERHEAD_TOKENS +
     messages.length * CHAT_MESSAGE_OVERHEAD_TOKENS;
   const estimatedInputTokens = contentTokens + estimatedEnvelopeTokens;
-  const requestJsonTokens = countTokens(JSON.stringify(requestBody));
+  const requestJsonTokens = countTokens(encoder, JSON.stringify(requestBody));
   const contextWindowTokens = modelContext.contextWindowTokens;
   const maxContextWindowTokens = modelContext.maxContextWindowTokens;
   const autoCompactTokenLimitTokens = modelContext.autoCompactTokenLimitTokens;
@@ -5975,8 +5987,8 @@ function agentTokenUtilization(
   };
 }
 
-function countTokens(value: string): number {
-  return TOKEN_ENCODER.encode(value).length;
+function countTokens(encoder: TokenEncoder, value: string): number {
+  return encoder.encode(value).length;
 }
 
 function roundPercent(value: number): number {
@@ -6007,7 +6019,7 @@ async function logAgentContext({
   const id = createRequestId("agent");
   const createdAt = new Date().toISOString();
   const requestBody = chatRequestBody(model, stream, messages);
-  const utilization = agentTokenUtilization(requestBody, modelContext);
+  const utilization = await agentTokenUtilization(requestBody, modelContext);
   const debugPayload = { id, createdAt, endpoint, prompt, requestBody, modelContext, utilization };
   await writeCacheValue("agentDebug", id, compactAgentDebugPayload(debugPayload), {
     ttlMs: AGENDA_RUN_CACHE_TTL_MS,
