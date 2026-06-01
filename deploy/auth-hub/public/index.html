@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="referrer" content="no-referrer">
+    <title>Deno Universal Auth</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #050505;
+        --panel: rgba(255, 255, 255, 0.075);
+        --panel-strong: rgba(255, 255, 255, 0.12);
+        --text: #f7f4ed;
+        --muted: rgba(247, 244, 237, 0.68);
+        --soft: rgba(247, 244, 237, 0.42);
+        --accent: #f3d99b;
+        --danger: #ffb4a8;
+        --radius: 28px;
+        --shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
+        font-family: "SF Pro Display", "Avenir Next", "Helvetica Neue", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(243, 217, 155, 0.16), transparent 30rem),
+          radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.08), transparent 26rem),
+          var(--bg);
+      }
+
+      main {
+        width: min(100%, 980px);
+        min-height: 100vh;
+        margin: 0 auto;
+        padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+        display: grid;
+        align-items: center;
+      }
+
+      article {
+        display: grid;
+        gap: 28px;
+        padding: clamp(28px, 6vw, 68px);
+        border-radius: var(--radius);
+        background: linear-gradient(150deg, var(--panel-strong), var(--panel));
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(28px);
+      }
+
+      header {
+        display: grid;
+        gap: 12px;
+      }
+
+      p,
+      h1 {
+        margin: 0;
+      }
+
+      h1 {
+        max-width: 11ch;
+        font-size: clamp(44px, 10vw, 110px);
+        line-height: 0.88;
+        letter-spacing: -0.08em;
+      }
+
+      p {
+        max-width: 62ch;
+        color: var(--muted);
+        font-size: clamp(16px, 2.4vw, 19px);
+        line-height: 1.55;
+      }
+
+      form {
+        display: grid;
+        gap: 14px;
+      }
+
+      label {
+        display: grid;
+        gap: 8px;
+        color: var(--soft);
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      input {
+        width: 100%;
+        min-height: 56px;
+        border: 0;
+        border-radius: 18px;
+        padding: 0 18px;
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.1);
+        font: inherit;
+        outline: none;
+      }
+
+      input:focus {
+        background: rgba(255, 255, 255, 0.16);
+        box-shadow: 0 0 0 2px rgba(243, 217, 155, 0.44);
+      }
+
+      button {
+        min-height: 58px;
+        border: 0;
+        border-radius: 999px;
+        padding: 0 24px;
+        color: #17130b;
+        background: var(--accent);
+        font: 700 16px/1 "SF Pro Display", "Avenir Next", sans-serif;
+        cursor: pointer;
+        transition: transform 140ms ease, opacity 140ms ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.52;
+        transform: none;
+      }
+
+      output {
+        min-height: 24px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      output[data-state="error"] {
+        color: var(--danger);
+      }
+
+      code {
+        color: var(--accent);
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body data-role="auth" data-page="authorize">
+    <main>
+      <article>
+        <header>
+          <p>Deno Universal Auth</p>
+          <h1>One passkey. Every app.</h1>
+          <p id="intro">Sign in with the auth hub, then return to the requesting app with a short-lived code.</p>
+        </header>
+
+        <form id="auth-form">
+          <label>
+            Handle
+            <input id="handle" name="handle" autocomplete="username" placeholder="nv" required>
+          </label>
+          <label>
+            Email, optional
+            <input id="email" name="email" autocomplete="email" inputmode="email" placeholder="you@example.com">
+          </label>
+          <button id="continue" type="submit">Continue with passkey</button>
+          <button id="register" type="button">Register this handle</button>
+        </form>
+
+        <output id="status" role="status" aria-live="polite"></output>
+        <p id="code-result" hidden></p>
+      </article>
+    </main>
+    <script>
+      window.__AUTH_BOOTSTRAP__ = %%AUTH_BOOTSTRAP%%;
+    </script>
+    <script type="module" src="/auth.js"></script>
+  </body>
+</html>

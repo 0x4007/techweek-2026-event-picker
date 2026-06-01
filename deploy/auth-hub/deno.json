@@ -1,0 +1,19 @@
+{
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "dev": "deno run -A --unstable-kv main.ts",
+    "check": "deno check main.ts",
+    "deploy": "deno deploy --config deno.json --org 0x4007 --app deno-universal-auth --prod .",
+    "test": "deno test -A --unstable-kv"
+  },
+  "fmt": {
+    "lineWidth": 90,
+    "semiColons": true,
+    "singleQuote": false
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  }
+}

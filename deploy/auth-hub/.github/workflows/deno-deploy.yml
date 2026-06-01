@@ -1,12 +1,9 @@
-name: Deploy Auth Hub
+name: Deno Deploy
 
 on:
   push:
     branches:
-      - fix/auth-popup-redirect-fallback
-    paths:
-      - .github/workflows/deploy-auth-hub.yml
-      - deploy/auth-hub/**
+      - main
   workflow_dispatch:
 
 jobs:
@@ -30,17 +27,15 @@ jobs:
           deno-version: v2.x
 
       - name: Check
-        working-directory: deploy/auth-hub
         run: deno task check
 
       - name: Ensure Deno app exists
-        working-directory: deploy/auth-hub
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
           set -euo pipefail
           if [ -z "${DENO_DEPLOY_TOKEN:-}" ]; then
-            echo "::error::DENO_DEPLOY_TOKEN repo secret is required"
+            echo "::error::DENO_DEPLOY_TOKEN repo or org secret is required"
             exit 1
           fi
 
@@ -79,7 +74,6 @@ jobs:
             .
 
       - name: Ensure Deno KV database is assigned
-        working-directory: deploy/auth-hub
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
@@ -119,7 +113,6 @@ jobs:
           echo "$assign_output"
 
       - name: Deploy to Deno Deploy
-        working-directory: deploy/auth-hub
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
