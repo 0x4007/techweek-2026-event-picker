@@ -437,6 +437,133 @@ Deno.test("recalculateAgenda excludes not-going statuses without blocking going 
   }
 });
 
+Deno.test("recalculateAgenda treats registered events as agenda commitments", async () => {
+  const agenda = await recalculateAgenda({
+    scheduleEntries: [
+      eventEntry(
+        "TW-registered",
+        "Registered Event",
+        "2026-06-01 14:00",
+        "2026-06-01 17:00",
+        {
+          status: "registered",
+          opportunityScore: 0,
+        },
+      ),
+      eventEntry("TW-alt-1", "High Score Alternative 1", "2026-06-01 14:00", "2026-06-01 15:00", {
+        status: "unknown",
+        opportunityScore: 100,
+      }),
+      eventEntry("TW-alt-2", "High Score Alternative 2", "2026-06-01 15:00", "2026-06-01 16:00", {
+        status: "unknown",
+        opportunityScore: 100,
+      }),
+      eventEntry("TW-alt-3", "High Score Alternative 3", "2026-06-01 16:00", "2026-06-01 17:00", {
+        status: "unknown",
+        opportunityScore: 100,
+      }),
+    ],
+    overrides: { includeReturnHome: false, generateLogisticsBlocks: false },
+    generatedAt: "2026-05-14T12:00:00Z",
+  });
+
+  assert(
+    agenda.selectedEvents.some((block) => block.techweekId === "TW-registered"),
+    "Expected registered event to win over ordinary alternatives.",
+  );
+  for (const techweekId of ["TW-alt-1", "TW-alt-2", "TW-alt-3"]) {
+    assert(
+      !agenda.selectedEvents.some((block) => block.techweekId === techweekId),
+      `Expected ${techweekId} to remain an alternative.`,
+    );
+  }
+});
+
+Deno.test("recalculateAgenda does not candidate-cap committed RSVP events", async () => {
+  const agenda = await recalculateAgenda({
+    scheduleEntries: [
+      eventEntry(
+        "TW-registered-1",
+        "Registered Commitment 1",
+        "2026-06-01 14:00",
+        "2026-06-01 15:00",
+        { status: "registered", opportunityScore: 0 },
+      ),
+      eventEntry(
+        "TW-registered-2",
+        "Registered Commitment 2",
+        "2026-06-01 16:00",
+        "2026-06-01 17:00",
+        { status: "registered", opportunityScore: 0 },
+      ),
+      eventEntry(
+        "TW-alt-cap",
+        "High Score Alternative",
+        "2026-06-01 18:00",
+        "2026-06-01 19:00",
+        { status: "unknown", opportunityScore: 100 },
+      ),
+    ],
+    overrides: {
+      includeReturnHome: false,
+      generateLogisticsBlocks: false,
+      maxCandidatesPerDay: 1,
+    },
+    routeEstimator: () => ({
+      mode: "estimated",
+      minutes: 0,
+      details: "test route",
+    }),
+    generatedAt: "2026-05-14T12:00:00Z",
+  });
+
+  for (const techweekId of ["TW-registered-1", "TW-registered-2"]) {
+    assert(
+      agenda.selectedEvents.some((block) => block.techweekId === techweekId),
+      `Expected ${techweekId} to bypass the alternative candidate cap.`,
+    );
+  }
+});
+
+Deno.test("recalculateAgenda summarizes committed RSVP conflicts", async () => {
+  const agenda = await recalculateAgenda({
+    scheduleEntries: [
+      eventEntry(
+        "TW-registered-conflict-a",
+        "Registered Conflict A",
+        "2026-06-01 14:00",
+        "2026-06-01 16:00",
+        { status: "registered", opportunityScore: 0 },
+      ),
+      eventEntry(
+        "TW-registered-conflict-b",
+        "Registered Conflict B",
+        "2026-06-01 15:00",
+        "2026-06-01 17:00",
+        { status: "registered", opportunityScore: 0 },
+      ),
+    ],
+    overrides: { includeReturnHome: false, generateLogisticsBlocks: false },
+    routeEstimator: () => ({
+      mode: "estimated",
+      minutes: 0,
+      details: "test route",
+    }),
+    generatedAt: "2026-05-14T12:00:00Z",
+  });
+
+  assert(
+    agenda.summary.committedConflictEvents === 1,
+    "Expected one committed RSVP conflict in agenda summary.",
+  );
+  assert(
+    agenda.droppedEvents.some((drop) =>
+      drop.detail.includes("Committed RSVP conflicts with another selected event")
+    ),
+    "Expected committed RSVP conflict detail for the dropped event.",
+  );
+});
+
 Deno.test("recalculateAgenda preserves hard fixed blocks over return-home travel", async () => {
   const agenda = await recalculateAgenda({
     scheduleEntries: [

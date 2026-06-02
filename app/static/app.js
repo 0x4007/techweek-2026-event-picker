@@ -4,6 +4,12 @@ const ACTIVE_CHAT_KEY = "techweek-chat-active-id";
 const MODEL_CONTEXT_CACHE_KEY = "techweek-model-context";
 const ACCOUNT_ANONYMOUS_STORAGE_ID = "anonymous";
 const ACCOUNT_AUTH_MESSAGE_TYPE = "techweek-auth-complete";
+const AUTH_HUB_ORIGIN = "https://deno-universal-auth.0x4007.deno.net";
+const AUTH_HUB_CLIENT_ID = "techweek-2026-event-picker";
+const AUTH_HUB_AUDIENCE = "techweek-2026-event-picker";
+const AUTH_STATE_PREFIX = "techweek_auth_state:";
+const DEV_AUTH_COMPLETE_MESSAGE = "techweek-dev-auth-complete";
+const PI_AGENT_AUTH_COMPLETE_MESSAGE = "pi-codex-auth-complete";
 const CHAT_MESSAGE_LIMIT = 24;
 const CHAT_SESSION_LIMIT = 18;
 const MODEL_CONTEXT_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -39,8 +45,10 @@ const LEAD_TEXT_DRAFT_FIELDS = [
 const LEAD_SIGNAL_FIELDS = ["githubHeavy", "aiCodingAdoption"];
 const PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS = 1_500;
 const PARTIFUL_AUTO_SYNC_STATUS_POLL_MS = 20_000;
-const PARTIFUL_AUTO_SYNC_MAX_POLLS = 8;
+const PARTIFUL_AUTO_SYNC_MAX_POLLS = 30;
 const LIVE_ROUTE_REFRESH_TIMEOUT_MS = 150_000;
+const CURRENT_TIME_REFRESH_MS = 60_000;
+const AGENDA_TIME_ZONE = "America/New_York";
 const TRANSCRIPT_MIN_HEIGHT_PX = 300;
 const CHAT_EMPTY_GUIDE =
   "Ask me anything about today's Tech Week plan and I'll help you stay aligned.";
@@ -55,14 +63,29 @@ const MOTION_REDUCE_OK = !globalThis.matchMedia?.("(prefers-reduced-motion: redu
 const FORCE_MOTION = false;
 const MOTION_CARD_STAGGER_MS = 28;
 const MOTION_BUTTON_STAGGER_MS = 14;
+const AGENDA_DATE_PARTS_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: AGENDA_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const AGENDA_TIME_PARTS_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: AGENDA_TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
 const DEV_AGENT_SAME_SITE_ORIGIN = "https://techweek.pavlovcik.com";
+const DEV_AGENT_AUTH_ORIGIN = "https://agent.pavlovcik.com";
 const DEV_AGENT_LEGACY_HOSTNAMES = new Set(["techweek-2026-event-picker.0x4007.deno.net"]);
 const DEV_AGENT_SESSION_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000];
+const DEV_AGENT_API_MODE_KEY = "techweek-dev-agent-api-mode";
 const DEV_AGENT_SELECTED_THREAD_KEY = "techweek-dev-agent-selected-thread";
 const DEV_AGENT_LAST_EVENT_KEY_PREFIX = "techweek-dev-agent-last-event:";
 const DEV_AGENT_EVENT_TYPES = [
   "user.message",
   "agent.message",
+  "assistant.message",
   "progress.message",
   "phase.changed",
   "error",
@@ -81,6 +104,7 @@ const DEV_AGENT_EVENT_TYPES = [
 const DEV_AGENT_VISIBLE_TYPES = new Set([
   "user.message",
   "agent.message",
+  "assistant.message",
   "progress.message",
   "error",
   "result",
@@ -117,7 +141,7 @@ const HASH_VIEW_ALIASES = {
 };
 const INVITE_QR_IMAGE_URL = "https://api.qrserver.com/v1/create-qr-code/";
 const PENDING_REFERRAL_STORAGE_KEY = "techweek-pending-referral-code";
-const MARKDOWN_RENDERER = createMarkdownRenderer();
+let markdownRenderer = createMarkdownRenderer();
 let scheduleLoadPromise = null;
 
 const state = {
@@ -158,6 +182,7 @@ const state = {
   partifulAutoSyncPollTimer: 0,
   partifulAutoSyncFallbackBusy: false,
   partifulAutoSyncFallbackAttempted: false,
+  partifulAutoSyncFallbackAttemptedAt: 0,
   routeTransitionDirection: "none",
   leadEventManuallySelected: false,
   followUpEmailTouched: false,
@@ -594,6 +619,10 @@ globalThis.addEventListener("hashchange", () => {
   const changed = applyHashNavigation();
   if (!changed || !state.payload) return;
   render();
+});
+globalThis.setInterval(syncCurrentTimeIndicator, CURRENT_TIME_REFRESH_MS);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) syncCurrentTimeIndicator();
 });
 
 hydrateChatHistory();
@@ -1058,12 +1087,10 @@ async function signOutAccount() {
 
 function openAccountAuth(mode) {
   clearAccountAuthPopupWatcher();
-  const url = accountAuthUrl("/auth.html");
-  url.searchParams.set("mode", mode);
-  url.searchParams.set("embedOrigin", globalThis.location.origin);
-  url.searchParams.set("returnUrl", globalThis.location.href);
+  const returnUrl = globalThis.location.href;
+  const url = accountAuthHubUrl(returnUrl, mode);
   state.accountError = "";
-  state.accountAuthPopupReturnUrl = globalThis.location.href;
+  state.accountAuthPopupReturnUrl = returnUrl;
   renderAccountButton();
   const popup = globalThis.open(
     url.toString(),
@@ -1095,7 +1122,7 @@ function handleAccountAuthMessage(event) {
   if (state.accountAuthPopupWindow && event.source !== state.accountAuthPopupWindow) return;
   clearAccountAuthPopupWatcher();
   const returnUrl = safeRedirectUrl(event.data?.returnUrl || state.accountAuthPopupReturnUrl);
-  if (returnUrl) {
+  if (returnUrl && returnUrl.toString() !== globalThis.location.href) {
     globalThis.location.href = returnUrl;
     return;
   }
@@ -1108,6 +1135,27 @@ function clearAccountAuthPopupWatcher() {
   state.accountAuthPopupTimer = 0;
   state.accountAuthPopupReturnUrl = "";
   state.accountAuthPopupWindow = null;
+}
+
+function accountAuthHubUrl(returnUrl, mode = "signin") {
+  const authState = crypto.randomUUID();
+  localStorage.setItem(
+    AUTH_STATE_PREFIX + authState,
+    JSON.stringify({
+      embedOrigin: globalThis.location.origin,
+      returnUrl,
+      messageType: ACCOUNT_AUTH_MESSAGE_TYPE,
+      mode,
+    }),
+  );
+
+  const url = new URL("/authorize", AUTH_HUB_ORIGIN);
+  url.searchParams.set("client_id", AUTH_HUB_CLIENT_ID);
+  url.searchParams.set("audience", AUTH_HUB_AUDIENCE);
+  url.searchParams.set("origin", globalThis.location.origin);
+  url.searchParams.set("redirect_uri", accountAuthUrl("/auth.html").toString());
+  url.searchParams.set("state", authState);
+  return url;
 }
 
 function accountAuthUrl(path) {
@@ -1187,6 +1235,7 @@ function openDevChat() {
     void bootstrapDevAgent();
   } else if (devAgent.authState === "authenticated" && devAgent.view === "inbox") {
     void loadDevThreads({ silent: true });
+    void loadDevDeployments({ silent: true });
   }
   requestAnimationFrame(() => {
     updateDevComposerState();
@@ -1229,6 +1278,7 @@ function showDevInbox() {
   renderDevAgent();
   if (devAgent.authState === "authenticated") {
     void loadDevThreads({ silent: true });
+    void loadDevDeployments({ silent: true });
   }
 }
 
@@ -1276,7 +1326,7 @@ async function handleDevChatSubmit(event) {
     }
   } catch (error) {
     if (isAuthStatus(error)) {
-      markDevUnauthenticated("Your development agent session expired. Sign in again.");
+      markDevUnauthenticated("Your Pi agent session expired. Reconnect to continue.");
       renderDevAgent();
     } else {
       devAgent.composerError = devFriendlyError(error, "Could not send prompt.");
@@ -1309,9 +1359,16 @@ function createDevAgentState() {
     loadingSession: false,
     loadingThreads: false,
     loadingThread: false,
+    loadingDeployments: false,
+    deploymentsLoaded: false,
+    deployments: [],
+    deploymentsError: "",
+    deploymentsFetchedAt: "",
     sending: false,
     error: "",
+    authTitle: "",
     authStatus: "",
+    authBusy: false,
     authPopupTimer: 0,
     sessionRetryTimer: 0,
     sessionRetryAttempt: 0,
@@ -1329,8 +1386,14 @@ function createDevAgentState() {
 
 function readDevAgentConfig() {
   const dataset = devChatDrawer?.dataset || {};
-  const apiBase = normalizeApiBase(dataset.agentApi || "");
-  const authBase = normalizeApiBase(dataset.agentAuth || "");
+  const proxyApiBase = normalizeApiBase(`${globalThis.location.origin}/__pi-agent`);
+  const directApiBase = normalizeApiBase(DEV_AGENT_AUTH_ORIGIN);
+  const preferredApiBase = !dataset.agentApi &&
+      localStorage.getItem(DEV_AGENT_API_MODE_KEY) === "direct"
+    ? directApiBase
+    : proxyApiBase;
+  const apiBase = normalizeApiBase(dataset.agentApi || preferredApiBase);
+  const authBase = normalizeApiBase(dataset.agentAuth || DEV_AGENT_AUTH_ORIGIN);
   const repo = String(dataset.repo || "").trim();
   const repoId = String(dataset.repoId || "").trim();
   const repoLabel = String(dataset.repoLabel || repoName(repo) || repoId || "Development repo")
@@ -1338,6 +1401,8 @@ function readDevAgentConfig() {
   return {
     apiBase,
     authBase,
+    proxyApiBase,
+    directApiBase,
     repo,
     repoId,
     repoLabel,
@@ -1368,14 +1433,17 @@ async function bootstrapDevAgent(options = {}) {
     clearDevSessionRetry();
     if (devAgent.authState === "authenticated") {
       devAgent.authStatus = "";
-      await loadDevThreads({ silent: true });
+      await Promise.all([
+        loadDevThreads({ silent: true }),
+        loadDevDeployments({ silent: true }),
+      ]);
       if (devAgent.currentThreadId) {
         await openDevThread(devAgent.currentThreadId, { silent: true });
       }
     }
   } catch (error) {
     if (isAuthStatus(error)) {
-      markDevUnauthenticated("Your development agent session expired. Sign in again.");
+      markDevUnauthenticated("Your Pi agent session expired. Reconnect to continue.");
       return;
     }
     devAgent.bootstrapped = true;
@@ -1440,7 +1508,9 @@ function markDevUnauthenticated(message) {
   devAgent.currentThreadId = "";
   devAgent.error = "";
   devAgent.composerError = "";
-  devAgent.authStatus = message || "Sign in on the development origin to continue.";
+  devAgent.authBusy = false;
+  devAgent.authTitle = "";
+  devAgent.authStatus = message || "Use your Pi agent passkey to load development threads.";
   localStorage.removeItem(DEV_AGENT_SELECTED_THREAD_KEY);
 }
 
@@ -1467,12 +1537,42 @@ async function loadDevThreads(options = {}) {
       : [];
   } catch (error) {
     if (isAuthStatus(error)) {
-      markDevUnauthenticated("Your development agent session expired. Sign in again.");
+      markDevUnauthenticated("Your Pi agent session expired. Reconnect to continue.");
     } else {
       devAgent.error = devFriendlyError(error, "Could not load development threads.");
     }
   } finally {
     devAgent.loadingThreads = false;
+    renderDevAgent();
+  }
+}
+
+async function loadDevDeployments(options = {}) {
+  if (devAgent.loadingDeployments) return;
+  if (devAgent.deploymentsLoaded && !options.force) return;
+  devAgent.loadingDeployments = true;
+  devAgent.deploymentsError = "";
+  renderDevAgent();
+  try {
+    const response = await fetch("/api/dev/deployments?limit=10", {
+      cache: "no-store",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(devErrorMessage(body) || `Could not load Deno Deploys (${response.status}).`);
+    }
+    devAgent.deployments = Array.isArray(body?.deployments)
+      ? body.deployments.map(normalizeDevDeployment).filter((item) => item.id)
+      : [];
+    devAgent.deploymentsLoaded = true;
+    devAgent.deploymentsFetchedAt = String(body?.fetchedAt || new Date().toISOString());
+  } catch (error) {
+    devAgent.deploymentsError = devFriendlyError(error, "Could not load Deno Deploys.");
+    devAgent.deploymentsLoaded = true;
+  } finally {
+    devAgent.loadingDeployments = false;
     renderDevAgent();
   }
 }
@@ -1524,7 +1624,7 @@ async function openDevThread(threadId, options = {}) {
     startDevThreadStream(id);
   } catch (error) {
     if (isAuthStatus(error)) {
-      markDevUnauthenticated("Your development agent session expired. Sign in again.");
+      markDevUnauthenticated("Your Pi agent session expired. Reconnect to continue.");
     } else {
       devAgent.error = devFriendlyError(error, "Could not load development thread.");
     }
@@ -1601,6 +1701,9 @@ function addDevEvent(event) {
     devAgent.thread.updatedAt = event.createdAt || new Date().toISOString();
     upsertDevThread(devAgent.thread);
   }
+  if (event.type === "deploy.finished") {
+    void loadDevDeployments({ force: true, silent: true });
+  }
   renderDevAgent();
 }
 
@@ -1658,18 +1761,18 @@ function renderDevInbox() {
     );
     return;
   }
+
+  devChatLog.append(devDeploymentsPanel());
+
   if (devAgent.loadingThreads && !devAgent.threads.length) {
-    devChatLog.dataset.empty = "true";
     devChatLog.append(devEmptyState("Loading threads."));
     return;
   }
   if (devAgent.error) {
-    devChatLog.dataset.empty = "true";
     devChatLog.append(devNotice("Threads unavailable.", devAgent.error, () => loadDevThreads()));
     return;
   }
   if (!threads.length) {
-    devChatLog.dataset.empty = "true";
     devChatLog.append(devEmptyState("No threads yet."));
     return;
   }
@@ -1799,9 +1902,10 @@ function devTechnicalDetails(events) {
     item.append(title);
     const text = devMeaningfulText(event);
     if (text) {
-      const paragraph = document.createElement("p");
-      paragraph.textContent = text;
-      item.append(paragraph);
+      const content = document.createElement("div");
+      content.dataset.devTechnicalContent = "";
+      content.innerHTML = renderMarkdown(text);
+      item.append(content);
     }
     if (event.data && typeof event.data === "object" && Object.keys(event.data).length) {
       const pre = document.createElement("pre");
@@ -1833,14 +1937,21 @@ function devNotice(title, message, retry) {
 }
 
 function devAuthNotice() {
+  const reconnecting = devAgent.authTitle === "Pi agent connection stalled.";
   const wrapper = devNotice(
-    "Sign in required.",
+    devAgent.authTitle || (devAgent.authBusy ? "Connecting to Pi agent." : "Connect Pi agent."),
     devAgent.authStatus || "Use the development agent passkey flow to continue.",
     null,
   );
+  if (devAgent.authBusy) wrapper.dataset.state = "pending";
   const button = document.createElement("button");
   button.type = "button";
-  button.textContent = "Sign in";
+  button.textContent = devAgent.authBusy
+    ? "Connecting..."
+    : reconnecting
+    ? "Reconnect"
+    : "Open Pi agent";
+  button.disabled = devAgent.authBusy;
   button.addEventListener("click", () => openDevAuth("login"));
   wrapper.append(button);
   return wrapper;
@@ -1851,6 +1962,110 @@ function devEmptyState(text) {
   wrapper.dataset.devNotice = "";
   wrapper.textContent = text;
   return wrapper;
+}
+
+function devDeploymentsPanel() {
+  const wrapper = document.createElement("section");
+  wrapper.dataset.devDeployments = "";
+
+  const header = document.createElement("header");
+  const title = document.createElement("strong");
+  title.textContent = "Deno Deploys";
+  const meta = document.createElement("small");
+  meta.textContent = devDeploymentsMetaText();
+  const refresh = document.createElement("button");
+  refresh.type = "button";
+  refresh.dataset.iconOnly = "";
+  refresh.setAttribute("aria-label", "Refresh Deno Deploys");
+  refresh.disabled = devAgent.loadingDeployments;
+  refresh.append(renderIcon("refresh"));
+  refresh.addEventListener("click", () => loadDevDeployments({ force: true }));
+  header.append(title, meta, refresh);
+  wrapper.append(header);
+
+  if (devAgent.deploymentsError) {
+    const error = document.createElement("p");
+    error.dataset.devDeploymentsStatus = "error";
+    error.textContent = devAgent.deploymentsError;
+    wrapper.append(error);
+    return wrapper;
+  }
+
+  if (devAgent.loadingDeployments && !devAgent.deployments.length) {
+    const loading = document.createElement("p");
+    loading.dataset.devDeploymentsStatus = "";
+    loading.textContent = "Loading Deno Deploys.";
+    wrapper.append(loading);
+    return wrapper;
+  }
+
+  if (!devAgent.deployments.length) {
+    const empty = document.createElement("p");
+    empty.dataset.devDeploymentsStatus = "";
+    empty.textContent = devAgent.deploymentsLoaded
+      ? "No deployments found."
+      : "Deployment versions will load automatically.";
+    wrapper.append(empty);
+    return wrapper;
+  }
+
+  const list = document.createElement("section");
+  list.dataset.devDeploymentList = "";
+  devAgent.deployments.slice(0, 10).forEach((deployment) => {
+    list.append(devDeploymentRow(deployment));
+  });
+  wrapper.append(list);
+  return wrapper;
+}
+
+function devDeploymentRow(deployment) {
+  const link = document.createElement("a");
+  link.dataset.devDeploymentRow = "";
+  link.href = deployment.previewUrl || deployment.dashboardUrl || "#";
+  link.target = "_blank";
+  link.rel = "noreferrer";
+  if (!deployment.previewUrl && !deployment.dashboardUrl) {
+    link.removeAttribute("href");
+    link.removeAttribute("target");
+    link.removeAttribute("rel");
+    link.setAttribute("aria-disabled", "true");
+  }
+  link.setAttribute(
+    "aria-label",
+    deployment.previewUrl
+      ? `Open Deno Deploy version ${deployment.id}`
+      : `View Deno Deploy version ${deployment.id}`,
+  );
+
+  const main = document.createElement("span");
+  const label = document.createElement("strong");
+  label.textContent = deployment.id;
+  const detail = document.createElement("small");
+  detail.textContent = devDeploymentDetail(deployment);
+  main.append(label, detail);
+
+  const status = document.createElement("span");
+  status.dataset.devDeploymentStatusPill = deployment.status || "preview";
+  status.textContent = deployment.statusLabel;
+  link.append(main, status);
+  return link;
+}
+
+function devDeploymentsMetaText() {
+  if (devAgent.loadingDeployments) return "Loading";
+  if (devAgent.deploymentsFetchedAt) {
+    return `Updated ${formatRelative(devAgent.deploymentsFetchedAt)}`;
+  }
+  return "Recent versions";
+}
+
+function devDeploymentDetail(deployment) {
+  const parts = [
+    deployment.branch,
+    deployment.shortHash,
+    deployment.createdAt ? formatRelative(deployment.createdAt) : "",
+  ].filter(Boolean);
+  return parts.join(" - ") || deployment.entrypoint || "Version link";
 }
 
 function visibleDevThreads() {
@@ -1876,6 +2091,25 @@ function upsertDevThread(thread) {
     devAgent.threads.unshift(thread);
   }
   devAgent.threads.sort((a, b) => dateValue(b.updatedAt) - dateValue(a.updatedAt));
+}
+
+function normalizeDevDeployment(deployment) {
+  const commit = deployment?.commit && typeof deployment.commit === "object"
+    ? deployment.commit
+    : {};
+  const status = String(deployment?.status || "preview").toLowerCase();
+  const id = String(deployment?.id || "").trim();
+  return {
+    id,
+    status,
+    statusLabel: formatPhase(status || "preview"),
+    createdAt: String(deployment?.createdAt || ""),
+    previewUrl: String(deployment?.previewUrl || ""),
+    dashboardUrl: String(deployment?.dashboardUrl || ""),
+    entrypoint: String(deployment?.entrypoint || ""),
+    branch: String(commit.branch || ""),
+    shortHash: String(commit.shortHash || ""),
+  };
 }
 
 function normalizeDevThread(thread) {
@@ -1936,6 +2170,7 @@ function devEventLabel(event) {
     case "user.message":
       return "You";
     case "agent.message":
+    case "assistant.message":
       return "Agent";
     case "progress.message":
       return "Progress";
@@ -1952,12 +2187,50 @@ function devEventLabel(event) {
 
 function devMeaningfulText(event) {
   if (!event) return "";
-  if (typeof event.text === "string" && event.text.trim()) return event.text.trim();
   const data = event.data && typeof event.data === "object" ? event.data : {};
-  for (const key of ["message", "summary", "title", "error", "content"]) {
-    if (typeof data[key] === "string" && data[key].trim()) return data[key].trim();
+  return firstDevText(
+    event.text,
+    event.markdown,
+    event.message,
+    data.markdown,
+    data.text,
+    data.message,
+    data.summary,
+    data.title,
+    data.error,
+    data.content,
+    data.delta,
+    data.output,
+  );
+}
+
+function firstDevText(...values) {
+  for (const value of values) {
+    const text = devTextFromValue(value);
+    if (text) return text;
   }
   return "";
+}
+
+function devTextFromValue(value) {
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) {
+    return value.map(devTextFromValue).filter(Boolean).join("\n").trim();
+  }
+  if (!value || typeof value !== "object") return "";
+
+  const object = value;
+  return firstDevText(
+    object.markdown,
+    object.text,
+    object.message,
+    object.summary,
+    object.title,
+    object.error,
+    object.content,
+    object.delta,
+    object.output,
+  );
 }
 
 async function devFetchJson(path, options = {}) {
@@ -1997,7 +2270,7 @@ function devBaseUrl(base, path) {
 }
 
 function devFriendlyError(error, fallback) {
-  if (isAuthStatus(error)) return "Sign in on the development origin to continue.";
+  if (isAuthStatus(error)) return "Sign in to the Pi agent to continue.";
   return error?.message || fallback;
 }
 
@@ -2017,13 +2290,17 @@ function openDevAuth(mode) {
   clearDevAuthPopupWatcher();
   const url = devAuthUrl("/auth.html");
   url.searchParams.set("mode", mode);
+  url.searchParams.set("message", DEV_AUTH_COMPLETE_MESSAGE);
   url.searchParams.set("embedOrigin", globalThis.location.origin);
   url.searchParams.set("returnUrl", globalThis.location.href);
-  devAgent.authStatus = "Waiting for passkey sign-in in the development window.";
+  devAgent.authBusy = true;
+  devAgent.authTitle = "Signing in to Pi agent.";
+  devAgent.authStatus =
+    "Complete passkey sign-in in the Pi agent window. This drawer will update automatically.";
   renderDevAgent();
   const popup = globalThis.open(url.toString(), "techweek-dev-auth", "popup,width=460,height=720");
   if (!popup) {
-    devAgent.authStatus = "Opening the development passkey page in this tab.";
+    devAgent.authStatus = "Popup blocked. Opening Pi agent sign-in in this tab.";
     renderDevAgent();
     globalThis.location.href = url.toString();
     return;
@@ -2038,7 +2315,8 @@ function openDevAuth(mode) {
     }
     if (Date.now() - openedAt > DEV_AUTH_POPUP_TIMEOUT_MS) {
       clearDevAuthPopupWatcher();
-      devAgent.authStatus = "The development sign-in window is still open.";
+      devAgent.authStatus =
+        "The Pi agent sign-in window is still open. Finish it there, then this drawer will refresh.";
       renderDevAgent();
     }
   }, DEV_AUTH_POPUP_POLL_MS);
@@ -2046,10 +2324,12 @@ function openDevAuth(mode) {
 
 function handleDevAuthMessage(event) {
   if (!devAgent?.config?.authBase) return;
-  if (event.origin !== new URL(devAgent.config.authBase).origin) return;
-  if (event.data?.type !== "techweek-dev-auth-complete") return;
+  if (!isDevAuthMessageOrigin(event.origin)) return;
+  if (!isDevAuthMessageType(event.data?.type)) return;
   clearDevAuthPopupWatcher();
-  void refreshDevAuthAfterWindow();
+  void refreshDevAuthAfterWindow({
+    handoffToken: typeof event.data?.handoffToken === "string" ? event.data.handoffToken : "",
+  });
 }
 
 function clearDevAuthPopupWatcher() {
@@ -2058,16 +2338,107 @@ function clearDevAuthPopupWatcher() {
   devAgent.authPopupTimer = 0;
 }
 
-async function refreshDevAuthAfterWindow() {
-  devAgent.authStatus = "Checking development agent session after passkey sign-in.";
+function isDevAuthMessageOrigin(origin) {
+  const allowed = new Set([globalThis.location.origin]);
+  try {
+    allowed.add(new URL(devAgent.config.authBase).origin);
+  } catch {
+    // Ignore malformed auth origins; configuration validation handles them.
+  }
+  return allowed.has(origin);
+}
+
+function isDevAuthMessageType(type) {
+  return type === DEV_AUTH_COMPLETE_MESSAGE || type === PI_AGENT_AUTH_COMPLETE_MESSAGE;
+}
+
+async function refreshDevAuthAfterWindow(options = {}) {
+  const handoffToken = typeof options.handoffToken === "string" ? options.handoffToken.trim() : "";
+  devAgent.authBusy = true;
+  devAgent.authTitle = "Connecting to Pi agent.";
+  devAgent.authStatus = handoffToken ? "Finishing Pi agent sign-in." : "Checking Pi agent session.";
   renderDevAgent();
-  await bootstrapDevAgent();
-  if (devAgent.authState === "authenticated") return;
-  if (devAgent.authState === "unauthenticated") {
-    devAgent.authStatus =
-      "The development sign-in window closed, but the shared app session is still missing. Sign in again to refresh it.";
+  try {
+    const handoffAttached = handoffToken ? await completeDevAuthHandoff(handoffToken) : true;
+    if (handoffAttached && await refreshDevSessionUntilAuthenticated(handoffToken ? 8 : 1)) return;
+    if (handoffToken && await refreshDevSessionDirectly()) return;
+    if (devAgent.authState === "unauthenticated") {
+      devAgent.authTitle = handoffToken ? "Pi agent connection stalled." : "Connect Pi agent.";
+      devAgent.authStatus = handoffToken
+        ? "This tab still cannot reach the signed-in Pi agent session. Reconnect to continue."
+        : "The Pi agent window closed before this tab finished connecting. Reconnect to continue.";
+      renderDevAgent();
+    }
+  } catch {
+    markDevUnauthenticated(
+      "The Pi agent connection expired before this tab finished connecting. Reconnect to continue.",
+    );
+    devAgent.authTitle = "Pi agent connection stalled.";
+    renderDevAgent();
+  } finally {
+    devAgent.authBusy = false;
     renderDevAgent();
   }
+}
+
+async function refreshDevSessionUntilAuthenticated(attempts) {
+  const count = Math.max(1, attempts);
+  for (let index = 0; index < count; index += 1) {
+    if (index > 0) {
+      await wait(250 * index);
+      devAgent.authStatus = "Finishing local Pi agent session.";
+      renderDevAgent();
+    }
+    await bootstrapDevAgent();
+    if (devAgent.authState === "authenticated") return true;
+    if (devAgent.authState === "error" || devAgent.authState === "not_configured") return false;
+  }
+  return false;
+}
+
+async function refreshDevSessionDirectly() {
+  if (!devAgent.config.directApiBase || devAgent.config.apiBase === devAgent.config.directApiBase) {
+    return false;
+  }
+  const previousApiBase = devAgent.config.apiBase;
+  devAgent.config.apiBase = devAgent.config.directApiBase;
+  devAgent.authStatus = "Connecting to the signed-in Pi agent session.";
+  renderDevAgent();
+  const authenticated = await refreshDevSessionUntilAuthenticated(8);
+  if (authenticated) {
+    localStorage.setItem(DEV_AGENT_API_MODE_KEY, "direct");
+    return true;
+  }
+  devAgent.config.apiBase = previousApiBase;
+  return false;
+}
+
+async function completeDevAuthHandoff(handoffToken) {
+  const response = await fetch("/api/dev-agent/handoff", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      handoffToken,
+    }),
+  });
+  const contentType = response.headers.get("content-type") || "";
+  const payload = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "");
+  if (!response.ok) {
+    const error = new Error(devErrorMessage(payload) || response.statusText || "Request failed.");
+    error.status = response.status;
+    throw error;
+  }
+  return payload?.attached !== false;
+}
+
+function wait(ms) {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 }
 
 function readDevLastEventId(threadId) {
@@ -2245,7 +2616,11 @@ async function loadScheduleForApp(options = {}) {
   if (state.publicShareMode) return;
   if (scheduleLoadPromise) {
     const result = await scheduleLoadPromise;
-    if (options.scheduleAutoSync) scheduleServerPartifulAutoSync();
+    if (options.scheduleAutoSync) {
+      scheduleServerPartifulAutoSync(PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS, {
+        force: options.forcePartifulSync !== false,
+      });
+    }
     return result;
   }
   if (options.showLoading) {
@@ -2253,7 +2628,11 @@ async function loadScheduleForApp(options = {}) {
     setAgendaStatus("Loading events...");
   }
   scheduleLoadPromise = loadSchedule().then(() => {
-    if (options.scheduleAutoSync) scheduleServerPartifulAutoSync();
+    if (options.scheduleAutoSync) {
+      scheduleServerPartifulAutoSync(PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS, {
+        force: options.forcePartifulSync !== false,
+      });
+    }
   }).catch((error) => {
     const message = error instanceof Error ? error.message : "Could not load schedule.";
     document.querySelector("[data-next-title]").textContent = message;
@@ -2269,10 +2648,18 @@ async function loadScheduleForApp(options = {}) {
 async function loadScheduleAfterAuthentication() {
   if (state.accountSession?.authenticated !== true) return;
   try {
-    await loadScheduleForApp({ showLoading: !state.payload, scheduleAutoSync: true });
+    await loadScheduleForApp({
+      showLoading: !state.payload,
+      scheduleAutoSync: true,
+      forcePartifulSync: true,
+    });
   } catch {
     if (state.accountSession?.authenticated === true) {
-      await loadScheduleForApp({ showLoading: true, scheduleAutoSync: true }).catch(() => {});
+      await loadScheduleForApp({
+        showLoading: true,
+        scheduleAutoSync: true,
+        forcePartifulSync: true,
+      }).catch(() => {});
     }
   }
 }
@@ -2373,25 +2760,35 @@ function renderEventsCalendarLink() {
   eventsCalendarDownloadLink.href = href;
 }
 
-function scheduleServerPartifulAutoSync(delayMs = PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS) {
+function scheduleServerPartifulAutoSync(delayMs = PARTIFUL_AUTO_SYNC_OPEN_DELAY_MS, options = {}) {
   if (!canRunPartifulAutoSync()) return;
   if (state.partifulAutoSyncRequestTimer) {
     globalThis.clearTimeout(state.partifulAutoSyncRequestTimer);
+    state.partifulAutoSyncRequestTimer = 0;
   }
+  if (hasActivePartifulAutoSync()) {
+    setAgendaStatus("Refreshing Partiful signups and rebuilding agenda...");
+    schedulePartifulAutoSyncSchedulePoll();
+    return;
+  }
+  const requestOptions = { ...options };
   state.partifulAutoSyncRequestTimer = globalThis.setTimeout(() => {
     state.partifulAutoSyncRequestTimer = 0;
-    void requestServerPartifulAutoSync();
+    void requestServerPartifulAutoSync(requestOptions);
   }, delayMs);
 }
 
-async function requestServerPartifulAutoSync() {
+async function requestServerPartifulAutoSync(options = {}) {
   if (!canRunPartifulAutoSync()) return;
   if (state.partifulAutoSyncRequestBusy || document.hidden) return;
   state.partifulAutoSyncRequestBusy = true;
+  const force = options.force === true;
   try {
     const response = await fetch("/api/sync/partiful/auto", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
+      body: JSON.stringify({ force }),
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -2399,12 +2796,23 @@ async function requestServerPartifulAutoSync() {
         body?.error?.message || `Partiful auto-sync request failed with HTTP ${response.status}.`,
       );
     }
+    if (body.partifulAutoSync && state.payload) {
+      state.payload.sync = {
+        ...(state.payload.sync || {}),
+        partifulAuto: body.partifulAutoSync,
+      };
+    }
     if (
-      response.status === 202 && (body.action === "queued" || body.action === "already_running")
+      response.status === 202 &&
+      (body.action === "queued" || body.action === "already_running" ||
+        body.action === "already_queued")
     ) {
+      state.partifulAutoSyncFallbackAttempted = false;
+      state.partifulAutoSyncFallbackAttemptedAt = 0;
+      setAgendaStatus("Refreshing Partiful signups and rebuilding agenda...");
       schedulePartifulAutoSyncSchedulePoll();
     }
-    if (body.action === "skipped" && !hasActiveAgenda()) {
+    if (body.action === "skipped") {
       void requestFallbackAgendaRecalculation();
     }
     if (body.partifulAutoSync?.status === "failed" && body.partifulAutoSync?.lastError) {
@@ -2425,24 +2833,29 @@ function canRunPartifulAutoSync() {
     state.accountSession?.user?.isAdmin === true;
 }
 
-function hasActiveAgenda() {
+function hasActivePartifulAutoSync() {
+  const status = state.payload?.sync?.partifulAuto?.status;
+  return status === "queued" || status === "running";
+}
+
+function _hasActiveAgenda() {
   return Boolean(state.payload?.activeAgenda?.agendaRunId);
 }
 
 async function requestFallbackAgendaRecalculation() {
+  const fallbackAgeMs = Date.now() - Number(state.partifulAutoSyncFallbackAttemptedAt || 0);
   if (
     !canRunPartifulAutoSync() ||
-    state.partifulAutoSyncFallbackBusy || state.partifulAutoSyncFallbackAttempted ||
-    hasActiveAgenda()
+    state.partifulAutoSyncFallbackBusy ||
+    (state.partifulAutoSyncFallbackAttempted && fallbackAgeMs < 120_000)
   ) return;
   state.partifulAutoSyncFallbackAttempted = true;
+  state.partifulAutoSyncFallbackAttemptedAt = Date.now();
   state.partifulAutoSyncFallbackBusy = true;
   try {
     const recalculated = await recalculateAgenda({ silent: true });
-    if (recalculated && !hasActiveAgenda()) {
-      setAgendaStatus(
-        "Agenda is stale: automatic sync was recently skipped and no active agenda is available.",
-      );
+    if (recalculated) {
+      setAgendaStatus("Agenda refreshed from latest available event state.");
     }
   } catch (error) {
     setAgendaStatus(error instanceof Error ? error.message : "Could not recalculate agenda.");
@@ -2492,6 +2905,40 @@ function surfacePartifulAutoSyncStatus() {
   if (autoSync?.status === "failed" && autoSync.lastError) {
     setAgendaStatus(`Partiful auto-sync failed: ${autoSync.lastError}`);
     return;
+  }
+  if (autoSync?.status === "queued" || autoSync?.status === "running") {
+    setAgendaStatus("Refreshing Partiful signups and rebuilding agenda...");
+    return;
+  }
+  const committedConflicts = Number(
+    state.payload?.activeAgenda?.summary?.committedConflictEvents || 0,
+  );
+  if (committedConflicts > 0) {
+    const activeAgendaRunId = String(state.payload?.activeAgenda?.agendaRunId || "");
+    const partifulAgendaRunId = String(autoSync?.lastAgendaRunId || "");
+    const prefix = autoSync?.status === "completed" && partifulAgendaRunId &&
+        partifulAgendaRunId === activeAgendaRunId
+      ? "Agenda updated from Partiful; "
+      : "";
+    const conflictDetails = Array.isArray(state.payload?.activeAgenda?.committedConflicts)
+      ? state.payload.activeAgenda.committedConflicts
+      : [];
+    const firstConflictTitle = String(conflictDetails[0]?.title || "").trim();
+    setAgendaStatus(
+      committedConflicts === 1 && firstConflictTitle
+        ? `${prefix}RSVP conflict: ${firstConflictTitle}.`
+        : `${prefix}${committedConflicts} RSVP ${
+          committedConflicts === 1 ? "conflict needs" : "conflicts need"
+        } review.`,
+    );
+    return;
+  }
+  if (autoSync?.status === "completed") {
+    const completedAtMs = Date.parse(autoSync.lastCompletedAt || "");
+    if (Number.isFinite(completedAtMs) && Date.now() - completedAtMs < 120_000) {
+      setAgendaStatus("Agenda updated from latest Partiful signups.");
+      return;
+    }
   }
   setAgendaStatus("");
 }
@@ -2639,8 +3086,64 @@ function renderRouteList() {
       )
     ),
   );
+  const currentTimeIndicator = renderCurrentTimeIndicator(timelineLayout);
+  if (currentTimeIndicator) timeline.append(currentTimeIndicator);
   routeList.replaceChildren(timeline);
   state.routeTransitionDirection = "none";
+}
+
+function renderCurrentTimeIndicator(timelineLayout) {
+  const markerState = currentTimeIndicatorState(timelineLayout);
+  if (!markerState) return null;
+
+  const marker = document.createElement("section");
+  marker.dataset.currentTime = "";
+  const time = document.createElement("time");
+  time.dateTime = markerState.dateTime;
+  const line = document.createElement("span");
+  line.dataset.currentTimeLine = "";
+  marker.append(time, line);
+  updateCurrentTimeIndicatorElement(marker, markerState);
+  return marker;
+}
+
+function syncCurrentTimeIndicator() {
+  const timeline = routeList.querySelector("[data-timeline]");
+  if (!timeline) return;
+  const markerState = currentTimeIndicatorState(timeline.dataset.layout || "");
+  const existing = timeline.querySelector("[data-current-time]");
+  if (!markerState) {
+    existing?.remove();
+    return;
+  }
+  if (existing) {
+    updateCurrentTimeIndicatorElement(existing, markerState);
+    return;
+  }
+  const marker = renderCurrentTimeIndicator(timeline.dataset.layout || "");
+  if (marker) timeline.append(marker);
+}
+
+function updateCurrentTimeIndicatorElement(marker, markerState) {
+  marker.style.setProperty("--current-time-top", `${markerState.topPercent}%`);
+  const time = marker.querySelector("time");
+  if (time) {
+    time.dateTime = markerState.dateTime;
+    time.textContent = markerState.label;
+  }
+}
+
+function currentTimeIndicatorState(timelineLayout) {
+  if (timelineLayout === "compact" || state.activeDay !== agendaDateKey()) return null;
+  const { hour, minute, label } = agendaTimeParts();
+  const minutes = hour * 60 + minute;
+  return {
+    topPercent: Math.max(0, Math.min(100, (minutes / 1440) * 100)),
+    dateTime: `${state.activeDay}T${String(hour).padStart(2, "0")}:${
+      String(minute).padStart(2, "0")
+    }`,
+    label,
+  };
 }
 
 function sameDayOptionEntries(dayKey) {
@@ -2656,7 +3159,9 @@ function sameDayOptionEntries(dayKey) {
 function optionLabel(entry) {
   const status = entry.statusLabel || entry.status || "option";
   const label = labelize(status).replace(/\bbackup\b/gi, "").replace(/\s+/g, " ").trim();
-  return entry.status === "registered" ? "Registered option" : `${label || "Event"} option`;
+  return entry.status === "registered"
+    ? "Registered alternative"
+    : `${label || "Event"} alternative`;
 }
 
 function renderReferenceList() {
@@ -4635,7 +5140,7 @@ function setButtonContent(element, iconName, label) {
 }
 
 function renderPlaceLink(entry, text) {
-  const destinationLabel = String(text || "").trim();
+  const destinationLabel = placeLinkDestinationLabel(entry, text);
   if (!destinationLabel) return document.createTextNode("");
   const displayLabel = shortPlaceLabel(destinationLabel);
   const directions = directionsUrl(entry, destinationLabel);
@@ -4652,6 +5157,13 @@ function renderPlaceLink(entry, text) {
   span.textContent = displayLabel;
   link.append(renderIcon("map-pin"), span);
   return link;
+}
+
+function placeLinkDestinationLabel(entry, value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (entry?.blockType !== "travel") return text;
+  const segments = text.split(/\s*->\s*/).map((item) => item.trim()).filter(Boolean);
+  return segments.length > 1 ? segments[segments.length - 1] : text;
 }
 
 function shortPlaceLabel(value) {
@@ -4713,6 +5225,30 @@ function minuteOfDay(value) {
   const match = String(value || "").match(/\s(\d{2}):(\d{2})$/);
   if (!match) return 0;
   return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function agendaDateKey(date = new Date()) {
+  const parts = dateTimeParts(AGENDA_DATE_PARTS_FORMATTER, date);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function agendaTimeParts(date = new Date()) {
+  const parts = dateTimeParts(AGENDA_TIME_PARTS_FORMATTER, date);
+  const hour = Number(parts.hour || 0);
+  const minute = Number(parts.minute || 0);
+  return {
+    hour,
+    minute,
+    label: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+  };
+}
+
+function dateTimeParts(formatter, date) {
+  return Object.fromEntries(
+    formatter.formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
 }
 
 function hourLabel(hour) {
@@ -5433,8 +5969,14 @@ async function copyText(value) {
 function renderMarkdown(markdown) {
   const source = String(markdown || "").replace(/\r\n/g, "\n");
   if (!source.trim()) return "<p></p>";
-  if (!MARKDOWN_RENDERER) return `<p>${escapeHtml(source)}</p>`;
-  return sanitizeMarkdownHtml(MARKDOWN_RENDERER.render(source)) || "<p></p>";
+  const renderer = currentMarkdownRenderer();
+  if (!renderer) return `<p>${escapeHtml(source)}</p>`;
+  return sanitizeMarkdownHtml(renderer.render(source)) || "<p></p>";
+}
+
+function currentMarkdownRenderer() {
+  markdownRenderer ??= createMarkdownRenderer();
+  return markdownRenderer;
 }
 
 function createMarkdownRenderer() {

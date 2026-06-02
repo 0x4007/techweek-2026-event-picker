@@ -115,11 +115,22 @@ const PARTIFUL_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 const PARTIFUL_AUTO_SYNC_LOCK_TTL_MS = 5 * 60 * 1000;
 export const PARTIFUL_AUTO_SYNC_CRON_EXPRESSION = "* * * * *";
 const DENO_DEPLOY_HOSTNAME = "techweek-2026-event-picker.0x4007.deno.net";
+const DENO_DEPLOY_PROJECT = "techweek-2026-event-picker";
+const DENO_DEPLOY_DASH_API_ORIGIN = "https://dash.deno.com";
+const DENO_DEPLOY_DEFAULT_LIMIT = 10;
+const DENO_DEPLOY_MAX_LIMIT = 30;
+const DENO_DEPLOY_REQUEST_TIMEOUT_MS = 10_000;
 const SAME_SITE_APP_HOSTNAME = "techweek.pavlovcik.com";
 const SAME_SITE_PROXY_HEADER = "x-techweek-same-site-proxy";
+const DEV_AGENT_ORIGIN = "https://agent.pavlovcik.com";
+const DEV_AGENT_BACKEND_ORIGIN = "https://agent-origin.pavlovcik.com";
+const DEV_AGENT_PROXY_PREFIX = "/__pi-agent";
+const DEV_AGENT_PROXY_SESSION_COOKIE = "techweek_pi_agent_proxy";
+const DEV_AGENT_LOCAL_COOKIE_PREFIX = "techweek_pi_agent_";
 const AUTH_HUB_ORIGIN = "https://deno-universal-auth.0x4007.deno.net";
 const AUTH_HUB_CLIENT_ID = "techweek-2026-event-picker";
 const AUTH_HUB_AUDIENCE = "techweek-2026-event-picker";
+const AUTH_HUB_SESSION_TTL_DAYS = 30;
 void DENO_DEPLOY_HOSTNAME;
 void SAME_SITE_APP_HOSTNAME;
 void SAME_SITE_PROXY_HEADER;
@@ -448,6 +459,57 @@ function modelContextCacheId(model: string, baseUrl: string): string {
 
 type CsvRow = Record<string, string>;
 
+type DenoDeployDomainMapping = {
+  domain?: unknown;
+};
+
+type DenoDeployBuild = {
+  id?: unknown;
+  deploymentId?: unknown;
+  createdAt?: unknown;
+  relatedCommit?: {
+    hash?: unknown;
+    branch?: unknown;
+    message?: unknown;
+    authorName?: unknown;
+    authorGithubUsername?: unknown;
+    url?: unknown;
+  };
+  deployment?: {
+    url?: unknown;
+    description?: unknown;
+    domainMappings?: DenoDeployDomainMapping[];
+    envVars?: unknown[];
+  } | null;
+  logs?: Array<{ type?: unknown; code?: unknown; ctx?: unknown }>;
+};
+
+type DenoDeployProject = {
+  id?: unknown;
+  name?: unknown;
+  productionDeployment?: DenoDeployBuild | null;
+};
+
+type DenoDeployBuildsPage = [DenoDeployBuild[], unknown] | {
+  list?: DenoDeployBuild[];
+  paging?: unknown;
+};
+
+class DenoDeployApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+let denoDeployTokenForTest: string | null | undefined;
+
+export function setDenoDeployTokenForTest(token: string | null | undefined): void {
+  denoDeployTokenForTest = token;
+}
+
 export type ScheduleEntry = {
   calendar: string;
   techweekId: string;
@@ -568,6 +630,7 @@ type AppState = {
 
 type PartifulAutoSyncState = {
   status: "idle" | "queued" | "running" | "completed" | "failed";
+  lastQueuedAt: string;
   lastStartedAt: string;
   lastCompletedAt: string;
   lastRunId: string;
@@ -984,7 +1047,9 @@ async function authorizeApiRoute(request: Request, url: URL): Promise<Response |
   const pathname = normalizeApiPath(url.pathname);
   if (!url.pathname.startsWith("/api/")) return null;
   if (request.method === "GET" && url.pathname === "/api/health") return null;
+  if (request.method === "GET" && pathname === "/api/schedule") return null;
   if (pathname.startsWith("/api/auth/")) return null;
+  if (request.method === "POST" && pathname === "/api/dev-agent/handoff") return null;
   if (request.method === "GET" && pathname === "/api/account/session") return null;
   if (request.method === "GET" && pathname === "/api/account/invite") return null;
   if (request.method === "POST" && pathname === "/api/account/session/handoff") return null;
@@ -1447,6 +1512,7 @@ async function exchangeAuthHubCode(
       audience: AUTH_HUB_AUDIENCE,
       origin,
       redirectUri,
+      ttlDays: AUTH_HUB_SESSION_TTL_DAYS,
     }),
   });
   return await authHubTokenResponse(request, response);
@@ -1460,6 +1526,7 @@ async function exchangeAuthHubAgentToken(request: Request, token: string): Promi
       token,
       clientId: AUTH_HUB_CLIENT_ID,
       audience: AUTH_HUB_AUDIENCE,
+      ttlDays: AUTH_HUB_SESSION_TTL_DAYS,
     }),
   });
   return await authHubTokenResponse(request, response);
@@ -1478,9 +1545,23 @@ async function authHubTokenResponse(request: Request, response: Response): Promi
   }
   return json({ session }, {
     headers: {
-      "set-cookie": accountSessionCookie(accessToken, session.expiresAt, request),
+      "set-cookie": accountSessionCookie(
+        accessToken,
+        authHubCookieExpiresAt(session.expiresAt),
+        request,
+      ),
     },
   });
+}
+
+function authHubCookieExpiresAt(expiresAt: string | undefined): string {
+  const expires = expiresAt ? new Date(expiresAt) : null;
+  if (
+    expiresAt && expires && Number.isFinite(expires.getTime()) && expires.getTime() > Date.now()
+  ) {
+    return String(expiresAt);
+  }
+  return new Date(Date.now() + AUTH_HUB_SESSION_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }
 
 async function requireAuthenticatedAccountSession(request: Request): Promise<Response | null> {
@@ -2233,6 +2314,7 @@ function emptyState(): AppState {
 function emptyPartifulAutoSyncState(): PartifulAutoSyncState {
   return {
     status: "idle",
+    lastQueuedAt: "",
     lastStartedAt: "",
     lastCompletedAt: "",
     lastRunId: "",
@@ -2882,6 +2964,7 @@ function normalizePartifulAutoSync(value: unknown): PartifulAutoSyncState {
         ? status
         : "idle",
     lastStartedAt: textField(raw.lastStartedAt, 80),
+    lastQueuedAt: textField(raw.lastQueuedAt, 80),
     lastCompletedAt: textField(raw.lastCompletedAt, 80),
     lastRunId: textField(raw.lastRunId, 120),
     lastAgendaRunId: textField(raw.lastAgendaRunId, 120),
@@ -2925,6 +3008,7 @@ function buildSchedulePayload(
         agendaRunId: activeAgenda.agendaRunId,
         generatedAt: activeAgenda.generatedAt,
         summary: activeAgenda.summary,
+        committedConflicts: committedAgendaConflicts(activeAgenda),
       }
       : null,
     next: currentSchedulePointer(schedule),
@@ -2951,6 +3035,25 @@ function buildSchedulePayload(
     },
     email: emailPublicStatus(),
   };
+}
+
+function committedAgendaConflicts(agenda: AgendaRecalculateResult) {
+  return agenda.droppedEvents
+    .filter((drop) =>
+      (drop.reason === "conflict" || drop.reason === "travel_conflict" ||
+        drop.reason === "fixed_block_conflict") &&
+      (drop.event.normalizedStatus === "registered" || drop.event.normalizedStatus === "accepted")
+    )
+    .slice(0, 5)
+    .map((drop) => ({
+      title: drop.event.title,
+      techweekId: drop.event.techweekId,
+      partifulId: drop.event.partifulId,
+      reason: drop.reason,
+      detail: drop.detail,
+      conflictingEventIds: drop.conflictingEventIds,
+      conflictingBlockIds: drop.conflictingBlockIds,
+    }));
 }
 
 function buildAgendaSharePayload(
@@ -3144,8 +3247,15 @@ function relativePath(url: URL): string {
   return decodeURIComponent(url.pathname.replace(decodeURIComponent(ROOT.pathname), ""));
 }
 
-async function handleSchedule(): Promise<Response> {
+async function handleSchedule(request: Request): Promise<Response> {
   const [entries, state] = await Promise.all([readAgendaCandidateEntries(), readState()]);
+  const autoSyncDecision = partifulAutoSyncDecision(state.partifulAutoSync, Date.now());
+  if (autoSyncDecision.action === "already_queued" || autoSyncDecision.staleRunning) {
+    const session = await readAccountSession(request);
+    if (session.user?.isAdmin === true) {
+      triggerPartifulAutoSyncRun();
+    }
+  }
   const activeAgenda = state.activeAgendaRunId
     ? await readAgendaRun(state.activeAgendaRunId)
     : null;
@@ -3767,16 +3877,16 @@ async function readPartifulAuthSource(): Promise<PartifulAuthSource> {
   }
 
   const envAuth = textField(Deno.env.get(PARTIFUL_AUTH_JSON_ENV), 200_000);
-  if (!envAuth) {
-    throw new PartifulAuthConfigurationError(
-      `Partiful sync is not configured. Set the ${PARTIFUL_AUTH_JSON_ENV} Deno Deploy secret.`,
-    );
+  if (envAuth) {
+    return {
+      auth: parsePartifulAuthPayload(envAuth, `deno_env:${PARTIFUL_AUTH_JSON_ENV}`),
+      label: `deno_env:${PARTIFUL_AUTH_JSON_ENV}`,
+    };
   }
 
-  return {
-    auth: parsePartifulAuthPayload(envAuth, `deno_env:${PARTIFUL_AUTH_JSON_ENV}`),
-    label: `deno_env:${PARTIFUL_AUTH_JSON_ENV}`,
-  };
+  throw new PartifulAuthConfigurationError(
+    `Partiful sync is not configured. Set the ${PARTIFUL_AUTH_JSON_ENV} Deno Deploy secret.`,
+  );
 }
 
 class PartifulAuthConfigurationError extends Error {
@@ -3790,27 +3900,41 @@ async function handlePartifulAutoSync(request: Request): Promise<Response> {
   const authorizationError = await requireAdminAccountSession(request);
   if (authorizationError) return authorizationError;
 
+  const body = recordValue(await request.json().catch(() => null)) ?? {};
+  const force = body.force === true;
   const nowMs = Date.now();
+  let shouldRunPartifulAutoSync = false;
   const response = await mutateState(async (state, commit) => {
     const decision = partifulAutoSyncDecision(state.partifulAutoSync, nowMs);
 
     if (decision.action === "already_running" || decision.action === "already_queued") {
+      if (decision.action === "already_queued") shouldRunPartifulAutoSync = true;
       return json({
-        action: "already_running",
+        action: decision.action,
         reason: decision.reason,
         partifulAutoSync: state.partifulAutoSync,
       }, { status: 202 });
     }
 
     if (decision.action === "skip_recent") {
-      if (decision.staleRunning) {
+      if (force) {
+        const runId = `${PARTIFUL_AUTO_SYNC_RUN_ID_PREFIX}${
+          new Date(nowMs).toISOString().replaceAll(/[:.]/g, "-")
+        }`;
         state.partifulAutoSync = {
           ...state.partifulAutoSync,
-          status: "failed",
-          lastCompletedAt: new Date(nowMs).toISOString(),
-          lastError: "Previous automatic Partiful sync did not finish before its lock expired.",
+          status: "queued",
+          lastQueuedAt: new Date(nowMs).toISOString(),
+          lastRunId: runId,
+          lastError: "",
         };
         await commit(state);
+        shouldRunPartifulAutoSync = true;
+        return json({
+          action: "queued",
+          reason: "Partiful refresh requested by the active app session.",
+          partifulAutoSync: state.partifulAutoSync,
+        }, { status: 202 });
       }
       return json({
         action: "skipped",
@@ -3825,15 +3949,21 @@ async function handlePartifulAutoSync(request: Request): Promise<Response> {
     state.partifulAutoSync = {
       ...state.partifulAutoSync,
       status: "queued",
+      lastQueuedAt: new Date(nowMs).toISOString(),
       lastRunId: runId,
       lastError: "",
     };
     await commit(state);
+    shouldRunPartifulAutoSync = true;
     return json({
       action: "queued",
+      reason: force
+        ? "Partiful refresh requested by the active app session."
+        : "Partiful auto-sync queued.",
       partifulAutoSync: state.partifulAutoSync,
     }, { status: 202 });
   });
+  if (shouldRunPartifulAutoSync) triggerPartifulAutoSyncRun();
   return response;
 }
 
@@ -3848,6 +3978,49 @@ type PartifulAutoSyncDecision =
     reason: string;
     staleRunning: boolean;
   };
+
+let partifulAutoSyncRunPromise: Promise<void> | null = null;
+type PartifulAutoSyncRunner = () => Promise<void>;
+let partifulAutoSyncRunnerForTest: PartifulAutoSyncRunner | null = null;
+type PartifulHeadlessSyncRunner = (raw: Record<string, unknown>) => Promise<Response>;
+let partifulHeadlessSyncRunnerForTest: PartifulHeadlessSyncRunner | null = null;
+let partifulAutoSyncLiveRoutingForTest: boolean | null = null;
+
+export function setPartifulAutoSyncRunnerForTest(runner: PartifulAutoSyncRunner | null): void {
+  partifulAutoSyncRunnerForTest = runner;
+  partifulAutoSyncRunPromise = null;
+}
+
+export function setPartifulHeadlessSyncRunnerForTest(
+  runner: PartifulHeadlessSyncRunner | null,
+): void {
+  partifulHeadlessSyncRunnerForTest = runner;
+}
+
+export function setPartifulAutoSyncLiveRoutingForTest(liveRouting: boolean | null): void {
+  partifulAutoSyncLiveRoutingForTest = liveRouting;
+}
+
+function triggerPartifulAutoSyncRun() {
+  if (partifulAutoSyncRunPromise) return;
+  const runner = partifulAutoSyncRunnerForTest ?? runPartifulAutoSync;
+  const runPromise = Promise.resolve()
+    .then(runner)
+    .catch((error) => {
+      console.error("[partiful:auto-sync]", error);
+    });
+  const trackedPromise = runPromise.finally(() => {
+    if (partifulAutoSyncRunPromise === trackedPromise) {
+      partifulAutoSyncRunPromise = null;
+    }
+  });
+  partifulAutoSyncRunPromise = trackedPromise;
+  const edgeRuntime = recordValue((globalThis as { EdgeRuntime?: unknown }).EdgeRuntime);
+  const waitUntil = edgeRuntime?.waitUntil;
+  if (typeof waitUntil === "function") {
+    waitUntil.call(edgeRuntime, trackedPromise);
+  }
+}
 
 function partifulAutoSyncDecision(
   sync: PartifulAutoSyncState,
@@ -3877,6 +4050,14 @@ function partifulAutoSyncDecision(
     };
   }
 
+  if (staleRunning) {
+    return {
+      action: "start",
+      reason: "Previous automatic Partiful sync recovered from stale lock.",
+      staleRunning: true,
+    };
+  }
+
   if (isRecent && sync.status !== "failed") {
     return {
       action: "skip_recent",
@@ -3887,9 +4068,7 @@ function partifulAutoSyncDecision(
 
   return {
     action: "start",
-    reason: staleRunning
-      ? "Previous automatic Partiful sync recovered from stale lock."
-      : "Automatic Partiful sync is due.",
+    reason: "Automatic Partiful sync is due.",
     staleRunning,
   };
 }
@@ -3936,7 +4115,8 @@ export async function runPartifulAutoSync(): Promise<void> {
   if (!claim.run) return;
 
   try {
-    const syncResponse = await runPartifulHeadlessSync({
+    const headlessSyncRunner = partifulHeadlessSyncRunnerForTest ?? runPartifulHeadlessSync;
+    const syncResponse = await headlessSyncRunner({
       liveRouting: false,
       recalculate: false,
       activate: false,
@@ -3946,7 +4126,10 @@ export async function runPartifulAutoSync(): Promise<void> {
       throw new Error(partifulAutoSyncErrorMessage(syncBody, "Automatic Partiful sync failed."));
     }
 
-    const liveAgenda = await recalculateAgendaFromBody({ liveRouting: true });
+    const liveAgenda = await recalculateAgendaFromBody({
+      liveRouting: partifulAutoSyncLiveRoutingForTest ?? true,
+      statusUpdates: partifulStatusUpdatesFromSyncBody(syncBody),
+    });
     await storeAgendaRun(liveAgenda);
     await mutateState(async (state, commit) => {
       if (state.partifulAutoSync.lastRunId !== claim.runId) return;
@@ -3979,6 +4162,41 @@ function partifulAutoSyncErrorMessage(body: unknown, fallback: string): string {
   const record = recordValue(body);
   const error = recordValue(record?.error);
   return textField(error?.message, 500) || fallback;
+}
+
+function partifulStatusUpdatesFromSyncBody(body: unknown): AgendaStatusUpdate[] {
+  const sync = recordValue(recordValue(body)?.sync);
+  if (!sync) return [];
+  const syncedAt = textField(sync.syncedAt, 80);
+  const eventUpdates = [
+    ...(Array.isArray(sync.updatedEvents) ? sync.updatedEvents : []),
+    ...(Array.isArray(sync.unchangedEvents) ? sync.unchangedEvents : []),
+  ];
+  return eventUpdates.map((raw): AgendaStatusUpdate | null => {
+    const update = recordValue(raw);
+    const normalizedEvent = recordValue(update?.normalizedEvent);
+    const mergedEvent = recordValue(update?.mergedEvent);
+    const partifulId = textField(normalizedEvent?.partifulId, 160) ||
+      textField(mergedEvent?.partifulId, 160);
+    const techweekId = textField(normalizedEvent?.techweekId, 160) ||
+      textField(mergedEvent?.techweekId, 160);
+    const calendarBlockId = textField(normalizedEvent?.calendarBlockId, 160) ||
+      textField(mergedEvent?.calendarBlockId, 160);
+    const rerankId = textField(normalizedEvent?.rerankId, 160) ||
+      textField(mergedEvent?.rerankId, 160);
+    const status = textField(mergedEvent?.status, 80) || textField(normalizedEvent?.status, 80);
+    if ((!partifulId && !techweekId && !calendarBlockId && !rerankId) || !status) return null;
+    const rawStatus = textField(normalizedEvent?.rawStatus, 80);
+    return {
+      ...(partifulId ? { partifulId } : {}),
+      ...(techweekId ? { techweekId } : {}),
+      ...(calendarBlockId ? { calendarBlockId } : {}),
+      ...(rerankId ? { rerankId } : {}),
+      status,
+      reason: `Partiful sync status ${rawStatus || status}`,
+      ...(syncedAt ? { updatedAt: syncedAt } : {}),
+    };
+  }).filter((update): update is AgendaStatusUpdate => update !== null);
 }
 
 function partifulAuthRefreshErrorMessage(error: unknown, authSource: PartifulAuthSource): string {
@@ -6126,6 +6344,212 @@ async function handleModelContext(): Promise<Response> {
   });
 }
 
+async function handleDevDeployments(request: Request): Promise<Response> {
+  const token = readDenoDeployToken();
+  const limit = denoDeployLimit(request);
+  const projectName = DENO_DEPLOY_PROJECT;
+  const dashboardUrl = `${DENO_DEPLOY_DASH_API_ORIGIN}/projects/${encodeURIComponent(projectName)}`;
+
+  if (!token) {
+    return json({
+      project: { name: projectName, dashboardUrl },
+      deployments: [],
+      error: { message: "DENO_DEPLOY_TOKEN is not configured for deployment lookup." },
+    }, { status: 503 });
+  }
+
+  try {
+    const [project, buildsPage] = await Promise.all([
+      fetchDenoDeployApiJson<DenoDeployProject>(
+        `/projects/${encodeURIComponent(projectName)}`,
+        token,
+      ),
+      fetchDenoDeployApiJson<DenoDeployBuildsPage>(
+        `/projects/${encodeURIComponent(projectName)}/deployments?${new URLSearchParams({
+          page: "0",
+          limit: String(limit),
+        })}`,
+        token,
+      ),
+    ]);
+    const projectLabel = textField(project.name, 120) || projectName;
+    const deployments = denoDeployBuildsFromPage(buildsPage)
+      .map((build) => normalizeDenoDeployDeployment(project, build))
+      .filter((item): item is Record<string, unknown> => Boolean(item));
+
+    return json({
+      project: {
+        id: textField(project.id, 120),
+        name: projectLabel,
+        dashboardUrl: `${DENO_DEPLOY_DASH_API_ORIGIN}/projects/${encodeURIComponent(projectLabel)}`,
+      },
+      deployments,
+      fetchedAt: new Date().toISOString(),
+      source: "deno_deploy_classic_api",
+    });
+  } catch (error) {
+    const status = error instanceof DenoDeployApiError && error.status === 504
+      ? 504
+      : error instanceof DenoDeployApiError && error.status === 404
+      ? 404
+      : 502;
+    return json({
+      project: { name: projectName, dashboardUrl },
+      deployments: [],
+      error: { message: denoDeployVisibleError(error) },
+    }, { status });
+  }
+}
+
+function readDenoDeployToken(): string {
+  if (denoDeployTokenForTest !== undefined) return denoDeployTokenForTest?.trim() || "";
+  try {
+    return Deno.env.get("DENO_DEPLOY_TOKEN")?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
+function denoDeployLimit(request: Request): number {
+  const raw = Number(new URL(request.url).searchParams.get("limit") || DENO_DEPLOY_DEFAULT_LIMIT);
+  if (!Number.isFinite(raw)) return DENO_DEPLOY_DEFAULT_LIMIT;
+  return Math.max(1, Math.min(DENO_DEPLOY_MAX_LIMIT, Math.trunc(raw)));
+}
+
+async function fetchDenoDeployApiJson<T>(path: string, token: string): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DENO_DEPLOY_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${DENO_DEPLOY_DASH_API_ORIGIN}/api${path}`, {
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${token}`,
+        "user-agent": DEFAULT_USER_AGENT,
+      },
+      signal: controller.signal,
+    });
+    const bodyText = await response.text();
+    const body = parseJsonObject(bodyText);
+    if (!response.ok) {
+      throw new DenoDeployApiError(
+        response.status,
+        denoDeployApiErrorMessage(body, bodyText, response.statusText),
+      );
+    }
+    return body as T;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new DenoDeployApiError(504, "Timed out while loading Deno Deploy deployments.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function parseJsonObject(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function denoDeployApiErrorMessage(
+  body: unknown,
+  bodyText: string,
+  statusText: string,
+): string {
+  if (body && typeof body === "object") {
+    const record = body as Record<string, unknown>;
+    return textField(record.message, 500) ||
+      textField((record.error as Record<string, unknown> | undefined)?.message, 500) ||
+      textField(record.code, 160) ||
+      statusText ||
+      "Deno Deploy request failed.";
+  }
+  return textField(bodyText, 500) || statusText || "Deno Deploy request failed.";
+}
+
+function denoDeployVisibleError(error: unknown): string {
+  if (error instanceof DenoDeployApiError) return error.message;
+  if (error instanceof Error) return error.message;
+  return "Could not load Deno Deploy deployments.";
+}
+
+function denoDeployBuildsFromPage(page: DenoDeployBuildsPage): DenoDeployBuild[] {
+  if (Array.isArray(page)) return Array.isArray(page[0]) ? page[0] : [];
+  return Array.isArray(page?.list) ? page.list : [];
+}
+
+function normalizeDenoDeployDeployment(
+  project: DenoDeployProject,
+  build: DenoDeployBuild,
+): Record<string, unknown> | null {
+  const projectName = textField(project.name, 120) || DENO_DEPLOY_PROJECT;
+  const id = textField(build.deploymentId, 120) || textField(build.id, 120);
+  if (!id) return null;
+  const status = denoDeployStatus(project, build, id);
+  const ready = status !== "failed" && status !== "pending";
+  const commitHash = textField(build.relatedCommit?.hash, 120);
+  const domains = denoDeployDomains(build);
+  return {
+    id,
+    status,
+    createdAt: textField(build.createdAt, 80),
+    previewUrl: ready ? `https://${projectName}-${id}.deno.dev` : "",
+    dashboardUrl: `${DENO_DEPLOY_DASH_API_ORIGIN}/projects/${
+      encodeURIComponent(projectName)
+    }/deployments/${encodeURIComponent(id)}`,
+    domains,
+    entrypoint: denoDeployEntrypoint(build),
+    description: textField(build.deployment?.description, 500),
+    commit: {
+      hash: commitHash,
+      shortHash: commitHash ? commitHash.slice(0, 7) : "",
+      branch: textField(build.relatedCommit?.branch, 120),
+      message: textField(build.relatedCommit?.message, 500),
+      authorName: textField(build.relatedCommit?.authorName, 120),
+      authorGithubUsername: textField(build.relatedCommit?.authorGithubUsername, 120),
+      url: textField(build.relatedCommit?.url, 500),
+    },
+  };
+}
+
+function denoDeployStatus(project: DenoDeployProject, build: DenoDeployBuild, id: string): string {
+  if (Array.isArray(build.logs) && build.logs.some((log) => log?.type === "error")) {
+    return "failed";
+  }
+  const domainMappings = Array.isArray(build.deployment?.domainMappings)
+    ? build.deployment.domainMappings
+    : [];
+  if (!build.deployment || domainMappings.length === 0) return "pending";
+  const productionId = textField(project.productionDeployment?.deploymentId, 120) ||
+    textField(project.productionDeployment?.id, 120);
+  return productionId && productionId === id ? "production" : "preview";
+}
+
+function denoDeployDomains(build: DenoDeployBuild): string[] {
+  const mappings = Array.isArray(build.deployment?.domainMappings)
+    ? build.deployment.domainMappings
+    : [];
+  return mappings.map((mapping) => textField(mapping.domain, 500))
+    .filter(Boolean)
+    .map((domain) => `https://${domain}`);
+}
+
+function denoDeployEntrypoint(build: DenoDeployBuild): string {
+  const url = textField(build.deployment?.url, 1000);
+  if (!url) return "";
+  if (!url.startsWith("file:")) return url;
+  try {
+    const pathname = decodeURIComponent(new URL(url).pathname);
+    return pathname.replace(/^.*\/src\//, "").replace(/^.*\/app\//, "app/");
+  } catch {
+    return url;
+  }
+}
+
 async function callChatModel(
   chatUrl: string,
   token: string,
@@ -6337,6 +6761,226 @@ function streamGatewayError(upstream: Response, model: string, detail: unknown):
   });
 }
 
+async function proxyDevAgentRequest(request: Request, incomingUrl: URL): Promise<Response> {
+  const upstreamOrigin = new URL(DEV_AGENT_BACKEND_ORIGIN);
+  const publicOrigin = new URL(DEV_AGENT_ORIGIN);
+  const upstreamUrl = new URL(request.url);
+  upstreamUrl.protocol = upstreamOrigin.protocol;
+  upstreamUrl.hostname = upstreamOrigin.hostname;
+  upstreamUrl.port = upstreamOrigin.port;
+  if (upstreamUrl.pathname.startsWith(DEV_AGENT_PROXY_PREFIX)) {
+    upstreamUrl.pathname = upstreamUrl.pathname.slice(DEV_AGENT_PROXY_PREFIX.length) || "/";
+  }
+
+  const headers = new Headers(request.headers);
+  headers.delete("Host");
+  headers.set("Host", publicOrigin.hostname);
+  headers.set("X-Forwarded-Host", incomingUrl.host);
+  headers.set("X-Forwarded-Proto", incomingUrl.protocol.replace(":", ""));
+  headers.set(SAME_SITE_PROXY_HEADER, "1");
+  rewriteDevAgentRequestCookieHeader(headers);
+
+  const upstreamResponse = await fetch(upstreamUrl, {
+    method: request.method,
+    headers,
+    body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
+    redirect: "manual",
+  });
+  const responseHeaders = new Headers(upstreamResponse.headers);
+  rewriteDevAgentLocationHeader(responseHeaders, incomingUrl, publicOrigin);
+  rewriteDevAgentSetCookieHeaders(responseHeaders, upstreamResponse.headers);
+  return new Response(upstreamResponse.body, {
+    status: upstreamResponse.status,
+    statusText: upstreamResponse.statusText,
+    headers: responseHeaders,
+  });
+}
+
+async function handleDevAgentHandoff(request: Request, incomingUrl: URL): Promise<Response> {
+  const body = await request.json().catch(() => null);
+  const handoffToken = typeof body?.handoffToken === "string" ? body.handoffToken.trim() : "";
+  if (!handoffToken) {
+    return json({ error: { message: "Pi agent connection token is missing." } }, { status: 400 });
+  }
+
+  const upstreamOrigin = new URL(DEV_AGENT_BACKEND_ORIGIN);
+  const publicOrigin = new URL(DEV_AGENT_ORIGIN);
+  const upstreamUrl = new URL("/api/auth/handoff/consume", upstreamOrigin);
+  const upstreamResponse = await fetch(upstreamUrl, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      Host: publicOrigin.hostname,
+      "X-Forwarded-Host": incomingUrl.host,
+      "X-Forwarded-Proto": incomingUrl.protocol.replace(":", ""),
+      [SAME_SITE_PROXY_HEADER]: "1",
+    },
+    body: JSON.stringify({
+      handoffToken,
+      embedOrigin: incomingUrl.origin,
+    }),
+    redirect: "manual",
+  });
+
+  const text = await upstreamResponse.text();
+  const headers = new Headers({
+    "content-type": upstreamResponse.headers.get("content-type") || "application/json",
+    "cache-control": "no-store",
+  });
+  const packedCookie = devAgentPackedSessionCookie(upstreamResponse.headers.getSetCookie());
+  if (packedCookie) headers.set("set-cookie", packedCookie);
+  if (upstreamResponse.ok && !packedCookie) {
+    return json({ attached: false, message: "Pi agent accepted the connection." });
+  }
+  return new Response(text, {
+    status: upstreamResponse.status,
+    statusText: upstreamResponse.statusText,
+    headers,
+  });
+}
+
+function rewriteDevAgentLocationHeader(
+  headers: Headers,
+  incomingUrl: URL,
+  upstreamOrigin: URL,
+): void {
+  const location = headers.get("Location");
+  if (!location) return;
+  let locationUrl: URL;
+  try {
+    locationUrl = new URL(location, upstreamOrigin);
+  } catch {
+    return;
+  }
+  if (locationUrl.origin !== upstreamOrigin.origin) return;
+  locationUrl.protocol = incomingUrl.protocol;
+  locationUrl.host = incomingUrl.host;
+  locationUrl.pathname = `${DEV_AGENT_PROXY_PREFIX}${locationUrl.pathname}`;
+  headers.set("Location", locationUrl.toString());
+}
+
+function rewriteDevAgentSetCookieHeaders(headers: Headers, upstreamHeaders: Headers): void {
+  const setCookies = upstreamHeaders.getSetCookie();
+  if (!setCookies.length) return;
+  headers.delete("set-cookie");
+  const packedCookie = devAgentPackedSessionCookie(setCookies);
+  if (packedCookie) headers.append("set-cookie", packedCookie);
+  for (const cookie of setCookies) {
+    const rewritten = rewriteDevAgentSetCookie(cookie);
+    if (rewritten) headers.append("set-cookie", rewritten);
+  }
+}
+
+function rewriteDevAgentSetCookie(cookie: string): string {
+  const parts = cookie.split(";").map((part) => part.trim()).filter(Boolean);
+  const pair = parts.shift();
+  if (!pair) return "";
+  const separatorIndex = pair.indexOf("=");
+  if (separatorIndex <= 0) return "";
+  const name = pair.slice(0, separatorIndex);
+  const value = pair.slice(separatorIndex + 1);
+  const localName = `${DEV_AGENT_LOCAL_COOKIE_PREFIX}${encodeDevAgentCookieName(name)}`;
+  const attributes = parts.filter((part) => {
+    const lower = part.toLowerCase();
+    return !lower.startsWith("domain=") &&
+      !lower.startsWith("path=") &&
+      lower !== "secure" &&
+      !lower.startsWith("samesite=") &&
+      lower !== "partitioned";
+  });
+  attributes.push(`Path=${DEV_AGENT_PROXY_PREFIX}`);
+  attributes.push("SameSite=Lax");
+  return [`${localName}=${value}`, ...attributes].join("; ");
+}
+
+function rewriteDevAgentRequestCookieHeader(headers: Headers): void {
+  const cookie = headers.get("cookie");
+  if (!cookie) return;
+  const packedSession = decodeDevAgentProxySession(
+    cookieValue(cookie, DEV_AGENT_PROXY_SESSION_COOKIE),
+  );
+  if (packedSession) {
+    headers.set("cookie", packedSession);
+    return;
+  }
+  const upstreamCookies: string[] = [];
+  for (const part of cookie.split(";")) {
+    const trimmed = part.trim();
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex <= 0) continue;
+    const name = trimmed.slice(0, separatorIndex);
+    if (!name.startsWith(DEV_AGENT_LOCAL_COOKIE_PREFIX)) continue;
+    const upstreamName = decodeDevAgentCookieName(name.slice(DEV_AGENT_LOCAL_COOKIE_PREFIX.length));
+    if (!upstreamName) continue;
+    const value = trimmed.slice(separatorIndex + 1);
+    upstreamCookies.push(`${upstreamName}=${value}`);
+  }
+  if (upstreamCookies.length) {
+    headers.set("cookie", upstreamCookies.join("; "));
+  } else {
+    headers.delete("cookie");
+  }
+}
+
+function devAgentPackedSessionCookie(setCookies: string[]): string {
+  const upstreamCookie = devAgentUpstreamCookieHeaderFromSetCookies(setCookies);
+  if (!upstreamCookie) return "";
+  return [
+    `${DEV_AGENT_PROXY_SESSION_COOKIE}=${encodeDevAgentProxySession(upstreamCookie)}`,
+    `Path=${DEV_AGENT_PROXY_PREFIX}`,
+    "HttpOnly",
+    "SameSite=Lax",
+  ].join("; ");
+}
+
+function devAgentUpstreamCookieHeaderFromSetCookies(setCookies: string[]): string {
+  const pairs: string[] = [];
+  for (const cookie of setCookies) {
+    const pair = cookie.split(";", 1)[0]?.trim() || "";
+    const separatorIndex = pair.indexOf("=");
+    if (separatorIndex <= 0) continue;
+    const name = pair.slice(0, separatorIndex);
+    const value = pair.slice(separatorIndex + 1);
+    if (!name || !value) continue;
+    pairs.push(`${name}=${value}`);
+  }
+  return pairs.join("; ");
+}
+
+function encodeDevAgentProxySession(cookieHeader: string): string {
+  return btoa(cookieHeader).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+
+function decodeDevAgentProxySession(value: string): string {
+  if (!value) return "";
+  try {
+    const padded = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(
+      Math.ceil(value.length / 4) * 4,
+      "=",
+    );
+    return atob(padded);
+  } catch {
+    return "";
+  }
+}
+
+function encodeDevAgentCookieName(name: string): string {
+  return btoa(name).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+
+function decodeDevAgentCookieName(value: string): string {
+  try {
+    const padded = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(
+      Math.ceil(value.length / 4) * 4,
+      "=",
+    );
+    return atob(padded);
+  } catch {
+    return "";
+  }
+}
+
 function isModelNotFound(body: unknown): boolean {
   if (!body || typeof body !== "object") return false;
   const maybe = body as { error?: { code?: unknown } };
@@ -6369,7 +7013,13 @@ export async function router(request: Request): Promise<Response> {
     const authorizationError = await authorizeApiRoute(request, url);
     if (authorizationError) return authorizationError;
 
+    if (pathname === DEV_AGENT_PROXY_PREFIX || pathname.startsWith(`${DEV_AGENT_PROXY_PREFIX}/`)) {
+      return await proxyDevAgentRequest(request, url);
+    }
     if (request.method === "GET" && pathname === "/api/health") return await handleHealth();
+    if (request.method === "POST" && pathname === "/api/dev-agent/handoff") {
+      return await handleDevAgentHandoff(request, url);
+    }
     if (request.method === "POST" && pathname === "/api/auth/register/start") {
       return await handleAuthRegisterStart(request);
     }
@@ -6433,7 +7083,9 @@ export async function router(request: Request): Promise<Response> {
       if (!route || route.action) return notFound();
       return await handleResourceShareDelete(request, route.handle, route.resourceType, route.id);
     }
-    if (request.method === "GET" && url.pathname === "/api/schedule") return await handleSchedule();
+    if (request.method === "GET" && url.pathname === "/api/schedule") {
+      return await handleSchedule(request);
+    }
     if (request.method === "POST" && url.pathname === "/api/agenda/recalculate") {
       return await handleAgendaRecalculate(request);
     }
@@ -6455,6 +7107,9 @@ export async function router(request: Request): Promise<Response> {
       return await handleAgentDebug(
         decodeURIComponent(url.pathname.replace("/api/debug/agent/", "")),
       );
+    }
+    if (request.method === "GET" && pathname === "/api/dev/deployments") {
+      return await handleDevDeployments(request);
     }
     if (
       (request.method === "GET" || request.method === "HEAD") &&

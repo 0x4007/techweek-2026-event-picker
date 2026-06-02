@@ -250,5 +250,59 @@
     "lon": -74.0060152,
     "display_name": "New York, United States",
     "used_query": "New York, NY"
+  },
+  "City Hall Area, New York, NY": {
+    "lat": 40.7127281,
+    "lon": -74.0060152,
+    "display_name": "New York, United States",
+    "used_query": "New York, NY"
+  },
+  "124 E 14th St 2nd Floor, New York, NY": {
+    "lat": 40.7127281,
+    "lon": -74.0060152,
+    "display_name": "New York, United States",
+    "used_query": "New York, NY"
+  },
+  "Central Park, Manhattan, New York, NY": {
+    "lat": 40.7827725,
+    "lon": -73.9653627,
+    "display_name": "Central Park, New York County, New York, 11025, United States",
+    "used_query": "Central Park, Manhattan, New York, NY"
+  },
+  "1/2 Bond St, 1 Bond St, New York, NY": {
+    "lat": 40.7266722,
+    "lon": -73.9947565,
+    "display_name": "1, Bond Street, NoHo, Manhattan, New York County, New York, 10012, United States",
+    "used_query": "1 Bond St, New York, NY"
+  },
+  "ilili, 236 5th Ave, New York, NY": {
+    "lat": 40.7443707,
+    "lon": -73.98779,
+    "display_name": "ilili, 236, 5th Avenue, NoMad, Manhattan Community Board 5, Manhattan, New York County, New York, 10001, United States",
+    "used_query": "ilili, 236 5th Ave, New York, NY"
+  },
+  "Boucherie, 145 W 53rd St, New York, NY": {
+    "lat": 40.7626575,
+    "lon": -73.980662,
+    "display_name": "La Grande Boucherie, 145, West 53rd Street, Theater District, Manhattan Community Board 5, Manhattan, New York County, New York, 10019, United States",
+    "used_query": "Boucherie, 145 W 53rd St, New York, NY"
+  },
+  "115 Bowery Ground Floor, New York, NY": {
+    "lat": 40.7127281,
+    "lon": -74.0060152,
+    "display_name": "New York, United States",
+    "used_query": "New York, NY"
+  },
+  "Midtown East, New York, NY": {
+    "lat": 40.7598219,
+    "lon": -73.9724708,
+    "display_name": "Midtown East, Manhattan Community Board 5, Manhattan, New York County, New York, 10055, United States",
+    "used_query": "Midtown East, New York, NY"
+  },
+  "Rockefeller Center, New York, NY": {
+    "lat": 40.7592576,
+    "lon": -73.9799569,
+    "display_name": "Rockefeller Center, 45, Rockefeller Plaza, Midtown, Manhattan Community Board 5, Manhattan, New York County, New York, 10111, United States",
+    "used_query": "Rockefeller Center, New York, NY"
   }
 }

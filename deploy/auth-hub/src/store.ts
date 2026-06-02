@@ -119,6 +119,15 @@ export const listHasUsers = async (store: Deno.Kv) => {
   return false;
 };
 
+export const listUsers = async (store: Deno.Kv, limit = 200) => {
+  const users: UserRecord[] = [];
+  for await (const entry of store.list<UserRecord>({ prefix: usersPrefix })) {
+    if (entry.value) users.push(entry.value);
+    if (users.length >= limit) break;
+  }
+  return users.sort((a, b) => a.handle.localeCompare(b.handle));
+};
+
 export const getUser = async (store: Deno.Kv, userId: string) => {
   const result = await store.get<UserRecord>(userKey(userId));
   return result.value ?? null;
@@ -199,6 +208,25 @@ export const saveUser = async (store: Deno.Kv, user: UserRecord) => {
 
   const commit = await atomic.commit();
   return commit.ok;
+};
+
+export const setUserAdmin = async (
+  store: Deno.Kv,
+  userId: string,
+  isAdmin: boolean
+) => {
+  const existing = await store.get<UserRecord>(userKey(userId));
+  if (!existing.value) return null;
+  const updated: UserRecord = {
+    ...existing.value,
+    isAdmin,
+    updatedAt: nowIso()
+  };
+  const commit = await store.atomic()
+    .check(existing)
+    .set(userKey(userId), updated)
+    .commit();
+  return commit.ok ? updated : null;
 };
 
 export const getCredential = async (store: Deno.Kv, credentialId: string) => {

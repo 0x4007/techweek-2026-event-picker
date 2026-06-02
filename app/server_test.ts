@@ -11,9 +11,14 @@ import {
   parseCsv,
   resetModelContextCacheForTest,
   router,
+  runPartifulAutoSync,
   type ScheduleEntry,
   sendResendTestEmail,
   setAccountSessionForTest,
+  setDenoDeployTokenForTest,
+  setPartifulAutoSyncLiveRoutingForTest,
+  setPartifulAutoSyncRunnerForTest,
+  setPartifulHeadlessSyncRunnerForTest,
   statusLabelForScheduleStatus,
   visibleAgentGatewayError,
 } from "./server.ts";
@@ -121,6 +126,103 @@ function createDeferred<T = void>() {
   });
   return { promise, resolve };
 }
+
+Deno.test("local Pi agent handoff stores a packed proxy session and forwards only Pi cookies", async () => {
+  const originalFetch = globalThis.fetch;
+  const upstreamCookies: Array<string | null> = [];
+  const upstreamBodies: unknown[] = [];
+  const globalScope = globalThis as typeof globalThis & { fetch: typeof fetch };
+  try {
+    globalScope.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      upstreamCookies.push(request.headers.get("cookie"));
+      upstreamBodies.push(await request.json().catch(() => null));
+      if (upstreamCookies.length === 1) {
+        return new Response(JSON.stringify({ authenticated: true }), {
+          headers: [
+            ["content-type", "application/json"],
+            [
+              "set-cookie",
+              "__Host-pi_session=abc123; Path=/; Secure; HttpOnly; SameSite=None",
+            ],
+            [
+              "set-cookie",
+              "pi_refresh=def456; Domain=agent.pavlovcik.com; Path=/; Secure; SameSite=None; Max-Age=60",
+            ],
+          ],
+        });
+      }
+      return new Response(JSON.stringify({ authenticated: true }), {
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const handoffResponse = await router(
+      new Request("http://localhost/api/dev-agent/handoff", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "techweek_session=local-app-session",
+        },
+        body: JSON.stringify({ handoffToken: "handoff" }),
+      }),
+    );
+    const setCookies = handoffResponse.headers.getSetCookie();
+    assertEquals(upstreamCookies[0], null);
+    assertEquals(upstreamBodies[0], { handoffToken: "handoff", embedOrigin: "http://localhost" });
+    assertEquals(setCookies.length, 1);
+    if (
+      setCookies.some((cookie) =>
+        cookie.includes("Secure") || cookie.includes("SameSite=None") ||
+        cookie.includes("Domain=") || cookie.includes("__Host-")
+      )
+    ) {
+      throw new Error(`Expected localhost-safe Pi cookies, got ${JSON.stringify(setCookies)}`);
+    }
+
+    const proxyCookie = setCookies.map((cookie) => cookie.split(";")[0]).join("; ");
+    await router(
+      new Request("http://localhost/__pi-agent/api/session", {
+        headers: {
+          cookie: `${proxyCookie}; techweek_session=local-app-session`,
+        },
+      }),
+    );
+    assertEquals(upstreamCookies[1], "__Host-pi_session=abc123; pi_refresh=def456");
+  } finally {
+    globalScope.fetch = originalFetch;
+  }
+});
+
+Deno.test("local Pi agent handoff reports accepted connections without proxy cookies", async () => {
+  const originalFetch = globalThis.fetch;
+  const globalScope = globalThis as typeof globalThis & { fetch: typeof fetch };
+  try {
+    globalScope.fetch = (() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ authenticated: true }), {
+          headers: { "content-type": "application/json" },
+        }),
+      )) as typeof fetch;
+
+    const response = await router(
+      new Request("http://localhost/api/dev-agent/handoff", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handoffToken: "handoff" }),
+      }),
+    );
+    const body = await response.json();
+    assertEquals(response.status, 200);
+    assertEquals(response.headers.getSetCookie(), []);
+    assertEquals(body, {
+      attached: false,
+      message: "Pi agent accepted the connection.",
+    });
+  } finally {
+    globalScope.fetch = originalFetch;
+  }
+});
 
 async function withEnvValues(
   values: Record<string, string | null>,
@@ -836,6 +938,11 @@ kvRouterTest("Partiful sync POST endpoints reject unauthenticated requests", asy
 
 kvRouterTest("Partiful auto-sync admin trigger queues and reports KV state", async () => {
   useAdminSessionForTest();
+  let runnerCalls = 0;
+  setPartifulAutoSyncRunnerForTest(() => {
+    runnerCalls += 1;
+    return Promise.resolve();
+  });
   try {
     const queued = await router(
       new Request("http://localhost/api/sync/partiful/auto", {
@@ -847,17 +954,23 @@ kvRouterTest("Partiful auto-sync admin trigger queues and reports KV state", asy
     const queuedBody = await queued.json() as Record<string, unknown>;
     assertEquals(queuedBody.action, "queued");
     assertEquals(getPath(queuedBody, ["partifulAutoSync", "status"]), "queued");
+    if (!getPath(queuedBody, ["partifulAutoSync", "lastQueuedAt"])) {
+      throw new Error("Expected queued Partiful auto-sync state to include lastQueuedAt.");
+    }
+    await Promise.resolve();
+    assertEquals(runnerCalls, 1);
 
-    const alreadyRunning = await router(
+    const alreadyQueued = await router(
       new Request("http://localhost/api/sync/partiful/auto", {
         method: "POST",
         headers: ADMIN_STATE_HEADERS,
       }),
     );
-    assertEquals(alreadyRunning.status, 202);
-    const alreadyRunningBody = await alreadyRunning.json() as Record<string, unknown>;
-    assertEquals(alreadyRunningBody.action, "already_running");
-    assertEquals(getPath(alreadyRunningBody, ["partifulAutoSync", "status"]), "queued");
+    assertEquals(alreadyQueued.status, 202);
+    const alreadyQueuedBody = await alreadyQueued.json() as Record<string, unknown>;
+    assertEquals(alreadyQueuedBody.action, "already_queued");
+    assertEquals(getPath(alreadyQueuedBody, ["partifulAutoSync", "status"]), "queued");
+    await Promise.resolve();
 
     await mutateStateForTest(async (state, commit) => {
       state.partifulAutoSync = {
@@ -881,8 +994,125 @@ kvRouterTest("Partiful auto-sync admin trigger queues and reports KV state", asy
     const skippedBody = await skipped.json() as Record<string, unknown>;
     assertEquals(skippedBody.action, "skipped");
     assertEquals(getPath(skippedBody, ["partifulAutoSync", "status"]), "completed");
+
+    const runnerCallsBeforeForce = runnerCalls;
+    const forced = await router(
+      new Request("http://localhost/api/sync/partiful/auto", {
+        method: "POST",
+        headers: ADMIN_STATE_HEADERS,
+        body: JSON.stringify({ force: true }),
+      }),
+    );
+    assertEquals(forced.status, 202);
+    const forcedBody = await forced.json() as Record<string, unknown>;
+    assertEquals(forcedBody.action, "queued");
+    assertEquals(getPath(forcedBody, ["partifulAutoSync", "status"]), "queued");
+    if (!getPath(forcedBody, ["partifulAutoSync", "lastQueuedAt"])) {
+      throw new Error("Expected forced Partiful auto-sync state to include lastQueuedAt.");
+    }
+    await Promise.resolve();
+    assertEquals(runnerCalls, runnerCallsBeforeForce + 1);
+
+    const runnerCallsBeforeAnonymousSchedulePoll = runnerCalls;
+    setAccountSessionForTest(null);
+    const anonymousSchedule = await router(
+      new Request("http://localhost/api/schedule"),
+    );
+    assertEquals(anonymousSchedule.status, 200);
+    assertEquals(runnerCalls, runnerCallsBeforeAnonymousSchedulePoll);
+
+    const runnerCallsBeforeAdminSchedulePoll = runnerCalls;
+    useAdminSessionForTest();
+    const adminSchedule = await router(
+      new Request("http://localhost/api/schedule", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(adminSchedule.status, 200);
+    await Promise.resolve();
+    assertEquals(runnerCalls, runnerCallsBeforeAdminSchedulePoll + 1);
+
+    await mutateStateForTest(async (state, commit) => {
+      state.partifulAutoSync = {
+        ...state.partifulAutoSync,
+        status: "running",
+        lastStartedAt: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
+        lastCompletedAt: "",
+        lastRunId: "partiful-auto-stale-test",
+        lastError: "",
+      };
+      return await commit(state);
+    });
+
+    const runnerCallsBeforeStaleSchedulePoll = runnerCalls;
+    const staleSchedule = await router(
+      new Request("http://localhost/api/schedule", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(staleSchedule.status, 200);
+    await Promise.resolve();
+    assertEquals(runnerCalls, runnerCallsBeforeStaleSchedulePoll + 1);
   } finally {
+    setPartifulAutoSyncRunnerForTest(null);
     setAccountSessionForTest(undefined);
+  }
+});
+
+kvRouterTest("Partiful auto-sync rebuilds and activates the latest agenda run", async () => {
+  let headlessCalls = 0;
+  setPartifulAutoSyncLiveRoutingForTest(false);
+  setPartifulHeadlessSyncRunnerForTest((raw) => {
+    headlessCalls += 1;
+    assertEquals(raw.liveRouting, false);
+    assertEquals(raw.recalculate, false);
+    assertEquals(raw.activate, false);
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({
+          sync: {
+            syncedAt: "2026-06-01T12:00:00.000Z",
+            errors: [],
+            updatedEvents: [{
+              normalizedEvent: {
+                partifulId: "uLi3d5Eel4nuA9hv5YGD",
+                status: "registered",
+                rawStatus: "APPROVED",
+              },
+              mergedEvent: {
+                partifulId: "uLi3d5Eel4nuA9hv5YGD",
+                status: "registered",
+              },
+            }],
+            unchangedEvents: [],
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+  });
+  try {
+    await runPartifulAutoSync();
+    assertEquals(headlessCalls, 1);
+
+    const schedule = await router(
+      new Request("http://localhost/api/schedule", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(schedule.status, 200);
+    const body = await schedule.json() as Record<string, unknown>;
+    const activeAgendaRunId = String(getPath(body, ["activeAgenda", "agendaRunId"]) || "");
+    if (!activeAgendaRunId.startsWith("agenda-")) {
+      throw new Error(
+        `Expected active agenda run after Partiful auto-sync, got ${activeAgendaRunId}`,
+      );
+    }
+    assertEquals(getPath(body, ["sync", "partifulAuto", "status"]), "completed");
+    assertEquals(getPath(body, ["sync", "partifulAuto", "lastAgendaRunId"]), activeAgendaRunId);
+  } finally {
+    setPartifulHeadlessSyncRunnerForTest(null);
+    setPartifulAutoSyncLiveRoutingForTest(null);
   }
 });
 
@@ -890,9 +1120,9 @@ kvRouterTest("sensitive API routes reject unauthenticated requests at the router
   setAccountSessionForTest(null);
   try {
     const requests = [
-      new Request("http://localhost/api/schedule"),
       new Request("http://localhost/api/ics/operational"),
       new Request("http://localhost/api/debug/agent/test"),
+      new Request("http://localhost/api/dev/deployments"),
       new Request("http://localhost/api/agent", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -911,6 +1141,124 @@ kvRouterTest("sensitive API routes reject unauthenticated requests at the router
       assertEquals(getPath(body, ["error", "message"]), "Authentication required.");
     }
   } finally {
+    setAccountSessionForTest(undefined);
+  }
+});
+
+kvRouterTest("Deno Deploy list reports missing token without leaking auth state", async () => {
+  useAdminSessionForTest();
+  setDenoDeployTokenForTest(null);
+  try {
+    const response = await router(
+      new Request("http://localhost/api/dev/deployments", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(response.status, 503);
+    const body = await response.json() as Record<string, unknown>;
+    assertEquals(getPath(body, ["deployments"]), []);
+    assertEquals(
+      getPath(body, ["error", "message"]),
+      "DENO_DEPLOY_TOKEN is not configured for deployment lookup.",
+    );
+  } finally {
+    setDenoDeployTokenForTest(undefined);
+    setAccountSessionForTest(undefined);
+  }
+});
+
+kvRouterTest("Deno Deploy list normalizes deployment links for the dev sidebar", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ pathname: string; search: string; authorization: string }> = [];
+  useAdminSessionForTest();
+  setDenoDeployTokenForTest("test-deploy-token");
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    calls.push({
+      pathname: url.pathname,
+      search: url.search,
+      authorization: new Headers(init?.headers).get("authorization") || "",
+    });
+    if (url.pathname === "/api/projects/techweek-2026-event-picker") {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            id: "project_123",
+            name: "techweek-2026-event-picker",
+            productionDeployment: { deploymentId: "prod123" },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+    }
+    if (url.pathname === "/api/projects/techweek-2026-event-picker/deployments") {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify([
+            [
+              {
+                deploymentId: "prod123",
+                createdAt: "2026-05-31T12:00:00.000Z",
+                deployment: {
+                  url: "file:///src/app/main.ts",
+                  description: "Production build",
+                  domainMappings: [{ domain: "techweek.pavlovcik.com" }],
+                },
+                relatedCommit: {
+                  hash: "1234567890abcdef",
+                  branch: "main",
+                  message: "ship deploy list",
+                  authorName: "Nik",
+                  authorGithubUsername: "nik",
+                  url: "https://github.com/0x4007/techweek-2026-event-picker/commit/1234567",
+                },
+                logs: [],
+              },
+              {
+                deploymentId: "failed456",
+                createdAt: "2026-05-30T12:00:00.000Z",
+                deployment: null,
+                logs: [{ type: "error", code: "buildFailed", ctx: "Build failed" }],
+              },
+            ],
+            { page: 0, limit: 2, totalPages: 1 },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+    }
+    return Promise.resolve(new Response("unexpected Deno Deploy request", { status: 500 }));
+  }) as typeof fetch;
+
+  try {
+    const response = await router(
+      new Request("http://localhost/api/dev/deployments?limit=2", {
+        headers: ADMIN_STATE_HEADERS,
+      }),
+    );
+    assertEquals(response.status, 200);
+    const body = await response.json() as Record<string, unknown>;
+    const deployments = getPath(body, ["deployments"]);
+    if (!Array.isArray(deployments)) {
+      throw new Error(`Expected deployments array, got ${JSON.stringify(body)}`);
+    }
+    const production = deployments[0] as Record<string, unknown>;
+    const failed = deployments[1] as Record<string, unknown>;
+    assertEquals(production.status, "production");
+    assertEquals(
+      production.previewUrl,
+      "https://techweek-2026-event-picker-prod123.deno.dev",
+    );
+    assertEquals(getPath(production, ["commit", "shortHash"]), "1234567");
+    assertEquals(failed.status, "failed");
+    assertEquals(failed.previewUrl, "");
+    assertEquals(calls[0]?.authorization, "Bearer test-deploy-token");
+    if (!calls[1]?.search.includes("limit=2")) {
+      throw new Error(`Expected deployments limit query, got ${calls[1]?.search}`);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    setDenoDeployTokenForTest(undefined);
     setAccountSessionForTest(undefined);
   }
 });
@@ -1338,10 +1686,14 @@ kvRouterTest(
   "agent token login exchanges through the auth hub and stores a local session",
   async () => {
     const originalFetch = globalThis.fetch;
+    const exchangeBodies: Record<string, unknown>[] = [];
     globalThis.fetch = ((input: string | URL | Request, init?: RequestInit): Promise<Response> => {
       const url = new URL(input instanceof Request ? input.url : String(input));
       const method = init?.method || (input instanceof Request ? input.method : "GET");
       if (method === "POST" && url.pathname === "/api/auth/agent-tokens/exchange") {
+        exchangeBodies.push(
+          init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {},
+        );
         return Promise.resolve(
           new Response(
             JSON.stringify({
@@ -1374,11 +1726,15 @@ kvRouterTest(
       if (!setCookie.includes("techweek_session=hub_access_token")) {
         throw new Error(`Expected agent token login to set session cookie, got ${setCookie}`);
       }
+      if (setCookie.includes("Max-Age=0")) {
+        throw new Error(`Expected retained session cookie, got ${setCookie}`);
+      }
       const loginBody = await loginResponse.json() as Record<string, unknown>;
       assertEquals(getPath(loginBody, ["session", "authenticated"]), true);
       assertEquals(getPath(loginBody, ["session", "auth"]), "agent_token");
       assertEquals(getPath(loginBody, ["session", "user", "id"]), "target-sub");
       assertEquals(getPath(loginBody, ["session", "user", "handle"]), "target");
+      assertEquals(exchangeBodies[0]?.ttlDays, 30);
     } finally {
       globalThis.fetch = originalFetch;
     }

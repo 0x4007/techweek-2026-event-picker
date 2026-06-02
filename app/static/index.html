@@ -144,22 +144,6 @@
 
     <main>
       <section data-panel="route">
-        <article data-next-card>
-          <p>Next</p>
-          <h2 data-next-title>Loading agenda...</h2>
-          <dl>
-            <div>
-              <dt>Time</dt>
-              <dd data-next-time></dd>
-            </div>
-            <div>
-              <dt>Place</dt>
-              <dd data-next-place></dd>
-            </div>
-          </dl>
-          <p data-agenda-status></p>
-        </article>
-
         <section aria-label="Day picker" data-day-tabs></section>
         <section aria-label="Agenda entries" data-route-list></section>
       </section>
@@ -518,30 +502,47 @@
       </section>
     </main>
 
-    <button
-      type="button"
-      data-motion="button"
-      data-motion-hidden="true"
-      data-chat-fab
-      data-chat-open
-      data-requires-auth
-      hidden
-    >
-      <svg><use href="#icon-message"></use></svg><span>Ask</span>
-    </button>
-    <button
-      type="button"
-      aria-label="Open development chat"
-      data-motion="button"
-      data-motion-hidden="true"
-      data-dev-chat-fab
-      data-chat-fab-side="left"
-      data-dev-chat-open
-      data-requires-auth
-      hidden
-    >
-      <svg><use href="#icon-terminal"></use></svg><span>Dev</span>
-    </button>
+    <section data-status-bar aria-label="Agenda status">
+      <button
+        type="button"
+        aria-label="Open development chat"
+        data-motion="button"
+        data-motion-hidden="true"
+        data-dev-chat-fab
+        data-chat-fab-side="left"
+        data-dev-chat-open
+        data-requires-auth
+        hidden
+      >
+        <svg><use href="#icon-terminal"></use></svg><span>Dev</span>
+      </button>
+      <article data-next-card>
+        <p>Next</p>
+        <h2 data-next-title>Loading agenda...</h2>
+        <dl>
+          <div>
+            <dt>Time</dt>
+            <dd data-next-time></dd>
+          </div>
+          <div>
+            <dt>Place</dt>
+            <dd data-next-place></dd>
+          </div>
+        </dl>
+        <p data-agenda-status></p>
+      </article>
+      <button
+        type="button"
+        data-motion="button"
+        data-motion-hidden="true"
+        data-chat-fab
+        data-chat-open
+        data-requires-auth
+        hidden
+      >
+        <svg><use href="#icon-message"></use></svg><span>Ask</span>
+      </button>
+    </section>
 
     <div data-event-backdrop hidden></div>
     <aside data-event-modal role="dialog" aria-modal="true" aria-label="Block details" hidden>
@@ -660,7 +661,6 @@
             Fork chat
           </button>
         </section>
-        <p data-agent-agenda-status data-agenda-status></p>
         <form data-chat-form>
           <textarea
             name="prompt"
@@ -682,7 +682,7 @@
       data-dev-agent-drawer
       data-repo-id="0x4007/techweek-2026-event-picker"
       data-repo-label="techweek-2026-event-picker"
-      data-deploy="false"
+      data-deploy="true"
       role="dialog"
       aria-modal="true"
       aria-label="Development agent"

@@ -50,7 +50,9 @@ Registration/login return a hub-scoped bearer token with audience `auth-hub`.
 - `GET /api/auth/jwks`
 
 Authorize requires a hub bearer token. Exchange consumes a code and returns a
-short-lived signed access token for the requested client audience.
+signed access token for the requested client audience. Clients may request a
+bounded persistent app session with `ttlDays`; the hub clamps that TTL to its
+configured maximum.
 
 ### Agent tokens
 
@@ -60,8 +62,9 @@ short-lived signed access token for the requested client audience.
 - `POST /api/auth/agent-tokens/exchange`
 
 Create/list/delete requires a hub bearer token. Exchange accepts the raw agent
-token once per request and returns a short-lived signed access token for the
-token's configured audience.
+token once per request and returns a signed access token for the token's
+configured audience. Clients may request `ttlDays`, clamped by both the hub
+maximum and the remaining lifetime of the agent token.
 
 ## App migration contract
 

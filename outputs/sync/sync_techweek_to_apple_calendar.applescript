@@ -440,15 +440,15 @@ Venue basis: 15 Cliff Street, New York, NY 10038 (sleep_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: 15 Cliff Street, New York, NY 10038 -> The Semiconductor & AI Supply Chain Lunch: Investors & Operators", start date:date "2026-06-04 11:59", end date:date "2026-06-04 12:30", location:"15 Cliff Street, New York, NY 10038 -> Midtown East, New York, NY", description:"TechWeekID: TW-6642
+	make new event at end of events of scheduleCal with properties {summary:"Travel: 15 Cliff Street, New York, NY 10038 -> The Semiconductor & AI Supply Chain Lunch: Investors & Operators", start date:date "2026-06-04 11:43", end date:date "2026-06-04 12:30", location:"15 Cliff Street, New York, NY 10038 -> Midtown East, New York, NY", description:"TechWeekID: TW-6642
 CalendarBlockID: TW-6642-TRAVEL-IN
 RerankID:
 PartifulID: WJe6XcxPXwbpCiCVLCas
-Walk 3 min to Fulton St (2/3); subway 22 min; walk 1 min from 28 St (N/Q/R/W); includes 5 min buffer.
+Walk 3 min to Fulton St (2/3); subway 35 min; walk 4 min from 5 Av/53 St (E/F); includes 5 min buffer.
 RSVP status: registered
 Category: travel
 Venue basis: 15 Cliff Street, New York, NY 10038 -> Midtown East, New York, NY ()
-Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7458%2C-73.9888&travelmode=transit
+Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7598219%2C-73.9724708&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/WJe6XcxPXwbpCiCVLCas"}
 	make new event at end of events of scheduleCal with properties {summary:"[PENDING] The Semiconductor & AI Supply Chain Lunch: Investors & Operators", start date:date "2026-06-04 12:30", end date:date "2026-06-04 14:00", location:"Midtown East, New York, NY", description:"TechWeekID: TW-6642
@@ -458,8 +458,8 @@ PartifulID: WJe6XcxPXwbpCiCVLCas
 Latest-feed add with no direct conflict; keep on the route if approved, otherwise use as a reference-only lunch option. Wait for host approval Existing Partiful guest record found; left unchanged. rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
 RSVP status: applied
 Category: latest-added-route
-Venue basis: 28th Street and Broadway, New York, NY (approx_from_calendar_location)
-Google Maps: https://www.google.com/maps/search/?api=1&query=28th+Street+and+Broadway%2C+New+York%2C+NY
+Venue basis: Midtown East, New York, NY (approx_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=Midtown+East%2C+New+York%2C+NY
 Rank/tier/score: added-12 / B / 51
 URL: https://partiful.com/e/WJe6XcxPXwbpCiCVLCas"}
 	make new event at end of events of scheduleCal with properties {summary:"Meal: Late lunch / reset", start date:date "2026-06-04 14:30", end date:date "2026-06-04 15:30", location:"15 Cliff Street, New York, NY 10038", description:"TechWeekID:
@@ -473,15 +473,15 @@ Venue basis: 15 Cliff Street, New York, NY 10038 (meal_buffer)
 Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
 Rank/tier/score:  /  /
 URL:"}
-	make new event at end of events of scheduleCal with properties {summary:"Travel: The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> Shipping Faster with AI Coding Agents: What's Working and What's Not", start date:date "2026-06-04 15:46", end date:date "2026-06-04 16:00", location:"The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003", description:"TechWeekID: TW-5372
+	make new event at end of events of scheduleCal with properties {summary:"Travel: The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> Shipping Faster with AI Coding Agents: What's Working and What's Not", start date:date "2026-06-04 15:10", end date:date "2026-06-04 16:00", location:"The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003", description:"TechWeekID: TW-5372
 CalendarBlockID: TW-5372-TRAVEL-IN
 RerankID:
 PartifulID: 5K5c4eODrGPKME7or20H
-Walk 1 min to 28 St (N/Q/R/W); subway 6 min; walk 2 min from 8 St-NYU (N/Q/R/W); includes 5 min buffer.
+Walk 4 min to 5 Av/53 St (E/F); subway 39 min; walk 2 min from 8 St-NYU (N/Q/R/W); includes 5 min buffer.
 RSVP status: registered
 Category: travel
 Venue basis: The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003 ()
-Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7458%2C-73.9888&destination=40.729391%2C-73.9921562&travelmode=transit
+Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7598219%2C-73.9724708&destination=40.729391%2C-73.9921562&travelmode=transit
 Rank/tier/score:  /  /
 URL: https://partiful.com/e/5K5c4eODrGPKME7or20H"}
 	make new event at end of events of scheduleCal with properties {summary:"[PENDING] Shipping Faster with AI Coding Agents: What's Working and What's Not", start date:date "2026-06-04 16:00", end date:date "2026-06-04 18:48", location:"Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003", description:"TechWeekID: TW-5372
@@ -631,8 +631,8 @@ PartifulID: MQvS9RrcXl6HcAEzfzhg
 Wait for host approval Submitted via Partiful API; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
 RSVP status: applied
 Category: latest-added
-Venue basis: Bryant Park, New York, NY (approx_from_calendar_location)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Bryant+Park%2C+New+York%2C+NY
+Venue basis: Boucherie, 145 W 53rd St, New York, NY (exact_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=Boucherie%2C+145+W+53rd+St%2C+New+York%2C+NY
 Rank/tier/score: added-10 / B / 52
 URL: https://partiful.com/e/MQvS9RrcXl6HcAEzfzhg"}
 	make new event at end of events of referenceCal with properties {summary:"[PENDING BACKUP] Slack x Amplitude: AI at work", start date:date "2026-06-01 17:00", end date:date "2026-06-01 18:30", location:"Fabrik, 16 Vestry St, New York, NY 10013", description:"TechWeekID: TW-5110
@@ -845,8 +845,8 @@ PartifulID: pIS8aostHgPm9GXmaN6X
 Wait for host approval Submitted via Partiful API; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
 RSVP status: applied
 Category: latest-added
-Venue basis: Spring St and Broadway, New York, NY (approx_from_calendar_location)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY
+Venue basis: Rockefeller Center, New York, NY (approx_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=Rockefeller+Center%2C+New+York%2C+NY
 Rank/tier/score: added-14 / B / 50
 URL: https://partiful.com/e/pIS8aostHgPm9GXmaN6X"}
 	make new event at end of events of referenceCal with properties {summary:"[REG CURATED] The CTO Mixer: Humanizing Tech | Happy Hour", start date:date "2026-06-03 17:30", end date:date "2026-06-03 19:30", location:"Midtown, 130 E 57th St, New York, NY", description:"TechWeekID: TW-4778
@@ -890,8 +890,8 @@ PartifulID: tPlMvExfd6gOdgKCW6O7
 Wait for host approval Submitted via Partiful API; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
 RSVP status: applied
 Category: latest-added
-Venue basis: 23rd Street and Broadway, New York, NY (approx_from_calendar_location)
-Google Maps: https://www.google.com/maps/search/?api=1&query=23rd+Street+and+Broadway%2C+New+York%2C+NY
+Venue basis: ilili, 236 5th Ave, New York, NY (exact_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=ilili%2C+236+5th+Ave%2C+New+York%2C+NY
 Rank/tier/score: added-5 / B / 55
 URL: https://partiful.com/e/tPlMvExfd6gOdgKCW6O7"}
 	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] Data Center, Power & Enterprise Infrastructure Dinner", start date:date "2026-06-03 18:00", end date:date "2026-06-03 19:30", location:"Central Park, Manhattan, New York, NY", description:"TechWeekID: TW-5720
@@ -901,8 +901,8 @@ PartifulID: Vkvjr5dBr2FmbI2yK5UB
 Wait for host approval Submitted via Partiful API; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
 RSVP status: applied
 Category: latest-added
-Venue basis: Central Park, Manhattan, NY (approx_from_calendar_location)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Central+Park%2C+Manhattan%2C+NY
+Venue basis: Central Park, Manhattan, New York, NY (approx_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=Central+Park%2C+Manhattan%2C+New+York%2C+NY
 Rank/tier/score: added-1 / A / 73
 URL: https://partiful.com/e/Vkvjr5dBr2FmbI2yK5UB"}
 	make new event at end of events of referenceCal with properties {summary:"[PENDING ADDED] SGLang Happy Hour: AI Infra in Finance", start date:date "2026-06-03 18:00", end date:date "2026-06-03 19:30", location:"1/2 Bond St, 1 Bond St, New York, NY", description:"TechWeekID: TW-6519
@@ -912,8 +912,8 @@ PartifulID: p74X9KDrgoLaDtU8BmvS
 Wait for host approval Submitted via Partiful API; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
 RSVP status: applied
 Category: latest-added
-Venue basis: Spring St and Broadway, New York, NY (approx_from_calendar_location)
-Google Maps: https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY
+Venue basis: 1/2 Bond St, 1 Bond St, New York, NY (exact_from_signup_status)
+Google Maps: https://www.google.com/maps/search/?api=1&query=1%2F2+Bond+St%2C+1+Bond+St%2C+New+York%2C+NY
 Rank/tier/score: added-2 / A / 67
 URL: https://partiful.com/e/p74X9KDrgoLaDtU8BmvS"}
 	make new event at end of events of referenceCal with properties {summary:"[PENDING CURATED] The Tech Leaders Suite", start date:date "2026-06-03 19:00", end date:date "2026-06-03 21:00", location:"Barclays Center, Brooklyn, NY", description:"TechWeekID: TW-4197

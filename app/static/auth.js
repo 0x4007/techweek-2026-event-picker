@@ -1,12 +1,15 @@
 const params = new URLSearchParams(globalThis.location.search);
 const AUTH_COMPLETE_MESSAGE = "techweek-auth-complete";
+const DEV_AUTH_COMPLETE_MESSAGE = "techweek-dev-auth-complete";
 const AUTH_HUB_ORIGIN = "https://deno-universal-auth.0x4007.deno.net";
 const AUTH_HUB_CLIENT_ID = "techweek-2026-event-picker";
 const AUTH_HUB_AUDIENCE = "techweek-2026-event-picker";
+const AUTH_HUB_SESSION_TTL_DAYS = 30;
 const AUTH_STATE_PREFIX = "techweek_auth_state:";
 const initialMode = params.get("mode") === "token" ? "token" : "login";
 const state = {
   mode: initialMode,
+  messageType: normalizeAuthCompleteMessage(params.get("message")),
   session: null,
   busy: false,
   agentToken: "",
@@ -131,6 +134,7 @@ function redirectToAuthHub() {
     JSON.stringify({
       embedOrigin,
       returnUrl: returnUrl ? returnUrl.toString() : "",
+      messageType: state.messageType,
     }),
   );
 
@@ -158,29 +162,67 @@ async function completeAuthHubCallback() {
         code: params.get("code") || "",
         origin: globalThis.location.origin,
         redirectUri: new URL("/auth.html", globalThis.location.origin).toString(),
+        ttlDays: AUTH_HUB_SESSION_TTL_DAYS,
       }),
     });
     state.session = result.session || null;
-    complete(saved.returnUrl, saved.embedOrigin);
+    complete(saved.returnUrl, saved.embedOrigin, saved.messageType);
   } catch (error) {
     showMessage(error.message || "Could not complete auth-hub sign in.", true);
   } finally {
-    if (authState) sessionStorage.removeItem(AUTH_STATE_PREFIX + authState);
+    if (authState) removeSavedState(authState);
     state.busy = false;
     render();
   }
 }
 
 function readSavedState(authState) {
-  if (!authState) return { returnUrl: null, embedOrigin: "" };
+  if (!authState) return defaultSavedState();
   try {
-    const raw = JSON.parse(sessionStorage.getItem(AUTH_STATE_PREFIX + authState) || "{}");
+    const raw = JSON.parse(readSavedStateItem(authState) || "{}");
     const embedOrigin = parseOrigin(raw.embedOrigin);
     const returnUrl = safeReturnUrl(raw.returnUrl, embedOrigin || globalThis.location.origin);
-    return { embedOrigin, returnUrl };
+    return {
+      embedOrigin,
+      returnUrl,
+      messageType: normalizeAuthCompleteMessage(raw.messageType),
+    };
   } catch {
-    return { returnUrl: null, embedOrigin: "" };
+    return defaultSavedState();
   }
+}
+
+function readSavedStateItem(authState) {
+  const key = AUTH_STATE_PREFIX + authState;
+  try {
+    const saved = sessionStorage.getItem(key);
+    if (saved) return saved;
+  } catch {
+    // Ignore storage read failures.
+  }
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function removeSavedState(authState) {
+  const key = AUTH_STATE_PREFIX + authState;
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+}
+
+function defaultSavedState() {
+  return { returnUrl: null, embedOrigin: "", messageType: AUTH_COMPLETE_MESSAGE };
 }
 
 async function tokenSignIn(form) {
@@ -192,10 +234,11 @@ async function tokenSignIn(form) {
       method: "POST",
       body: JSON.stringify({
         token: String(form.get("token") || "").trim(),
+        ttlDays: AUTH_HUB_SESSION_TTL_DAYS,
       }),
     });
     state.session = result.session || state.session;
-    complete(null, parseOrigin(params.get("embedOrigin")));
+    complete(null, parseOrigin(params.get("embedOrigin")), state.messageType);
   } catch (error) {
     showMessage(error.message || "Token sign in failed.", true);
   } finally {
@@ -228,9 +271,9 @@ async function createAgentToken(form) {
   }
 }
 
-function complete(returnUrl, embedOrigin) {
+function complete(returnUrl, embedOrigin, messageType = AUTH_COMPLETE_MESSAGE) {
   showMessage("Authenticated.");
-  const payload = { type: AUTH_COMPLETE_MESSAGE };
+  const payload = { type: normalizeAuthCompleteMessage(messageType) };
   if (returnUrl) payload.returnUrl = returnUrl.toString();
   if (globalThis.opener && embedOrigin) {
     globalThis.opener.postMessage(payload, embedOrigin);
@@ -256,6 +299,10 @@ function complete(returnUrl, embedOrigin) {
     return;
   }
   globalThis.location.assign(`${globalThis.location.origin}/`);
+}
+
+function normalizeAuthCompleteMessage(value) {
+  return value === DEV_AUTH_COMPLETE_MESSAGE ? DEV_AUTH_COMPLETE_MESSAGE : AUTH_COMPLETE_MESSAGE;
 }
 
 async function requestJSON(path, init = {}) {

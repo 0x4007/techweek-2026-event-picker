@@ -16,6 +16,7 @@
         --soft: rgba(247, 244, 237, 0.42);
         --accent: #f3d99b;
         --danger: #ffb4a8;
+        --success: #bfe7c5;
         --radius: 28px;
         --shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
         font-family: "SF Pro Display", "Avenir Next", "Helvetica Neue", sans-serif;
@@ -83,6 +84,18 @@
         gap: 14px;
       }
 
+      section {
+        display: grid;
+        gap: 16px;
+      }
+
+      section header h2 {
+        margin: 0;
+        font-size: clamp(24px, 4vw, 40px);
+        line-height: 1;
+        letter-spacing: -0.045em;
+      }
+
       label {
         display: grid;
         gap: 8px;
@@ -131,6 +144,16 @@
         transform: none;
       }
 
+      button[data-variant="secondary"] {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      button[data-variant="danger"] {
+        color: #27100c;
+        background: var(--danger);
+      }
+
       output {
         min-height: 24px;
         color: var(--muted);
@@ -143,6 +166,87 @@
 
       code {
         color: var(--accent);
+      }
+
+      [data-session-panel],
+      [data-admin-panel] {
+        padding: 20px;
+        border-radius: 22px;
+        background: rgba(0, 0, 0, 0.18);
+      }
+
+      [data-session-panel] strong {
+        color: var(--text);
+      }
+
+      [data-admin-search] {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+      }
+
+      [data-admin-search] label {
+        min-width: 0;
+      }
+
+      [data-admin-users] {
+        display: grid;
+        gap: 10px;
+      }
+
+      [data-admin-user] {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 12px;
+        align-items: center;
+        padding: 14px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      [data-admin-user] strong,
+      [data-admin-user] small {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      [data-admin-user] small {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      [data-admin-role] {
+        min-width: 84px;
+        border-radius: 999px;
+        padding: 8px 12px;
+        color: #10140f;
+        background: var(--success);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-align: center;
+        text-transform: uppercase;
+      }
+
+      [data-admin-role="user"] {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      [data-admin-note] {
+        font-size: 13px;
+      }
+
+      @media (max-width: 680px) {
+        [data-admin-search],
+        [data-admin-user] {
+          grid-template-columns: 1fr;
+        }
+
+        [data-admin-role] {
+          width: max-content;
+        }
       }
 
       [hidden] {
@@ -174,6 +278,30 @@
 
         <output id="status" role="status" aria-live="polite"></output>
         <p id="code-result" hidden></p>
+
+        <section data-session-panel hidden>
+          <p data-session-summary></p>
+        </section>
+
+        <section data-admin-panel hidden aria-label="Admin configuration">
+          <header>
+            <p>Admin configuration</p>
+            <h2>Users and roles</h2>
+            <p>Promote existing auth hub users to admin or remove admin access.</p>
+          </header>
+
+          <form data-admin-search>
+            <label>
+              Search users
+              <input data-admin-query autocomplete="off" placeholder="Handle, email, or name">
+            </label>
+            <button type="submit" data-variant="secondary">Search</button>
+          </form>
+
+          <div data-admin-users></div>
+          <p data-admin-empty hidden>No users found.</p>
+          <p data-admin-note>Changes affect new sessions and newly minted agent tokens. Existing tokens keep the role they were created with.</p>
+        </section>
       </article>
     </main>
     <script>

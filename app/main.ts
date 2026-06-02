@@ -52,15 +52,30 @@ async function warmStaticResponse(request: Request): Promise<Response | null> {
 
   const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
   if (pathname.startsWith("/api/")) return null;
-  const staticPathname = STATIC_FILES.has(pathname) ? pathname : "/index.html";
+  if (pathname === "/__pi-agent" || pathname.startsWith("/__pi-agent/")) return null;
+  const staticPathname = STATIC_FILES.has(pathname) || isVendorStaticAsset(pathname)
+    ? pathname
+    : "/index.html";
 
   const headers = new Headers();
   headers.set("content-type", contentType(staticPathname));
   headers.set("cache-control", cacheControl(staticPathname));
-  const body = method === "HEAD"
-    ? null
-    : await Deno.readFile(new URL(`.${staticPathname}`, STATIC_DIR));
-  return new Response(body, { headers });
+  const fileUrl = new URL(`.${staticPathname}`, STATIC_DIR);
+  try {
+    if (method === "HEAD") {
+      await Deno.stat(fileUrl);
+      return new Response(null, { headers });
+    }
+    const body = await Deno.readFile(fileUrl);
+    return new Response(body, { headers });
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound && staticPathname !== "/index.html") return null;
+    throw error;
+  }
+}
+
+function isVendorStaticAsset(pathname: string): boolean {
+  return pathname.startsWith("/vendor/") && pathname.endsWith(".js") && !pathname.includes("..");
 }
 
 function json(body: unknown): Response {
@@ -77,8 +92,8 @@ function contentType(pathname: string): string {
 }
 
 function cacheControl(pathname: string): string {
-  if (pathname === "/index.html" || pathname === "/auth.html") return "no-store";
-  return "public, max-age=60";
+  void pathname;
+  return "no-store";
 }
 
 function resolvePreferredPort(): number {

@@ -15,5 +15,9 @@
     "rules": {
       "tags": ["recommended"]
     }
+  },
+  "deploy": {
+    "org": "0x4007",
+    "app": "deno-universal-auth"
   }
 }

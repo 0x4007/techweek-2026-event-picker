@@ -24,7 +24,7 @@ END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
 UID:5529aae1-88c8-50dc-9e10-2627f8c4b84d@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260601T031300
 DTEND;TZID=America/New_York:20260601T111300
 SUMMARY:Sleep: 8 hours
@@ -40,7 +40,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:efa5407c-aa9e-578f-ae39-de0d437e5ebf@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260601T121500
 DTEND;TZID=America/New_York:20260601T131500
 SUMMARY:Meal: Lunch / reset
@@ -56,7 +56,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:846d43aa-615d-5ef0-82fc-37e60609c85c@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260601T132100
 DTEND;TZID=America/New_York:20260601T140000
 SUMMARY:Travel: 15 Cliff Street\, New York\, NY 10038 -> Beyond the Spec Ma
@@ -78,7 +78,7 @@ URL:https://partiful.com/e/FHiuNwzr13e3YBI4ssUX
 END:VEVENT
 BEGIN:VEVENT
 UID:fa32bd10-a69d-5513-93fa-96903b4c039d@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260601T140000
 DTEND;TZID=America/New_York:20260601T150000
 SUMMARY:[PENDING] Beyond the Spec Masterclass: Engineering in the Age of Ag
@@ -105,7 +105,7 @@ URL:https://partiful.com/e/FHiuNwzr13e3YBI4ssUX
 END:VEVENT
 BEGIN:VEVENT
 UID:1403a52e-3927-5832-b03c-7e2b6397cbe4@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260601T155000
 DTEND;TZID=America/New_York:20260601T160000
 SUMMARY:Travel: Beyond the Spec Masterclass: Engineering in the Age of Agen
@@ -126,7 +126,7 @@ URL:https://partiful.com/e/xowd9F3kB7mPFN1luUwY
 END:VEVENT
 BEGIN:VEVENT
 UID:d895f8c5-ecb2-5b38-aee0-7407a84bafa0@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260601T160000
 DTEND;TZID=America/New_York:20260601T170000
 SUMMARY:[PENDING] From Vibe Coding to AI-Driven Development
@@ -151,7 +151,7 @@ URL:https://partiful.com/e/xowd9F3kB7mPFN1luUwY
 END:VEVENT
 BEGIN:VEVENT
 UID:0d1b348b-6e7d-5e63-b2a2-d804be433902@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260601T172800
 DTEND;TZID=America/New_York:20260601T180000
 SUMMARY:Travel: From Vibe Coding to AI-Driven Development -> Open Source Mu
@@ -171,7 +171,7 @@ URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
 END:VEVENT
 BEGIN:VEVENT
 UID:eff88aaf-9ccf-5735-8f9b-77ec6b957c16@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260601T180000
 DTEND;TZID=America/New_York:20260601T210000
 SUMMARY:[REG] Open Source Must Win
@@ -198,7 +198,7 @@ URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
 END:VEVENT
 BEGIN:VEVENT
 UID:8a216e0e-79f4-5ed4-b1ad-21695adbd67d@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260601T210000
 DTEND;TZID=America/New_York:20260601T220000
 SUMMARY:Meal: Dinner after Open Source Must Win
@@ -213,7 +213,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:d34b410f-2059-59b7-8d8d-74a71ae6dfee@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260601T220000
 DTEND;TZID=America/New_York:20260601T223000
 SUMMARY:Travel: Open Source Must Win -> 15 Cliff Street\, New York\, NY 100
@@ -233,7 +233,7 @@ URL:https://partiful.com/e/OF1vP5L8dtXKRtInyWKs?c=s6u4EYds
 END:VEVENT
 BEGIN:VEVENT
 UID:61ae82be-b7ef-59ea-b72e-285cd028ce74@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260602T024300
 DTEND;TZID=America/New_York:20260602T104300
 SUMMARY:Sleep: 8 hours
@@ -249,7 +249,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:a49ef921-7fba-5110-a649-b888f10f9abc@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260602T111200
 DTEND;TZID=America/New_York:20260602T120000
 SUMMARY:Travel: 15 Cliff Street\, New York\, NY 10038 -> How to Write a Boo
@@ -271,7 +271,7 @@ URL:https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
 END:VEVENT
 BEGIN:VEVENT
 UID:03b6979e-69e1-581c-9666-f024735c3118@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260602T120000
 DTEND;TZID=America/New_York:20260602T134500
 SUMMARY:[REG] How to Write a Book on AI in Enterprise SDLC While Patterns K
@@ -298,7 +298,7 @@ URL:https://partiful.com/e/M7pXmV8sOXT11yHb9pKw
 END:VEVENT
 BEGIN:VEVENT
 UID:35d34daf-4ab9-5fb5-95f3-502cc4b4b828@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260602T134500
 DTEND;TZID=America/New_York:20260602T144500
 SUMMARY:Meal: Lunch / reset
@@ -313,7 +313,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:05a2e990-cb44-5114-8969-05158d9fbf7a@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260602T152900
 DTEND;TZID=America/New_York:20260602T160000
 SUMMARY:Travel: How to Write a Book on AI in Enterprise SDLC While Patterns
@@ -336,7 +336,7 @@ URL:https://partiful.com/e/bn5h1g13xzOV6R5XkLaE
 END:VEVENT
 BEGIN:VEVENT
 UID:12db12ba-c3ab-5ffd-8d03-c308733cced9@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260602T160000
 DTEND;TZID=America/New_York:20260602T173000
 SUMMARY:[PENDING] From Copilot to Control Plane - Visdom
@@ -364,7 +364,7 @@ URL:https://partiful.com/e/bn5h1g13xzOV6R5XkLaE
 END:VEVENT
 BEGIN:VEVENT
 UID:37d2cef5-64f8-5471-a7f4-7b9a8b26cc43@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260602T174400
 DTEND;TZID=America/New_York:20260602T180000
 SUMMARY:Travel: From Copilot to Control Plane - Visdom -> Future of DevEx
@@ -384,7 +384,7 @@ URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 END:VEVENT
 BEGIN:VEVENT
 UID:ddb32591-8b87-5e6f-b247-4c9057734bd1@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260602T180000
 DTEND;TZID=America/New_York:20260602T210000
 SUMMARY:[PENDING] Future of DevEx
@@ -409,7 +409,7 @@ URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 END:VEVENT
 BEGIN:VEVENT
 UID:77ab45c3-2236-566b-aef6-8e6a8eab23be@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260602T210000
 DTEND;TZID=America/New_York:20260602T220000
 SUMMARY:Meal: Dinner after Future of DevEx
@@ -424,7 +424,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:046c3636-03d2-5f11-af07-25b1c46bcf06@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260602T220000
 DTEND;TZID=America/New_York:20260602T221900
 SUMMARY:Travel: Future of DevEx -> 15 Cliff Street\, New York\, NY 10038
@@ -443,7 +443,7 @@ URL:https://partiful.com/e/7DYGSiY1WUuRSvEnD5gp?c=aQ_TnSt9
 END:VEVENT
 BEGIN:VEVENT
 UID:808600b0-3f03-5bca-b15c-8aa9fb29e9ce@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T024500
 DTEND;TZID=America/New_York:20260603T104500
 SUMMARY:Sleep: 8 hours
@@ -459,7 +459,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:b81098cf-27a6-544d-990c-b30d52651b55@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T104500
 DTEND;TZID=America/New_York:20260603T111500
 SUMMARY:Meal: Quick breakfast / lunch before dense Wednesday
@@ -475,7 +475,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:752da39d-d6a0-5315-8e41-4268a9fc2d9f@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T112200
 DTEND;TZID=America/New_York:20260603T120000
 SUMMARY:Travel: 15 Cliff Street\, New York\, NY 10038 -> Building secure AI
@@ -497,7 +497,7 @@ URL:https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
 END:VEVENT
 BEGIN:VEVENT
 UID:fa9922e0-1d50-5ba1-954b-455b076f0139@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T120000
 DTEND;TZID=America/New_York:20260603T131500
 SUMMARY:[PENDING] Building secure AI for your data: DeepFellow Demo + Q&A
@@ -523,7 +523,7 @@ URL:https://partiful.com/e/4HvzWY1VZlHgK21fMBUz?c=g5NbnbjN
 END:VEVENT
 BEGIN:VEVENT
 UID:966d56cd-917c-5a3c-845d-a1c80095733e@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T133800
 DTEND;TZID=America/New_York:20260603T140000
 SUMMARY:Travel: Building secure AI for your data: DeepFellow Demo + Q&A -> 
@@ -544,7 +544,7 @@ URL:https://partiful.com/e/1N6CtiCpYquktoTh5NUm
 END:VEVENT
 BEGIN:VEVENT
 UID:9b72522c-81e3-5ff6-b942-903f38cc44de@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T140000
 DTEND;TZID=America/New_York:20260603T150000
 SUMMARY:[REG] The Future of Coding Agents and IDE
@@ -570,7 +570,7 @@ URL:https://partiful.com/e/1N6CtiCpYquktoTh5NUm
 END:VEVENT
 BEGIN:VEVENT
 UID:6d6b39d5-90c4-5f4c-ba83-32859a704848@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T150000
 DTEND;TZID=America/New_York:20260603T153000
 SUMMARY:Meal: Quick food / reset
@@ -585,7 +585,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:3b504dc4-eb63-52c9-9648-a065a1ffce92@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T153000
 DTEND;TZID=America/New_York:20260603T160000
 SUMMARY:Travel: The Future of Coding Agents and IDE -> Fireside chat - When
@@ -606,7 +606,7 @@ URL:https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
 END:VEVENT
 BEGIN:VEVENT
 UID:ddc0c184-15cb-51af-8391-566a44d99597@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T160000
 DTEND;TZID=America/New_York:20260603T171500
 SUMMARY:[REG] Fireside chat - When coding agents are the user?
@@ -632,7 +632,7 @@ URL:https://partiful.com/e/E8NhJNHWGhMetLlrFvQ7
 END:VEVENT
 BEGIN:VEVENT
 UID:5a93a757-7a3a-551a-a210-cadd6be7f6a0@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T172900
 DTEND;TZID=America/New_York:20260603T180000
 SUMMARY:Travel: Fireside chat - When coding agents are the user? -> MCP in 
@@ -654,7 +654,7 @@ URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
 END:VEVENT
 BEGIN:VEVENT
 UID:675881a5-a86b-58af-9f4a-7422e1cc4277@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T180000
 DTEND;TZID=America/New_York:20260603T203000
 SUMMARY:[PENDING] MCP in the Wild: Panel & Night of Networking
@@ -680,7 +680,7 @@ URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
 END:VEVENT
 BEGIN:VEVENT
 UID:cea3f270-ece4-525d-8f5a-367a8926e749@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T203000
 DTEND;TZID=America/New_York:20260603T213000
 SUMMARY:Meal: Dinner after MCP in the Wild
@@ -695,7 +695,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:bfe26f7f-6307-51ce-b1b2-1c78dcce93c9@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260603T213000
 DTEND;TZID=America/New_York:20260603T220100
 SUMMARY:Travel: MCP in the Wild: Panel & Night of Networking -> 15 Cliff St
@@ -717,7 +717,7 @@ URL:https://partiful.com/events/6ZuudQBBZXcMNjdMynJ2
 END:VEVENT
 BEGIN:VEVENT
 UID:f8ca278a-b74c-55ae-821e-c3b8631c9f26@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260604T031500
 DTEND;TZID=America/New_York:20260604T111500
 SUMMARY:Sleep: 8 hours
@@ -733,8 +733,8 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:fd622549-393e-5d20-8422-0d775fe49023@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
-DTSTART;TZID=America/New_York:20260604T115900
+DTSTAMP:20260601T191410Z
+DTSTART;TZID=America/New_York:20260604T114300
 DTEND;TZID=America/New_York:20260604T123000
 SUMMARY:Travel: 15 Cliff Street\, New York\, NY 10038 -> The Semiconductor 
  & AI Supply Chain Lunch: Investors & Operators
@@ -742,19 +742,19 @@ LOCATION:15 Cliff Street\, New York\, NY 10038 -> Midtown East\, New York\,
   NY
 DESCRIPTION:TechWeekID: TW-6642\nCalendarBlockID: TW-6642-TRAVEL-IN\nRerank
  ID:\nPartifulID: WJe6XcxPXwbpCiCVLCas\nWalk 3 min to Fulton St (2/3)\; sub
- way 22 min\; walk 1 min from 28 St (N/Q/R/W)\; includes 5 min buffer.\nRSV
- P status: registered\nCategory: travel\nVenue basis: 15 Cliff Street\, New
-  York\, NY 10038 -> Midtown East\, New York\, NY ()\nGoogle Maps: https://
- www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination
- =40.7458%2C-73.9888&travelmode=transit\nRank/tier/score:  /  /\nURL: https
- ://partiful.com/e/WJe6XcxPXwbpCiCVLCas
+ way 35 min\; walk 4 min from 5 Av/53 St (E/F)\; includes 5 min buffer.\nRS
+ VP status: registered\nCategory: travel\nVenue basis: 15 Cliff Street\, Ne
+ w York\, NY 10038 -> Midtown East\, New York\, NY ()\nGoogle Maps: https:/
+ /www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destinatio
+ n=40.7598219%2C-73.9724708&travelmode=transit\nRank/tier/score:  /  /\nURL
+ : https://partiful.com/e/WJe6XcxPXwbpCiCVLCas
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/WJe6XcxPXwbpCiCVLCas
 END:VEVENT
 BEGIN:VEVENT
 UID:9791c2b2-e0af-57c8-a034-9fc7ddd42f87@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260604T123000
 DTEND;TZID=America/New_York:20260604T140000
 SUMMARY:[PENDING] The Semiconductor & AI Supply Chain Lunch: Investors & Op
@@ -765,18 +765,18 @@ DESCRIPTION:TechWeekID: TW-6642\nCalendarBlockID: TW-6642-SCHEDULE\nRerankI
  conflict\; keep on the route if approved\, otherwise use as a reference-on
  ly lunch option. Wait for host approval Existing Partiful guest record fou
  nd\; left unchanged. rsvpStatus=PENDING_APPROVAL\; count=1\; plusOne=none.
- \nRSVP status: applied\nCategory: latest-added-route\nVenue basis: 28th St
- reet and Broadway\, New York\, NY (approx_from_calendar_location)\nGoogle 
- Maps: https://www.google.com/maps/search/?api=1&query=28th+Street+and+Broa
- dway%2C+New+York%2C+NY\nRank/tier/score: added-12 / B / 51\nURL: https://p
- artiful.com/e/WJe6XcxPXwbpCiCVLCas
+ \nRSVP status: applied\nCategory: latest-added-route\nVenue basis: Midtown
+  East\, New York\, NY (approx_from_signup_status)\nGoogle Maps: https://ww
+ w.google.com/maps/search/?api=1&query=Midtown+East%2C+New+York%2C+NY\nRank
+ /tier/score: added-12 / B / 51\nURL: https://partiful.com/e/WJe6XcxPXwbpCi
+ CVLCas
 STATUS:TENTATIVE
 TRANSP:OPAQUE
 URL:https://partiful.com/e/WJe6XcxPXwbpCiCVLCas
 END:VEVENT
 BEGIN:VEVENT
 UID:9ffe7488-71c1-5096-8b23-a9d858c2f417@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260604T143000
 DTEND;TZID=America/New_York:20260604T153000
 SUMMARY:Meal: Late lunch / reset
@@ -792,8 +792,8 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:46388065-4db5-5dc7-a344-5ed26454666a@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
-DTSTART;TZID=America/New_York:20260604T154600
+DTSTAMP:20260601T191410Z
+DTSTART;TZID=America/New_York:20260604T151000
 DTEND;TZID=America/New_York:20260604T160000
 SUMMARY:Travel: The Semiconductor & AI Supply Chain Lunch: Investors & Oper
  ators -> Shipping Faster with AI Coding Agents: What's Working and What's 
@@ -801,21 +801,21 @@ SUMMARY:Travel: The Semiconductor & AI Supply Chain Lunch: Investors & Oper
 LOCATION:The Semiconductor & AI Supply Chain Lunch: Investors & Operators -
  > Materialize Offices\, 436 Lafayette St\, Floor 6\, New York\, NY 10003
 DESCRIPTION:TechWeekID: TW-5372\nCalendarBlockID: TW-5372-TRAVEL-IN\nRerank
- ID:\nPartifulID: 5K5c4eODrGPKME7or20H\nWalk 1 min to 28 St (N/Q/R/W)\; sub
- way 6 min\; walk 2 min from 8 St-NYU (N/Q/R/W)\; includes 5 min buffer.\nR
- SVP status: registered\nCategory: travel\nVenue basis: The Semiconductor &
-  AI Supply Chain Lunch: Investors & Operators -> Materialize Offices\, 436
-  Lafayette St\, Floor 6\, New York\, NY 10003 ()\nGoogle Maps: https://www
- .google.com/maps/dir/?api=1&origin=40.7458%2C-73.9888&destination=40.72939
- 1%2C-73.9921562&travelmode=transit\nRank/tier/score:  /  /\nURL: https://p
- artiful.com/e/5K5c4eODrGPKME7or20H
+ ID:\nPartifulID: 5K5c4eODrGPKME7or20H\nWalk 4 min to 5 Av/53 St (E/F)\; su
+ bway 39 min\; walk 2 min from 8 St-NYU (N/Q/R/W)\; includes 5 min buffer.\
+ nRSVP status: registered\nCategory: travel\nVenue basis: The Semiconductor
+  & AI Supply Chain Lunch: Investors & Operators -> Materialize Offices\, 4
+ 36 Lafayette St\, Floor 6\, New York\, NY 10003 ()\nGoogle Maps: https://w
+ ww.google.com/maps/dir/?api=1&origin=40.7598219%2C-73.9724708&destination=
+ 40.729391%2C-73.9921562&travelmode=transit\nRank/tier/score:  /  /\nURL: h
+ ttps://partiful.com/e/5K5c4eODrGPKME7or20H
 STATUS:CONFIRMED
 TRANSP:OPAQUE
 URL:https://partiful.com/e/5K5c4eODrGPKME7or20H
 END:VEVENT
 BEGIN:VEVENT
 UID:15f56d44-ee0e-5d50-97c9-c8adff07b4e3@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260604T160000
 DTEND;TZID=America/New_York:20260604T184800
 SUMMARY:[PENDING] Shipping Faster with AI Coding Agents: What's Working and
@@ -846,7 +846,7 @@ URL:https://partiful.com/e/5K5c4eODrGPKME7or20H
 END:VEVENT
 BEGIN:VEVENT
 UID:9e3c9ffb-534f-53ff-a05a-f9be8f6da7cd@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260604T184800
 DTEND;TZID=America/New_York:20260604T190000
 SUMMARY:Travel: Shipping Faster with AI Coding Agents: What's Working and W
@@ -867,7 +867,7 @@ URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
 END:VEVENT
 BEGIN:VEVENT
 UID:b2d7f748-f6f3-52b6-9c90-295fa1c9d774@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260604T190000
 DTEND;TZID=America/New_York:20260604T204500
 SUMMARY:[REG] Stop Making AI Guess: When Your Codebase Becomes the Spec
@@ -894,7 +894,7 @@ URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
 END:VEVENT
 BEGIN:VEVENT
 UID:67d5b9f1-ffa2-5a26-bc0c-73ecdc610229@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260604T204500
 DTEND;TZID=America/New_York:20260604T214500
 SUMMARY:Meal: Dinner after Stop Making AI Guess
@@ -909,7 +909,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:13da028c-c76e-5ef0-ad10-58fa20cd2852@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260604T214500
 DTEND;TZID=America/New_York:20260604T220400
 SUMMARY:Travel: Stop Making AI Guess: When Your Codebase Becomes the Spec -
@@ -931,7 +931,7 @@ URL:https://partiful.com/e/X0u5GrmzvIUTrjoAOgVm
 END:VEVENT
 BEGIN:VEVENT
 UID:8f04113f-9b45-56c3-af34-26c2d1de08ba@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260605T034500
 DTEND;TZID=America/New_York:20260605T114500
 SUMMARY:Sleep: 8 hours
@@ -947,7 +947,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:819d3128-6873-5bf8-ae42-fe7f40120315@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260605T151000
 DTEND;TZID=America/New_York:20260605T161000
 SUMMARY:Meal: Early dinner before Bare Metal
@@ -963,7 +963,7 @@ TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
 UID:e0e99f41-a181-517b-be10-3c63a0f3eb64@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260605T162100
 DTEND;TZID=America/New_York:20260605T170000
 SUMMARY:Travel: 15 Cliff Street\, New York\, NY 10038 -> Bare Metal Happy H
@@ -984,7 +984,7 @@ URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
 END:VEVENT
 BEGIN:VEVENT
 UID:b041ab5e-83d6-5a47-b34d-7a4f724462b7@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260605T170000
 DTEND;TZID=America/New_York:20260605T200000
 SUMMARY:[PENDING] Bare Metal Happy Hour: Autonomous Systems & Agent Fleet O
@@ -1011,7 +1011,7 @@ URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
 END:VEVENT
 BEGIN:VEVENT
 UID:529f0c1b-c1d5-59df-9f68-7a46f9f3f6a6@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260605T200000
 DTEND;TZID=America/New_York:20260605T202300
 SUMMARY:Travel: Bare Metal Happy Hour: Autonomous Systems & Agent Fleet Orc
@@ -1033,7 +1033,7 @@ URL:https://partiful.com/e/jkjGahQgmH9PLIxjfTFt
 END:VEVENT
 BEGIN:VEVENT
 UID:3b2904e3-5c20-5aae-b8b9-c69bc5b836d8@techweek-2026-event-picker
-DTSTAMP:20260529T002513Z
+DTSTAMP:20260601T191410Z
 DTSTART;TZID=America/New_York:20260606T041500
 DTEND;TZID=America/New_York:20260606T121500
 SUMMARY:Sleep: 8 hours

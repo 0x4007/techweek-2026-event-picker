@@ -202,20 +202,20 @@ All-RSVP calendar rows after scheduled-event dedupe: 31.
 - 03:15-11:15 | 15 Cliff Street, New York, NY 10038 | Sleep: 8 hours
   - Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
   - Staggered late sleep block; night-to-night bedtime shift stays within 30 minutes.
-- 11:59-12:30 | Travel | subway+walk | Travel: 15 Cliff Street, New York, NY 10038 -> The Semiconductor & AI Supply Chain Lunch: Investors & Operators
-  - 31 min: Walk 3 min to Fulton St (2/3); subway 22 min; walk 1 min from 28 St (N/Q/R/W); includes 5 min buffer.
-  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7458%2C-73.9888&travelmode=transit
+- 11:43-12:30 | Travel | subway+walk | Travel: 15 Cliff Street, New York, NY 10038 -> The Semiconductor & AI Supply Chain Lunch: Investors & Operators
+  - 47 min: Walk 3 min to Fulton St (2/3); subway 35 min; walk 4 min from 5 Av/53 St (E/F); includes 5 min buffer.
+  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7084297%2C-74.0056635&destination=40.7598219%2C-73.9724708&travelmode=transit
 - 12:30-14:00 | Midtown East, New York, NY | [[PENDING] The Semiconductor & AI Supply Chain Lunch: Investors & Operators](https://partiful.com/e/WJe6XcxPXwbpCiCVLCas)
   - Latest-feed add with no direct conflict; keep on the route if approved, otherwise use as a reference-only lunch option. Wait for host approval Existing Partiful guest record found; left unchanged. rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=28th+Street+and+Broadway%2C+New+York%2C+NY
-  - Venue basis: 28th Street and Broadway, New York, NY (approx_from_calendar_location)
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=Midtown+East%2C+New+York%2C+NY
+  - Venue basis: Midtown East, New York, NY (approx_from_signup_status)
   - Rank added-12, tier B, score 51; founders/operators; AI/agents; leaders/builders; near downtown; Thursday density, midday; open/rsvp
 - 14:30-15:30 | 15 Cliff Street, New York, NY 10038 | Meal: Late lunch / reset
   - Google Maps: https://www.google.com/maps/search/?api=1&query=15+Cliff+Street%2C+New+York%2C+NY+10038
   - One-hour meal buffer before leaving for the Thursday route.
-- 15:46-16:00 | Travel | subway+walk | Travel: The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> Shipping Faster with AI Coding Agents: What's Working and What's Not
-  - 14 min: Walk 1 min to 28 St (N/Q/R/W); subway 6 min; walk 2 min from 8 St-NYU (N/Q/R/W); includes 5 min buffer.
-  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7458%2C-73.9888&destination=40.729391%2C-73.9921562&travelmode=transit
+- 15:10-16:00 | Travel | subway+walk | Travel: The Semiconductor & AI Supply Chain Lunch: Investors & Operators -> Shipping Faster with AI Coding Agents: What's Working and What's Not
+  - 50 min: Walk 4 min to 5 Av/53 St (E/F); subway 39 min; walk 2 min from 8 St-NYU (N/Q/R/W); includes 5 min buffer.
+  - Google Maps: https://www.google.com/maps/dir/?api=1&origin=40.7598219%2C-73.9724708&destination=40.729391%2C-73.9921562&travelmode=transit
 - 16:00-18:48 | Materialize Offices, 436 Lafayette St, Floor 6, New York, NY 10003 | [[PENDING] Shipping Faster with AI Coding Agents: What's Working and What's Not](https://partiful.com/e/5K5c4eODrGPKME7or20H)
   - Scheduled event end: 19:00; route calendar plans an earlier departure.
   - Leave early if needed so you can make the registered 19:00 Stop Making AI Guess event. Wait for host approval Submitted via Partiful API; rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none. Route calendar shortens this from the event's scheduled 19:00 end; leave 12 min early for transit.
@@ -290,8 +290,8 @@ Use this as a toggleable reference calendar for alternatives, backups, and pendi
 
 - 14:30-16:00 | Boucherie, 145 W 53rd St, New York, NY | [[PENDING ADDED] The builder’s table: AI finance leaders lunch with Vayu, Base44 & PwC](https://partiful.com/e/MQvS9RrcXl6HcAEzfzhg)
   - Wait for host approval Submitted via Partiful API; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Bryant+Park%2C+New+York%2C+NY
-  - Venue basis: Bryant Park, New York, NY (approx_from_calendar_location)
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=Boucherie%2C+145+W+53rd+St%2C+New+York%2C+NY
+  - Venue basis: Boucherie, 145 W 53rd St, New York, NY (exact_from_signup_status)
   - Rank added-10, tier B, score 52; AI/agents; leaders/builders; midtown reachable; early-week push, afternoon; gold sponsor; open/rsvp
 - 17:00-18:30 | Fabrik, 16 Vestry St, New York, NY 10013 | [[PENDING BACKUP] Slack x Amplitude: AI at work](https://partiful.com/e/dmFBKIxzn2LdFmktqas8)
   - Wait for host approval Submitted via Partiful API; rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
@@ -426,8 +426,8 @@ Use this as a toggleable reference calendar for alternatives, backups, and pendi
   - Rank 8, tier S, score 97; buyer: engineering leaders; product: engineering productivity; topic: infra/platform, AI, enterprise; signal: builders/operators, founders
 - 17:00-18:30 | Rockefeller Center, New York, NY | [[PENDING ADDED] Voice AI Meetup: Build a Voice Agent in 1 hour](https://partiful.com/e/pIS8aostHgPm9GXmaN6X)
   - Wait for host approval Submitted via Partiful API; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY
-  - Venue basis: Spring St and Broadway, New York, NY (approx_from_calendar_location)
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=Rockefeller+Center%2C+New+York%2C+NY
+  - Venue basis: Rockefeller Center, New York, NY (approx_from_signup_status)
   - Rank added-14, tier B, score 50; AI/agents; downtown convenient; peak Wednesday, evening; open/rsvp
 - 17:30-19:30 | Midtown, 130 E 57th St, New York, NY | [[REG CURATED] The CTO Mixer: Humanizing Tech | Happy Hour](https://partiful.com/e/h1hGv0PkskcagJOv5M9K)
   - On the list; monitor for updates Partiful page shows ON THE LIST as of 2026-05-10. Previously submitted via Partiful API; rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
@@ -453,18 +453,18 @@ Use this as a toggleable reference calendar for alternatives, backups, and pendi
   - Rank 19, tier S, score 78; buyer: VP engineering audience, software builders; topic: AI; signal: high-signal format, builders/operators
 - 17:30-19:00 | ilili, 236 5th Ave, New York, NY | [[PENDING ADDED] Tessera Labs x a16z : The Closing Gap (Private Dinner)](https://partiful.com/e/tPlMvExfd6gOdgKCW6O7)
   - Wait for host approval Submitted via Partiful API; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=23rd+Street+and+Broadway%2C+New+York%2C+NY
-  - Venue basis: 23rd Street and Broadway, New York, NY (approx_from_calendar_location)
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=ilili%2C+236+5th+Ave%2C+New+York%2C+NY
+  - Venue basis: ilili, 236 5th Ave, New York, NY (exact_from_signup_status)
   - Rank added-5, tier B, score 55; curated/private; high-signal format; near downtown; peak Wednesday, evening; open/rsvp
 - 18:00-19:30 | Central Park, Manhattan, New York, NY | [[PENDING ADDED] Data Center, Power & Enterprise Infrastructure Dinner](https://partiful.com/e/Vkvjr5dBr2FmbI2yK5UB)
   - Wait for host approval Submitted via Partiful API; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Central+Park%2C+Manhattan%2C+NY
-  - Venue basis: Central Park, Manhattan, NY (approx_from_calendar_location)
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=Central+Park%2C+Manhattan%2C+New+York%2C+NY
+  - Venue basis: Central Park, Manhattan, New York, NY (approx_from_signup_status)
   - Rank added-1, tier A, score 73; infra/platform; AI/agents; enterprise/security; high-signal format; neutral location; peak Wednesday, evening; open/rsvp
 - 18:00-19:30 | 1/2 Bond St, 1 Bond St, New York, NY | [[PENDING ADDED] SGLang Happy Hour: AI Infra in Finance](https://partiful.com/e/p74X9KDrgoLaDtU8BmvS)
   - Wait for host approval Submitted via Partiful API; linkedPlusOneFailures=0. rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.
-  - Google Maps: https://www.google.com/maps/search/?api=1&query=Spring+St+and+Broadway%2C+New+York%2C+NY
-  - Venue basis: Spring St and Broadway, New York, NY (approx_from_calendar_location)
+  - Google Maps: https://www.google.com/maps/search/?api=1&query=1%2F2+Bond+St%2C+1+Bond+St%2C+New+York%2C+NY
+  - Venue basis: 1/2 Bond St, 1 Bond St, New York, NY (exact_from_signup_status)
   - Rank added-2, tier A, score 67; infra/platform; AI/agents; networking format; downtown convenient; peak Wednesday, evening; open/rsvp
 - 19:00-21:00 | Barclays Center, Brooklyn, NY | [[PENDING CURATED] The Tech Leaders Suite](https://partiful.com/e/UhyErPPxuo2vELIutdGj?)
   - Wait for host approval Submitted via Partiful API; rsvpStatus=PENDING_APPROVAL; count=1; plusOne=none.

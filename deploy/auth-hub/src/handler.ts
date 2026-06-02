@@ -50,8 +50,10 @@ import {
   kv,
   listAgentTokens,
   listHasUsers,
+  listUsers,
   saveChallenge,
   saveCredential,
+  setUserAdmin,
   touchAgentToken,
   type UserRecord
 } from "./store.ts";
@@ -89,6 +91,7 @@ type SsoBody = {
   origin?: unknown;
   redirectUri?: unknown;
   state?: unknown;
+  ttlDays?: unknown;
 };
 
 type SsoExchangeBody = SsoBody & {
@@ -107,11 +110,21 @@ type AgentTokenExchangeBody = {
   token?: unknown;
   clientId?: unknown;
   audience?: unknown;
+  ttlDays?: unknown;
+};
+
+type AdminUserUpdateBody = {
+  isAdmin?: unknown;
 };
 
 const staticFile = async (name: "index.html" | "auth.js") => {
   const fileUrl = new URL(`../public/${name}`, import.meta.url);
   return await Deno.readTextFile(fileUrl);
+};
+
+const authPage = async (bootstrap: Record<string, unknown>) => {
+  const html = await staticFile("index.html");
+  return htmlResponse(html.replace("%%AUTH_BOOTSTRAP%%", JSON.stringify(bootstrap)));
 };
 
 const responseUser = (user: UserRecord) => ({
@@ -152,6 +165,14 @@ const tokenResponse = async (
       agentTokenId: signed.claims.agentTokenId
     }
   });
+};
+
+const requestedAccessTokenTtlMs = (ttlDays: unknown, maxTtlMs = authConfig.accessTokenMaxTtlMs) => {
+  const days = Number(ttlDays);
+  const requested = Number.isFinite(days) && days > 0
+    ? days * 24 * 60 * 60 * 1000
+    : authConfig.accessTokenTtlMs;
+  return Math.max(1, Math.min(requested, maxTtlMs, authConfig.accessTokenMaxTtlMs));
 };
 
 const clientInput = (body: SsoBody, request: Request) => {
@@ -202,6 +223,13 @@ const requireHubUser = async (request: Request) => {
   const claims = await requireClaims(request);
   if (!claims || claims.aud !== "auth-hub") return null;
   return await getUser(kv, claims.sub);
+};
+
+const requireAdminHubUser = async (request: Request) => {
+  const user = await requireHubUser(request);
+  if (!user) return { response: errorResponse("unauthorized", 401) };
+  if (!user.isAdmin) return { response: errorResponse("forbidden", 403) };
+  return { user };
 };
 
 const optionalHubClaims = async (request: Request) => {
@@ -484,7 +512,8 @@ const handleSsoExchange = async (request: Request) => {
   return await tokenResponse(user, {
     audience: record.audience,
     clientId: record.clientId,
-    auth: "sso"
+    auth: "sso",
+    ttlMs: requestedAccessTokenTtlMs(body.ttlDays)
   });
 };
 
@@ -614,6 +643,51 @@ const handleAgentTokens = async (request: Request) => {
   return methodNotAllowed();
 };
 
+const handleAdminUsers = async (request: Request) => {
+  const auth = await requireAdminHubUser(request);
+  if ("response" in auth) return auth.response ?? errorResponse("unauthorized", 401);
+
+  const url = new URL(request.url);
+  if (url.pathname === "/api/auth/admin/users" && request.method === "GET") {
+    const query = normalizeHandle(url.searchParams.get("query"));
+    const users = await listUsers(kv, 250);
+    const filtered = query
+      ? users.filter((user) =>
+        user.handle.includes(query) ||
+        (user.email ?? "").toLowerCase().includes(query) ||
+        (user.displayName ?? "").toLowerCase().includes(query)
+      )
+      : users;
+    return jsonResponse({
+      currentUser: responseUser(auth.user),
+      items: filtered.map(responseUser)
+    });
+  }
+
+  const prefix = "/api/auth/admin/users/";
+  if (url.pathname.startsWith(prefix) && request.method === "PATCH") {
+    const handle = normalizeHandle(decodeURIComponent(url.pathname.slice(prefix.length)));
+    if (!handle) return errorResponse("handle_required", 400);
+    const body = await readJson<AdminUserUpdateBody>(request);
+    if (!body || typeof body.isAdmin !== "boolean") {
+      return errorResponse("is_admin_boolean_required", 400);
+    }
+
+    const userId = await getUserIdByHandle(kv, handle);
+    const target = userId ? await getUser(kv, userId) : null;
+    if (!target) return errorResponse("not_found", 404);
+    if (target.id === auth.user.id && body.isAdmin !== true) {
+      return errorResponse("cannot_demote_self", 400);
+    }
+
+    const updated = await setUserAdmin(kv, target.id, body.isAdmin);
+    if (!updated) return errorResponse("conflict", 409);
+    return jsonResponse({ user: responseUser(updated) });
+  }
+
+  return methodNotAllowed();
+};
+
 const handleAgentTokenExchange = async (request: Request) => {
   if (request.method !== "POST") return methodNotAllowed();
   const body = await readJson<AgentTokenExchangeBody>(request);
@@ -631,10 +705,12 @@ const handleAgentTokenExchange = async (request: Request) => {
   const user = await getUser(kv, record.userId);
   if (!user) return errorResponse("unauthorized", 401);
   await touchAgentToken(kv, record);
+  const remainingAgentTokenTtlMs = Math.max(1, Date.parse(record.expiresAt) - Date.now());
   return await tokenResponse(user, {
     audience: record.audience,
     clientId: record.clientId,
     auth: "agent-token",
+    ttlMs: requestedAccessTokenTtlMs(body.ttlDays, remainingAgentTokenTtlMs),
     agentTokenId: record.id
   });
 };
@@ -664,8 +740,7 @@ const redirectAuthorizeRequest = async (request: Request) => {
       return errorResponse("invalid_redirect_uri", 400);
     }
   }
-  const html = await staticFile("index.html");
-  return htmlResponse(html.replace("%%AUTH_BOOTSTRAP%%", JSON.stringify({
+  return await authPage({
     clientId,
     audience,
     origin: normalizedOrigin,
@@ -673,10 +748,10 @@ const redirectAuthorizeRequest = async (request: Request) => {
     state,
     issuer: authConfig.issuer,
     rpId: authConfig.rpId
-  })));
+  });
 };
 
-const route = async (request: Request) => {
+const route = async (request: Request): Promise<Response> => {
   const url = new URL(request.url);
   if (request.method === "OPTIONS") return optionsResponse(request);
 
@@ -690,9 +765,27 @@ const route = async (request: Request) => {
     });
   }
 
-  if (url.pathname === "/" || url.pathname === "/authorize") {
+  if (url.pathname === "/") {
+    if (request.method !== "GET") return methodNotAllowed();
+    return await authPage({
+      adminMode: true,
+      issuer: authConfig.issuer,
+      rpId: authConfig.rpId
+    });
+  }
+
+  if (url.pathname === "/authorize") {
     if (request.method !== "GET") return methodNotAllowed();
     return await redirectAuthorizeRequest(request);
+  }
+
+  if (url.pathname === "/admin") {
+    if (request.method !== "GET") return methodNotAllowed();
+    return await authPage({
+      adminMode: true,
+      issuer: authConfig.issuer,
+      rpId: authConfig.rpId
+    });
   }
 
   if (url.pathname === "/auth.js") {
@@ -718,6 +811,9 @@ const route = async (request: Request) => {
   }
   if (url.pathname === "/api/auth/agent-tokens/exchange") {
     return await handleAgentTokenExchange(request);
+  }
+  if (url.pathname.startsWith("/api/auth/admin/users")) {
+    return await handleAdminUsers(request);
   }
   if (url.pathname.startsWith("/api/auth/agent-tokens")) {
     return await handleAgentTokens(request);

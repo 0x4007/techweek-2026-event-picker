@@ -134,6 +134,139 @@ async function waitForAuthenticatedAccount(page: Page) {
   await page.locator('[data-account-button][data-auth-state="authenticated"]').waitFor();
 }
 
+Deno.test({
+  name: "next card place link uses destination label for travel blocks",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      setAccountSessionForTest({
+        authenticated: true,
+        auth: "passkey",
+        user: {
+          id: E2E_ACCOUNT_ID,
+          handle: "e2e-user",
+          isAdmin: false,
+          credentialCount: 1,
+        },
+        expiresAt: "2026-06-05T12:00:00.000Z",
+      });
+      await withDesktopPage(async (page) => {
+        await page.route(`${baseUrl}/api/schedule`, async (route) => {
+          const response = await fetch(`${baseUrl}/api/schedule`, {
+            headers: E2E_AUTH_HEADERS,
+          });
+          const body = await response.json() as JsonRecord;
+          body.next = {
+            calendar: "schedule",
+            calendarBlockId: "TW-4341-TRAVEL-IN",
+            blockType: "travel",
+            displayTitle:
+              "Travel: How to Write a Book on AI in Enterprise SDLC While Patterns Keep Changing -> From Copilot to Control Plane - Visdom",
+            weekday: "Tue",
+            timeRange: "15:29-16:00",
+            location:
+              "10 East Eighth Street, Ground Floor, New York, NY 10003 -> Chabad Loft's Kavanah Space in Greenwich Village, 10 E 8th St, New York, NY 10003",
+            venueQuery:
+              "10 East Eighth Street, Ground Floor, New York, NY 10003 -> Chabad Loft's Kavanah Space in Greenwich Village, 10 E 8th St, New York, NY 10003",
+            routeMode: "subway+walk",
+            routeDetails: "Subway then walk.",
+            googleMapsUrl:
+              "https://www.google.com/maps/dir/?api=1&origin=40.753751%2C-73.983543&destination=40.7317609%2C-73.9957287&travelmode=transit",
+          };
+          await route.fulfill({
+            status: response.status,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          });
+        });
+
+        await page.goto(baseUrl);
+        const placeLink = page.locator("[data-next-place] [data-place-link]");
+        await placeLink.waitFor();
+
+        const placeText = (await placeLink.textContent() || "").trim();
+        assert(
+          placeText === "Chabad Loft's Kavanah Space in Greenwich Village, 10 E 8th St",
+          `Expected only the destination place label, got ${JSON.stringify(placeText)}.`,
+        );
+        assert(
+          !placeText.includes("->") && !placeText.includes("10 East Eighth Street"),
+          `Expected no travel origin in next-card place text, got ${JSON.stringify(placeText)}.`,
+        );
+        const ariaLabel = await placeLink.getAttribute("aria-label") || "";
+        assert(
+          !ariaLabel.includes("->") && !ariaLabel.includes("10 East Eighth Street"),
+          `Expected no travel origin in place aria-label, got ${JSON.stringify(ariaLabel)}.`,
+        );
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "account sign-in opens the shared auth hub directly",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      setAccountSessionForTest({ authenticated: false, auth: "passkey" });
+      await withDesktopPage(async (page) => {
+        await page.addInitScript(() => {
+          const win = globalThis as unknown as {
+            __openedAccountAuthUrls: string[];
+            open: (url?: unknown, target?: unknown, features?: unknown) => unknown;
+          };
+          win.__openedAccountAuthUrls = [];
+          win.open = (url?: unknown) => {
+            win.__openedAccountAuthUrls.push(String(url || ""));
+            return { closed: false, focus() {} };
+          };
+        });
+
+        await page.goto(`${baseUrl}/#account`);
+        await page.locator("[data-account-action]").click();
+
+        const openedUrls = await page.evaluate(() => {
+          const win = globalThis as unknown as { __openedAccountAuthUrls?: string[] };
+          return win.__openedAccountAuthUrls || [];
+        });
+        assert(
+          openedUrls.length === 1,
+          `Expected one auth popup URL, got ${JSON.stringify(openedUrls)}`,
+        );
+        const authUrl = new URL(openedUrls[0]);
+        assert(
+          authUrl.origin === "https://deno-universal-auth.0x4007.deno.net" &&
+            authUrl.pathname === "/authorize",
+          `Expected direct auth hub authorize URL, got ${authUrl.toString()}`,
+        );
+        assert(
+          !openedUrls[0].startsWith(`${baseUrl}/auth.html`),
+          `Expected account sign-in to skip the local auth shim, got ${openedUrls[0]}`,
+        );
+        const authState = authUrl.searchParams.get("state") || "";
+        const savedState = await page.evaluate(
+          (key) => localStorage.getItem(key),
+          `techweek_auth_state:${authState}`,
+        );
+        assert(savedState, `Expected auth state in localStorage for ${authState}.`);
+        const parsedState = JSON.parse(savedState) as JsonRecord;
+        assert(
+          parsedState.embedOrigin === new URL(baseUrl).origin &&
+            String(parsedState.returnUrl || "").startsWith(`${baseUrl}/#account`) &&
+            parsedState.messageType === "techweek-auth-complete",
+          `Expected saved auth callback state, got ${savedState}`,
+        );
+        assert(
+          authUrl.searchParams.get("redirect_uri") === new URL("/auth.html", baseUrl).toString(),
+          `Expected local auth callback redirect_uri, got ${authUrl.toString()}`,
+        );
+      });
+    });
+  },
+});
+
 async function withEnv(
   values: Record<string, string | null>,
   test: () => Promise<void>,
@@ -457,6 +590,9 @@ async function routeDevAgentApi(
     const requestUrl = new URL(request.url());
     if (requestUrl.pathname.startsWith("/__pi-agent/")) {
       requestUrl.pathname = requestUrl.pathname.replace("/__pi-agent", "");
+    } else if (requestUrl.pathname === "/api/dev-agent/handoff") {
+      requestUrl.pathname = "/api/auth/handoff/consume";
+      body = { ...body, embedOrigin: origin };
     }
     const response = await handler({
       body,
@@ -477,6 +613,7 @@ async function routeDevAgentApi(
     });
   };
   await page.route("https://agent.pavlovcik.com/**", fulfill);
+  await page.route(`${origin}/api/dev-agent/handoff`, fulfill);
   await page.route(`${origin}/__pi-agent/**`, fulfill);
 }
 
@@ -2628,10 +2765,15 @@ Deno.test({
         await installDevAgentEventSourceMock(page, [
           {
             id: 4,
-            type: "agent.message",
+            type: "assistant.message",
             threadId: "thread-1",
             repoId: "0x4007/techweek-2026-event-picker",
-            text: "Streamed update from SSE",
+            data: {
+              content: [
+                { type: "text", text: "### Streamed update from SSE\n" },
+                { type: "text", text: "- Rendered as **markdown**" },
+              ],
+            },
             createdAt: "2026-05-14T13:04:00Z",
           },
         ]);
@@ -2691,7 +2833,13 @@ Deno.test({
                     id: 2,
                     type: "agent.message",
                     threadId: "thread-1",
-                    text: "I tightened the header layout.",
+                    text: [
+                      "### I tightened the header layout",
+                      "- Checked **spacing**",
+                      "- Used `deno task check`",
+                      "[Diff](https://example.com/diff)",
+                      "[Unsafe](javascript:alert(1))",
+                    ].join("\n"),
                     createdAt: "2026-05-14T13:01:00Z",
                   },
                   {
@@ -2754,9 +2902,63 @@ Deno.test({
           hasText: "Fix the mobile header",
         }).waitFor();
         await drawer.locator('[data-message="assistant"]').filter({
-          hasText: "I tightened the header layout.",
+          hasText: "I tightened the header layout",
         }).waitFor();
+        await drawer.locator('[data-message="assistant"] h3', {
+          hasText: "I tightened the header layout",
+        }).waitFor();
+        const renderedMarkdown = await drawer.locator('[data-message="assistant"]').filter({
+          hasText: "I tightened the header layout",
+        }).first().evaluate((message) => {
+          type LinkNode = {
+            textContent?: string | null;
+            getAttribute(name: string): string | null;
+          };
+          const content = message.querySelector("[data-message-content]");
+          const links = Array.from(content?.querySelectorAll("a") || []).map((link) =>
+            link as LinkNode
+          );
+          return {
+            heading: content?.querySelector("h3")?.textContent || "",
+            listItems: content?.querySelectorAll("li").length || 0,
+            hasStrong: Boolean(content?.querySelector("strong")),
+            hasCode: Boolean(content?.querySelector("code")),
+            safeTarget: links[0]?.getAttribute("target") || "",
+            safeRel: links[0]?.getAttribute("rel") || "",
+            unsafeHref: links.find((link) => link.textContent?.includes("Unsafe"))
+              ?.getAttribute("href") || "",
+            text: content?.textContent || "",
+          };
+        });
+        assert(
+          renderedMarkdown.heading === "I tightened the header layout" &&
+            renderedMarkdown.listItems === 2 &&
+            renderedMarkdown.hasStrong &&
+            renderedMarkdown.hasCode,
+          `Expected development agent markdown to render as DOM, got ${
+            JSON.stringify(renderedMarkdown)
+          }`,
+        );
+        assert(
+          renderedMarkdown.safeTarget === "_blank" && renderedMarkdown.safeRel === "noreferrer",
+          `Expected safe development agent links, got ${JSON.stringify(renderedMarkdown)}`,
+        );
+        assert(
+          !renderedMarkdown.unsafeHref.startsWith("javascript:"),
+          `Expected unsafe development agent links to be sanitized, got ${
+            JSON.stringify(renderedMarkdown)
+          }`,
+        );
+        assert(
+          !renderedMarkdown.text.includes("###") && !renderedMarkdown.text.includes("**"),
+          `Expected development agent markdown markers not to render as plain text, got ${
+            JSON.stringify(renderedMarkdown)
+          }`,
+        );
         await drawer.locator('[data-message="assistant"]').filter({
+          hasText: "Streamed update from SSE",
+        }).waitFor();
+        await drawer.locator('[data-message="assistant"] h3', {
           hasText: "Streamed update from SSE",
         }).waitFor();
         assert(
@@ -2911,6 +3113,145 @@ Deno.test({
 });
 
 Deno.test({
+  name: "development chat consumes Pi auth handoff messages without another sign-in prompt",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withDesktopPage(async (page) => {
+        await installDevAgentEventSourceMock(page, []);
+        const handoffBodies: JsonRecord[] = [];
+        let authenticated = false;
+        await routeDevAgentApi(page, baseUrl, ({ body, method, url }) => {
+          if (method === "GET" && url.pathname === "/api/session") {
+            return {
+              body: authenticated
+                ? { authenticated: true, user: { displayName: "Dev" } }
+                : { authenticated: false, auth: "passkey" },
+            };
+          }
+          if (method === "POST" && url.pathname === "/api/auth/handoff/consume") {
+            handoffBodies.push(body);
+            if (
+              body.handoffToken === "handoff-123" &&
+              body.embedOrigin === new URL(baseUrl).origin
+            ) {
+              authenticated = true;
+              return { body: { authenticated: true } };
+            }
+            return { status: 401, body: { error: { message: "Unauthorized" } } };
+          }
+          if (method === "GET" && url.pathname === "/api/threads") {
+            return authenticated
+              ? { body: [] }
+              : { status: 401, body: { error: { message: "Unauthorized" } } };
+          }
+          return { status: 404, body: { error: { message: "not found" } } };
+        });
+
+        await page.goto(baseUrl);
+        await page.locator("[data-dev-chat-open]").click();
+        const drawer = page.locator("[data-dev-agent-drawer]");
+        await drawer.getByText("Connect Pi agent.").waitFor();
+        await drawer.getByText("Open Pi agent").waitFor();
+
+        await page.evaluate(() => {
+          globalThis.dispatchEvent(
+            new MessageEvent("message", {
+              origin: "https://agent.pavlovcik.com",
+              data: {
+                type: "pi-codex-auth-complete",
+                handoffToken: "handoff-123",
+              },
+            }),
+          );
+        });
+
+        await drawer.getByText("No threads yet.").waitFor();
+        assert(
+          handoffBodies.length === 1,
+          `Expected one handoff exchange, got ${JSON.stringify(handoffBodies)}`,
+        );
+        assert(
+          !(await drawer.getByText("Sign in required.").isVisible()),
+          "Expected successful handoff to avoid the old sign-in-required state.",
+        );
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "development chat falls back to the signed-in Pi origin after local handoff attach misses",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withApp(async (baseUrl) => {
+      await withDesktopPage(async (page) => {
+        await installDevAgentEventSourceMock(page, []);
+        const appOrigin = new URL(baseUrl).origin;
+        let handoffConsumed = false;
+        await routeDevAgentApi(page, baseUrl, ({ body, method, url }) => {
+          const directPiOrigin = url.origin === "https://agent.pavlovcik.com";
+          if (method === "GET" && url.pathname === "/api/session") {
+            return {
+              body: directPiOrigin && handoffConsumed
+                ? { authenticated: true, user: { displayName: "Dev" } }
+                : { authenticated: false, auth: "passkey" },
+            };
+          }
+          if (method === "POST" && url.pathname === "/api/auth/handoff/consume") {
+            if (
+              url.origin === appOrigin &&
+              body.handoffToken === "handoff-direct" &&
+              body.embedOrigin === appOrigin
+            ) {
+              handoffConsumed = true;
+              return { body: { authenticated: true } };
+            }
+            return { status: 401, body: { error: { message: "Unauthorized" } } };
+          }
+          if (method === "GET" && url.pathname === "/api/threads") {
+            return directPiOrigin && handoffConsumed
+              ? { body: [] }
+              : { status: 401, body: { error: { message: "Unauthorized" } } };
+          }
+          return { status: 404, body: { error: { message: "not found" } } };
+        });
+
+        await page.goto(baseUrl);
+        await page.locator("[data-dev-chat-open]").click();
+        const drawer = page.locator("[data-dev-agent-drawer]");
+        await drawer.getByText("Connect Pi agent.").waitFor();
+
+        await page.evaluate(() => {
+          globalThis.dispatchEvent(
+            new MessageEvent("message", {
+              origin: "https://agent.pavlovcik.com",
+              data: {
+                type: "pi-codex-auth-complete",
+                handoffToken: "handoff-direct",
+              },
+            }),
+          );
+        });
+
+        await drawer.getByText("No threads yet.").waitFor();
+        assert(
+          await page.evaluate(() => localStorage.getItem("techweek-dev-agent-api-mode")) ===
+            "direct",
+          "Expected successful direct Pi fallback to be remembered.",
+        );
+        assert(
+          !(await drawer.getByText("Sign in required.").isVisible()),
+          "Expected direct fallback to avoid returning to the old sign-in-required state.",
+        );
+      });
+    });
+  },
+});
+
+Deno.test({
   name: "development chat returns to sign-in when the Pi session expires",
   sanitizeOps: false,
   sanitizeResources: false,
@@ -2934,8 +3275,9 @@ Deno.test({
         await page.goto(baseUrl);
         await page.locator("[data-dev-chat-open]").click();
         const drawer = page.locator("[data-dev-agent-drawer]");
-        await drawer.getByText("Sign in required.").waitFor();
-        await drawer.getByText("Your Pi agent session expired. Sign in again.").waitFor();
+        await drawer.getByText("Connect Pi agent.").waitFor();
+        await drawer.getByText("Your Pi agent session expired. Reconnect to continue.").waitFor();
+        await drawer.getByText("Open Pi agent").waitFor();
         assert(
           !(await drawer.getByText("Pi agent unavailable.").isVisible()),
           "Expected expired sessions to show auth, not unavailable.",

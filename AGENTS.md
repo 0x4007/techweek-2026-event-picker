@@ -140,6 +140,12 @@ agent-browser --session techweek-verify eval '
 The UI check should report `Signed in as <handle>` and show the same next agenda block returned by
 `/api/schedule`.
 
+## Deno Deploy
+
+Before preview or production deploys, read `docs/handoffs/DENO_DEPLOY_FINDINGS.md`. It captures the
+working credential source, deploy-root staging command, preview deploy command, production flag
+difference, and auth-hub allowlist caveat for preview URLs.
+
 ## UI Contrast Guardrails
 
 White-on-white or otherwise unreadable controls are release-blocking defects. For every HTML/CSS or

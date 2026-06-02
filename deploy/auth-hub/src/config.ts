@@ -13,6 +13,7 @@ export type AuthHubConfig = {
   challengeTtlMs: number;
   hubTokenTtlMs: number;
   accessTokenTtlMs: number;
+  accessTokenMaxTtlMs: number;
   authCodeTtlMs: number;
   agentTokenDefaultTtlMs: number;
   agentTokenMaxTtlMs: number;
@@ -30,6 +31,7 @@ export const authConfig: AuthHubConfig = {
   challengeTtlMs: minutes(5),
   hubTokenTtlMs: hours(12),
   accessTokenTtlMs: minutes(15),
+  accessTokenMaxTtlMs: days(30),
   authCodeTtlMs: minutes(2),
   agentTokenDefaultTtlMs: days(7),
   agentTokenMaxTtlMs: days(30),

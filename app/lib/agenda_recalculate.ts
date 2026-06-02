@@ -296,6 +296,7 @@ export type AgendaSummary = {
   fixedBlocks: number;
   droppedEvents: number;
   conflictEvents: number;
+  committedConflictEvents: number;
   routeEstimateCount: number;
   fallbackRouteEstimateCount: number;
   byStatus: Record<string, number>;
@@ -867,8 +868,14 @@ function enforceCandidateLimit(
   if (candidates.length <= maxCandidates) {
     return { kept: candidates.sort(compareEventsByTime), dropped: [] };
   }
-  const ranked = [...candidates].sort(compareEventPriority);
-  const kept = ranked.slice(0, maxCandidates).sort(compareEventsByTime);
+  const committed = candidates.filter(isCommittedCandidate);
+  const committedIds = new Set(committed.map((candidate) => candidate.id));
+  const remainingSlots = Math.max(0, maxCandidates - committed.length);
+  const rankedAlternatives = candidates
+    .filter((candidate) => !committedIds.has(candidate.id))
+    .sort(compareEventPriority);
+  const kept = [...committed, ...rankedAlternatives.slice(0, remainingSlots)]
+    .sort(compareEventsByTime);
   const keptIds = new Set(kept.map((candidate) => candidate.id));
   const dropped = candidates
     .filter((candidate) => !keptIds.has(candidate.id))
@@ -876,10 +883,14 @@ function enforceCandidateLimit(
       dropEvent(
         candidate,
         "candidate_limit",
-        `Per-day candidate cap kept the top ${maxCandidates} deterministic scores.`,
+        `Per-day candidate cap kept committed RSVP events plus the top ${maxCandidates} deterministic alternatives.`,
       )
     );
   return { kept, dropped };
+}
+
+function isCommittedCandidate(candidate: NormalizedEvent): boolean {
+  return candidate.normalizedStatus === "registered" || candidate.normalizedStatus === "accepted";
 }
 
 async function planDay(
@@ -2385,8 +2396,8 @@ function scoreBreakdownForEvent(input: {
   const { entry, normalizedStatus, identifiers, currentSchedule, options, preferences } = input;
   const breakdown: AgendaScoreBreakdown = {};
   const statusScore: Record<AgendaNormalizedStatus, number> = {
-    registered: 1_000,
-    accepted: 980,
+    registered: 1_000_000,
+    accepted: 980_000,
     applied: 650,
     waitlisted: 220,
     unknown: 300,
@@ -2497,7 +2508,9 @@ function classifyUnselectedCandidate(
     return dropEvent(
       candidate,
       "conflict",
-      "A selected event with a higher deterministic route score occupies the same time window.",
+      isCommittedCandidate(candidate)
+        ? "Committed RSVP conflicts with another selected event in the same time window."
+        : "A selected event with a higher deterministic route score occupies the same time window.",
       overlaps.map(stableBlockEventId).filter((id) => id && id !== candidate.id),
       overlaps.map((block) => block.calendarBlockId),
     );
@@ -2511,7 +2524,9 @@ function classifyUnselectedCandidate(
     return dropEvent(
       candidate,
       "travel_conflict",
-      "Event was not part of the highest-scoring travel-feasible sequence for the day.",
+      isCommittedCandidate(candidate)
+        ? "Committed RSVP could not fit between selected agenda events with the available travel time."
+        : "Event was not part of the highest-scoring travel-feasible sequence for the day.",
       [stableBlockEventId(before), stableBlockEventId(after)].filter(Boolean),
       [before.calendarBlockId, after.calendarBlockId],
     );
@@ -2621,6 +2636,9 @@ function buildSummary(input: {
     drop.reason === "conflict" || drop.reason === "travel_conflict" ||
     drop.reason === "fixed_block_conflict"
   );
+  const committedConflictEvents = conflictEvents.filter((drop) =>
+    drop.event.normalizedStatus === "registered" || drop.event.normalizedStatus === "accepted"
+  );
   return {
     inputBlocks: input.inputBlocks,
     inputEvents: input.inputEvents,
@@ -2634,6 +2652,7 @@ function buildSummary(input: {
     fixedBlocks: fixedBlocks.length,
     droppedEvents: input.droppedEvents.length,
     conflictEvents: conflictEvents.length,
+    committedConflictEvents: committedConflictEvents.length,
     routeEstimateCount: input.routeEstimateCount,
     fallbackRouteEstimateCount: input.fallbackRouteEstimateCount,
     byStatus,

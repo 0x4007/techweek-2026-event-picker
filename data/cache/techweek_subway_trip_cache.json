@@ -2147,5 +2147,490 @@
         "timeBufferMinutes": 5
       }
     }
+  },
+  "229->F12": {
+    "estimatedMinutes": 35,
+    "numTransfers": 1,
+    "totalStops": 15,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "2 Fulton St to 50 St",
+      "E 50 St to 5 Av/53 St"
+    ],
+    "raw": {
+      "segments": [
+        {
+          "fromStationId": "229",
+          "fromStationName": "Fulton St",
+          "toStationId": "A25",
+          "toStationName": "50 St",
+          "line": "2",
+          "direction": "N",
+          "directionLabel": "Bronx-bound to Wakefield",
+          "headsign": "Wakefield-241 St",
+          "numStops": 14
+        },
+        {
+          "fromStationId": "A25",
+          "fromStationName": "50 St",
+          "toStationId": "F12",
+          "toStationName": "5 Av/53 St",
+          "line": "E",
+          "direction": "S",
+          "directionLabel": "to World Trade Center",
+          "headsign": "World Trade Center",
+          "numStops": 1
+        }
+      ],
+      "totalStops": 15,
+      "numTransfers": 1,
+      "estimatedMinutes": 35,
+      "alerts": [
+        {
+          "id": "lmm:planned_work:31471",
+          "headerText": "Madison Av entrance to 5 Av/53 St [E][F] Station is closed at all times\nUse 5 Av entrance",
+          "descriptionText": "Note: 5 Av/53 St [E][F] Station is exit only during weekday AM rush hours, 6:30 AM to 10:30 AM. Use nearby Lexington Av/53 St [E][F] during these times.\n\nWhat's happening? \nEscalator replacement",
+          "affectedLines": [
+            "E",
+            "F"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-25T14:30:00.000Z",
+              "end": "2026-05-26T10:30:00.000Z"
+            },
+            {
+              "start": "2026-05-26T14:30:00.000Z",
+              "end": "2026-05-27T10:30:00.000Z"
+            },
+            {
+              "start": "2026-05-27T14:30:00.000Z",
+              "end": "2026-05-28T10:30:00.000Z"
+            },
+            {
+              "start": "2026-05-28T14:30:00.000Z",
+              "end": "2026-05-29T10:30:00.000Z"
+            },
+            {
+              "start": "2026-05-29T14:30:00.000Z",
+              "end": "2026-06-01T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-01T14:30:00.000Z",
+              "end": "2026-06-02T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-02T14:30:00.000Z",
+              "end": "2026-06-03T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-03T14:30:00.000Z",
+              "end": "2026-06-04T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-04T14:30:00.000Z",
+              "end": "2026-06-05T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-05T14:30:00.000Z",
+              "end": "2026-06-08T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-08T14:30:00.000Z",
+              "end": "2026-06-09T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-09T14:30:00.000Z",
+              "end": "2026-06-10T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-10T14:30:00.000Z",
+              "end": "2026-06-11T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-11T14:30:00.000Z",
+              "end": "2026-06-12T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-12T14:30:00.000Z",
+              "end": "2026-06-15T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-15T14:30:00.000Z",
+              "end": "2026-06-16T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-16T14:30:00.000Z",
+              "end": "2026-06-17T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-17T14:30:00.000Z",
+              "end": "2026-06-18T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-18T14:30:00.000Z",
+              "end": "2026-06-19T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-19T14:30:00.000Z",
+              "end": "2026-06-22T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-22T14:30:00.000Z",
+              "end": "2026-06-23T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-23T14:30:00.000Z",
+              "end": "2026-06-24T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-24T14:30:00.000Z",
+              "end": "2026-06-25T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-25T14:30:00.000Z",
+              "end": "2026-06-26T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-26T14:30:00.000Z",
+              "end": "2026-06-29T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-29T14:30:00.000Z",
+              "end": "2026-06-30T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-30T14:30:00.000Z",
+              "end": "2026-07-01T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-01T14:30:00.000Z",
+              "end": "2026-07-02T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-02T14:30:00.000Z",
+              "end": "2026-07-03T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-03T14:30:00.000Z",
+              "end": "2026-07-06T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-06T14:30:00.000Z",
+              "end": "2026-07-07T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-07T14:30:00.000Z",
+              "end": "2026-07-08T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-08T14:30:00.000Z",
+              "end": "2026-07-09T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-09T14:30:00.000Z",
+              "end": "2026-07-10T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-10T14:30:00.000Z",
+              "end": "2026-07-13T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-13T14:30:00.000Z",
+              "end": "2026-07-14T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-14T14:30:00.000Z",
+              "end": "2026-07-15T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-15T14:30:00.000Z",
+              "end": "2026-07-16T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-16T14:30:00.000Z",
+              "end": "2026-07-17T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-17T14:30:00.000Z",
+              "end": "2026-07-18T03:59:59.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        },
+        {
+          "id": "lmm:planned_work:31150",
+          "headerText": "Temporary platforms are in place at Botanical Garden, Williams Bridge, and Woodlawn for northbound travel. Build in extra travel time to reach the platform.",
+          "descriptionText": "What's Happening?\n\nWe are renovating some Harlem Line stations in the Bronx. Learn more about the project here.",
+          "affectedLines": [
+            "2"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-04-16T04:00:00.000Z",
+              "end": "2026-12-01T04:45:00.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        }
+      ],
+      "disruptionAnalysis": {
+        "riskLevel": "low",
+        "riskLabel": "Minor delays possible",
+        "affectedSegments": [
+          {
+            "segmentIndex": 0,
+            "line": "2",
+            "alertId": "lmm:planned_work:31150",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "Temporary platforms are in place at Botanical Garden, Williams Bridge, and Woodlawn for northbound travel. Build in extra travel time to reach the platform."
+          },
+          {
+            "segmentIndex": 1,
+            "line": "E",
+            "alertId": "lmm:planned_work:31471",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "Madison Av entrance to 5 Av/53 St [E][F] Station is closed at all times\nUse 5 Av entrance"
+          }
+        ],
+        "timeBufferMinutes": 5
+      }
+    }
+  },
+  "F12->R21": {
+    "estimatedMinutes": 39,
+    "numTransfers": 1,
+    "totalStops": 17,
+    "riskLabel": "Minor delays possible",
+    "segments": [
+      "E 5 Av/53 St to Woodhaven Blvd",
+      "R Woodhaven Blvd to 8 St-NYU"
+    ],
+    "raw": {
+      "segments": [
+        {
+          "fromStationId": "F12",
+          "fromStationName": "5 Av/53 St",
+          "toStationId": "G11",
+          "toStationName": "Woodhaven Blvd",
+          "line": "E",
+          "direction": "S",
+          "directionLabel": "to World Trade Center",
+          "headsign": "World Trade Center",
+          "numStops": 16
+        },
+        {
+          "fromStationId": "G11",
+          "fromStationName": "Woodhaven Blvd",
+          "toStationId": "R21",
+          "toStationName": "8 St-NYU",
+          "line": "R",
+          "direction": "S",
+          "directionLabel": "Brooklyn-bound to Bay Ridge",
+          "headsign": "Bay Ridge-95 St",
+          "numStops": 1
+        }
+      ],
+      "totalStops": 17,
+      "numTransfers": 1,
+      "estimatedMinutes": 39,
+      "alerts": [
+        {
+          "id": "lmm:planned_work:31471",
+          "headerText": "Madison Av entrance to 5 Av/53 St [E][F] Station is closed at all times\nUse 5 Av entrance",
+          "descriptionText": "Note: 5 Av/53 St [E][F] Station is exit only during weekday AM rush hours, 6:30 AM to 10:30 AM. Use nearby Lexington Av/53 St [E][F] during these times.\n\nWhat's happening? \nEscalator replacement",
+          "affectedLines": [
+            "E",
+            "F"
+          ],
+          "activePeriods": [
+            {
+              "start": "2026-05-25T14:30:00.000Z",
+              "end": "2026-05-26T10:30:00.000Z"
+            },
+            {
+              "start": "2026-05-26T14:30:00.000Z",
+              "end": "2026-05-27T10:30:00.000Z"
+            },
+            {
+              "start": "2026-05-27T14:30:00.000Z",
+              "end": "2026-05-28T10:30:00.000Z"
+            },
+            {
+              "start": "2026-05-28T14:30:00.000Z",
+              "end": "2026-05-29T10:30:00.000Z"
+            },
+            {
+              "start": "2026-05-29T14:30:00.000Z",
+              "end": "2026-06-01T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-01T14:30:00.000Z",
+              "end": "2026-06-02T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-02T14:30:00.000Z",
+              "end": "2026-06-03T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-03T14:30:00.000Z",
+              "end": "2026-06-04T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-04T14:30:00.000Z",
+              "end": "2026-06-05T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-05T14:30:00.000Z",
+              "end": "2026-06-08T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-08T14:30:00.000Z",
+              "end": "2026-06-09T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-09T14:30:00.000Z",
+              "end": "2026-06-10T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-10T14:30:00.000Z",
+              "end": "2026-06-11T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-11T14:30:00.000Z",
+              "end": "2026-06-12T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-12T14:30:00.000Z",
+              "end": "2026-06-15T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-15T14:30:00.000Z",
+              "end": "2026-06-16T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-16T14:30:00.000Z",
+              "end": "2026-06-17T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-17T14:30:00.000Z",
+              "end": "2026-06-18T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-18T14:30:00.000Z",
+              "end": "2026-06-19T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-19T14:30:00.000Z",
+              "end": "2026-06-22T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-22T14:30:00.000Z",
+              "end": "2026-06-23T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-23T14:30:00.000Z",
+              "end": "2026-06-24T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-24T14:30:00.000Z",
+              "end": "2026-06-25T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-25T14:30:00.000Z",
+              "end": "2026-06-26T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-26T14:30:00.000Z",
+              "end": "2026-06-29T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-29T14:30:00.000Z",
+              "end": "2026-06-30T10:30:00.000Z"
+            },
+            {
+              "start": "2026-06-30T14:30:00.000Z",
+              "end": "2026-07-01T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-01T14:30:00.000Z",
+              "end": "2026-07-02T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-02T14:30:00.000Z",
+              "end": "2026-07-03T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-03T14:30:00.000Z",
+              "end": "2026-07-06T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-06T14:30:00.000Z",
+              "end": "2026-07-07T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-07T14:30:00.000Z",
+              "end": "2026-07-08T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-08T14:30:00.000Z",
+              "end": "2026-07-09T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-09T14:30:00.000Z",
+              "end": "2026-07-10T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-10T14:30:00.000Z",
+              "end": "2026-07-13T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-13T14:30:00.000Z",
+              "end": "2026-07-14T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-14T14:30:00.000Z",
+              "end": "2026-07-15T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-15T14:30:00.000Z",
+              "end": "2026-07-16T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-16T14:30:00.000Z",
+              "end": "2026-07-17T10:30:00.000Z"
+            },
+            {
+              "start": "2026-07-17T14:30:00.000Z",
+              "end": "2026-07-18T03:59:59.000Z"
+            }
+          ],
+          "cause": "Unknown",
+          "effect": "Unknown Effect",
+          "severity": "info"
+        }
+      ],
+      "disruptionAnalysis": {
+        "riskLevel": "low",
+        "riskLabel": "Minor delays possible",
+        "affectedSegments": [
+          {
+            "segmentIndex": 0,
+            "line": "E",
+            "alertId": "lmm:planned_work:31471",
+            "effect": "Unknown Effect",
+            "severity": "info",
+            "headerText": "Madison Av entrance to 5 Av/53 St [E][F] Station is closed at all times\nUse 5 Av entrance"
+          }
+        ],
+        "timeBufferMinutes": 5
+      }
+    }
   }
 }
