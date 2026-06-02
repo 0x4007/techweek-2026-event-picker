@@ -131,7 +131,18 @@ async function addAdminSessionCookie(page: Page, baseUrl: string) {
 }
 
 async function waitForAuthenticatedAccount(page: Page) {
-  await page.locator('[data-account-button][data-auth-state="authenticated"]').waitFor();
+  await page.waitForFunction(() => {
+    const win = globalThis as unknown as {
+      document: {
+        body: { dataset: { authenticated?: string } };
+        querySelector(selector: string): { textContent?: string | null } | null;
+      };
+    };
+    const accountStatus = win.document.querySelector("[data-account-status]")?.textContent ||
+      "";
+    return win.document.body.dataset.authenticated === "true" ||
+      accountStatus.includes("Signed in as");
+  });
 }
 
 Deno.test({
@@ -675,11 +686,17 @@ async function leadEventOptionTexts(page: Page): Promise<string[]> {
 async function openCrm(page: Page, baseUrl: string) {
   await addAdminSessionCookie(page, baseUrl);
   await page.goto(baseUrl);
+  await waitForAuthenticatedAccount(page);
   await page.getByRole("button", { name: "CRM" }).click();
   await page.waitForFunction(
     `document.querySelector("[data-follow-up-email-status]")
       ?.getAttribute("data-follow-up-email-status")`,
   );
+  const fieldsToggle = page.locator("[data-lead-fields-toggle]");
+  if (await fieldsToggle.getAttribute("aria-expanded") !== "true") {
+    await fieldsToggle.click();
+  }
+  await page.locator("[data-lead-fields-panel]").waitFor({ state: "visible" });
 }
 
 async function withMockResend(
@@ -853,8 +870,7 @@ Deno.test({
           const fixedNow = new Date("2026-06-01T16:30:00-04:00").getTime();
           Date.now = () => fixedNow;
         });
-        await page.goto(baseUrl);
-        await page.getByRole("button", { name: "CRM" }).click();
+        await openCrm(page, baseUrl);
 
         const selected = await selectedLeadEventText(page);
         assert(
@@ -877,8 +893,7 @@ Deno.test({
           const fixedNow = new Date("2026-06-01T15:30:00-04:00").getTime();
           Date.now = () => fixedNow;
         });
-        await page.goto(baseUrl);
-        await page.getByRole("button", { name: "CRM" }).click();
+        await openCrm(page, baseUrl);
 
         const selected = await selectedLeadEventText(page);
         assert(
@@ -906,12 +921,7 @@ Deno.test({
       await withApp(async (baseUrl) => {
         await withIphonePage(async (page) => {
           await addAdminSessionCookie(page, baseUrl);
-          await page.goto(baseUrl);
-          await page.getByRole("button", { name: "CRM" }).click();
-          await page.waitForFunction(
-            `document.querySelector("[data-follow-up-email-status]")
-              ?.getAttribute("data-follow-up-email-status")`,
-          );
+          await openCrm(page, baseUrl);
 
           const checkbox = page.locator("[name=sendFollowUpEmail]");
           assert(await checkbox.isEnabled(), "Expected configured follow-up checkbox enabled.");
@@ -967,12 +977,7 @@ Deno.test({
       await withApp(async (baseUrl) => {
         await withIphonePage(async (page) => {
           await addAdminSessionCookie(page, baseUrl);
-          await page.goto(baseUrl);
-          await page.getByRole("button", { name: "CRM" }).click();
-          await page.waitForFunction(
-            `document.querySelector("[data-follow-up-email-status]")
-              ?.getAttribute("data-follow-up-email-status")`,
-          );
+          await openCrm(page, baseUrl);
 
           const checkbox = page.locator("[name=sendFollowUpEmail]");
           assert(await checkbox.isDisabled(), "Expected unconfigured follow-up checkbox disabled.");
@@ -1396,7 +1401,8 @@ Deno.test({
       await withIphonePage(async (page) => {
         await page.emulateMedia({ colorScheme: "dark" });
         await page.goto(baseUrl);
-        await page.getByRole("button", { name: "Invites" }).click();
+        await waitForAuthenticatedAccount(page);
+        await page.getByRole("button", { name: "Account" }).click();
         await page.waitForFunction(() => {
           const win = globalThis as unknown as {
             document: {
@@ -1494,8 +1500,11 @@ Deno.test({
           await withApp(async (baseUrl) => {
             try {
               await withIphonePage(async (page) => {
-                await page.goto(baseUrl);
-                await page.getByRole("button", { name: "CRM" }).click();
+                await page.addInitScript(() => {
+                  const fixedNow = new Date("2026-06-01T14:30:00-04:00").getTime();
+                  Date.now = () => fixedNow;
+                });
+                await openCrm(page, baseUrl);
                 await assertNoHorizontalOverflow(page);
 
                 const input = page.locator("[data-card-input]");
@@ -1691,7 +1700,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "iPhone CRM scans the fixture card photo through the UI with local OCR fallback",
+  name: "iPhone CRM scans the fixture card photo through the UI with browser crop retry",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
@@ -1721,8 +1730,7 @@ Deno.test({
           await withApp(async (baseUrl) => {
             try {
               await withIphonePage(async (page) => {
-                await page.goto(baseUrl);
-                await page.getByRole("button", { name: "CRM" }).click();
+                await openCrm(page, baseUrl);
                 await page.locator("[data-card-input]").setInputFiles(cardPath);
                 await page.waitForFunction(
                   (expected) => {
@@ -1810,8 +1818,9 @@ Deno.test({
             "Expected the first fixture OCR request to include crop diagnostics.",
           );
           assert(
-            jsonLogs(logs, "ocr_local_orientation_success").length === 1,
-            "Expected local OCR orientation selection.",
+            imageMetadata.ocrSource === "canvas_auto_edge_crop" &&
+              imageMetadata.preferredRotationDegrees === 270,
+            "Expected browser-side crop metadata to carry orientation selection.",
           );
           assert(
             jsonLogs(logs, "ocr_upstream").length === 2,
@@ -1861,8 +1870,7 @@ Deno.test({
             await withApp(async (baseUrl) => {
               try {
                 await withIphonePage(async (page) => {
-                  await page.goto(baseUrl);
-                  await page.getByRole("button", { name: "CRM" }).click();
+                  await openCrm(page, baseUrl);
                   await page.locator("[data-card-input]").setInputFiles(cardPath);
                   await page.waitForFunction(
                     (expected) => {
@@ -1983,8 +1991,7 @@ Deno.test({
             await withApp(async (baseUrl) => {
               try {
                 await withIphonePage(async (page) => {
-                  await page.goto(baseUrl);
-                  await page.getByRole("button", { name: "CRM" }).click();
+                  await openCrm(page, baseUrl);
                   await page.locator("[data-card-input]").setInputFiles(cardPath);
                   await waitForCardScanResult(page);
 
@@ -2061,8 +2068,7 @@ Deno.test({
             await withApp(async (baseUrl) => {
               try {
                 await withIphonePage(async (page) => {
-                  await page.goto(baseUrl);
-                  await page.getByRole("button", { name: "CRM" }).click();
+                  await openCrm(page, baseUrl);
                   await page.locator("[data-card-input]").setInputFiles(cardPath);
                   await waitForCardScanResult(page);
 
@@ -2125,8 +2131,7 @@ Deno.test({
     await collectConsoleLogs(async (logs) => {
       await withApp(async (baseUrl) => {
         await withIphonePage(async (page) => {
-          await page.goto(baseUrl);
-          await page.getByRole("button", { name: "CRM" }).click();
+          await openCrm(page, baseUrl);
           await page.locator("[data-card-input]").setInputFiles(cardPath);
           await page.waitForFunction(
             () => {
